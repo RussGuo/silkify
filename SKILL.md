@@ -18,7 +18,7 @@ Files in this skill:
 | `src/silk.js` | The renderer. `silkify(canvas, options)` returns a handle. Its peer dependency is `three` (tested with 0.152.2). |
 | `src/shape.js` | Silhouette → dome geometry, using only plain arrays and a 2D canvas. `silk.js` imports it, so always copy both files. |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Renders a gallery page in headless Chrome, saves rest and ripple screenshots, and fails on any console error. |
+| `scripts/shoot.mjs` | Renders a gallery page in headless Chrome, saves a rest JPEG and a frame-stepped ripple GIF per object (ffmpeg), and fails on any console error. |
 | `examples/index.html` | A working gallery: seven objects, each with the options that make it look right. Start from the closest one. |
 
 ## Step 1: Get the silhouette right
@@ -195,5 +195,5 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 ## Verify before you hand it over
 
 1. Serve the page (`npx serve .`) and move the pointer across every object. Each should stay matte until touched and ripple only where touched.
-2. For a gallery like `examples/`, run `node scripts/shoot.mjs`. It saves real headless-Chrome screenshots (rest and ripple) to `docs/shots/` and exits non-zero on any console error or any object that did not mount with WebGL. Look at the screenshots.
+2. For a gallery like `examples/`, run `node scripts/shoot.mjs`. It saves real headless-Chrome renders (a rest JPEG and a ripple GIF per object, which needs ffmpeg) to `docs/shots/` and exits non-zero on any console error or any object that did not mount with WebGL. Look at the screenshots.
 3. Test a narrow viewport (375 px) and `prefers-reduced-motion`.

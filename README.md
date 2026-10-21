@@ -1,4 +1,8 @@
+English | [简体中文](README.zh-CN.md)
+
 # silkify
+
+**[Open the live gallery →](https://russguo.github.io/silkify/examples/)**
 
 **Silkify anything.** silkify turns any image into a touchable silk surface on the web. At rest the object is matte and photographic. Where your pointer touches it, the surface dents, ripples and catches the light like satin.
 
@@ -6,20 +10,20 @@ silkify is a small WebGL library (one ES module on top of [three.js](https://thr
 
 ## Gallery
 
-Every frame below is a real headless-Chrome render of [`examples/index.html`](examples/index.html), taken by [`scripts/shoot.mjs`](scripts/shoot.mjs). Each pair shows the object untouched (left) and a moment after a pointer stroke and a short press (right).
+Every frame below is a real headless-Chrome render of [`examples/index.html`](examples/index.html), recorded by [`scripts/shoot.mjs`](scripts/shoot.mjs). The left column shows the object untouched. The right column is a 2.8-second loop: a pointer stroke, a short press, then the ripples dying away. Try it yourself in the [live gallery](https://russguo.github.io/silkify/examples/).
 
-| | at rest | touched |
+| | at rest | touched (2.8 s loop) |
 |---|---|---|
-| **A drop of ink**: the FateTell mark, tinted ink with grain | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="ink drop at rest"> | <img src="docs/shots/ink-drop-ripple.jpg" width="300" alt="ink drop rippling"> |
-| **The Moon**: NASA LRO maps on a sphere, waxing gibbous | <img src="docs/shots/moon-rest.jpg" width="300" alt="moon at rest"> | <img src="docs/shots/moon-ripple.jpg" width="300" alt="moon rippling"> |
-| **Pomegranate**: USDA watercolour, 1920 | <img src="docs/shots/pomegranate-rest.jpg" width="300" alt="pomegranate at rest"> | <img src="docs/shots/pomegranate-ripple.jpg" width="300" alt="pomegranate rippling"> |
-| **Young Hare**: Albrecht Dürer, 1502 | <img src="docs/shots/hare-rest.jpg" width="300" alt="hare at rest"> | <img src="docs/shots/hare-ripple.jpg" width="300" alt="hare rippling"> |
-| **Teapot**: tôle and wicker, England, c. 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="teapot at rest"> | <img src="docs/shots/teapot-ripple.jpg" width="300" alt="teapot rippling"> |
-| **Mona Lisa**: as a silk cushion | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="Mona Lisa at rest"> | <img src="docs/shots/mona-lisa-ripple.jpg" width="300" alt="Mona Lisa rippling"> |
-| **Portrait of a Man**: Rosalba Carriera, c. 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="miniature portrait at rest"> | <img src="docs/shots/carriera-ripple.jpg" width="300" alt="miniature portrait rippling"> |
-| **Enamel parrot**: gold and enamel, 18th century | <img src="docs/shots/parrot-rest.jpg" width="300" alt="parrot at rest"> | <img src="docs/shots/parrot-ripple.jpg" width="300" alt="parrot rippling"> |
+| **A drop of ink**: the FateTell mark, tinted ink with grain | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="ink drop at rest"> | <img src="docs/shots/ink-drop-ripple.gif" width="300" alt="ink drop rippling"> |
+| **The Moon**: NASA LRO maps on a sphere, waxing gibbous | <img src="docs/shots/moon-rest.jpg" width="300" alt="moon at rest"> | <img src="docs/shots/moon-ripple.gif" width="300" alt="moon rippling"> |
+| **Pomegranate**: USDA watercolour, 1920 | <img src="docs/shots/pomegranate-rest.jpg" width="300" alt="pomegranate at rest"> | <img src="docs/shots/pomegranate-ripple.gif" width="300" alt="pomegranate rippling"> |
+| **Young Hare**: Albrecht Dürer, 1502 | <img src="docs/shots/hare-rest.jpg" width="300" alt="hare at rest"> | <img src="docs/shots/hare-ripple.gif" width="300" alt="hare rippling"> |
+| **Teapot**: tôle and wicker, England, c. 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="teapot at rest"> | <img src="docs/shots/teapot-ripple.gif" width="300" alt="teapot rippling"> |
+| **Mona Lisa**: as a silk cushion | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="Mona Lisa at rest"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="Mona Lisa rippling"> |
+| **Portrait of a Man**: Rosalba Carriera, c. 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="miniature portrait at rest"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="miniature portrait rippling"> |
+| **Enamel parrot**: gold and enamel, 18th century | <img src="docs/shots/parrot-rest.jpg" width="300" alt="parrot at rest"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="parrot rippling"> |
 
-The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The headless renders use SwiftShader, a software GPU running at a low frame rate, so the ripples on a real GPU are finer and travel further.
+The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The recordings use SwiftShader, a software GPU, and are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
 To run the gallery yourself, serve the repository root and open `/examples/`:
 
@@ -95,7 +99,7 @@ SKILL.md            the Agent Skill: when to use it, cut-out → dome → render
 src/silk.js         the renderer (peer dependency: three ≥ 0.152.2)
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
-scripts/shoot.mjs   headless Chrome screenshots + console check, no dependencies
+scripts/shoot.mjs   headless Chrome: rest JPEGs, frame-stepped ripple GIFs (ffmpeg), console check
 examples/           the gallery (static; works on GitHub Pages) and image credits
 ```
 
@@ -107,8 +111,3 @@ The silk material and the wave-and-light pipeline began as the "silk moon" on th
 
 The code is under the [MIT](LICENSE) license, © 2026 Guo Hao. The example images keep their own terms: public domain or CC0, except the FateTell mark (see [CREDITS](examples/CREDITS.md)).
 
----
-
-### 中文
-
-**万物皆可丝绸化。** silkify 把任意一张图片变成网页上可以触碰的丝绸物体：静止时是哑光的实物照片，指针碰到的地方被压出凹坑，涟漪荡开，泛起缎面的光泽。实现分五步：从透明底取轮廓，解泊松方程把轮廓吹成穹面（月亮直接用球），在穹面上跑 ping-pong 波动模拟，用月面光度模型（Lommel–Seeliger）保持哑光，最后只在有涟漪能量的地方浮现缎面与高光。仓库同时是一个 Claude Skill：把它克隆到 `~/.claude/skills/silkify`，对 Claude 说「把这张图丝绸化」，Claude 就会按 [SKILL.md](SKILL.md) 抠图、调参数并把它嵌进你的页面（原生 ES module 或 React）。示例图片均为公有领域或 CC0，FateTell 墨滴标除外，来源见 [CREDITS](examples/CREDITS.md)。

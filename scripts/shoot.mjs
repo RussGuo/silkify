@@ -2,17 +2,19 @@
 /**
  * shoot.mjs — render the gallery in headless Chrome and take real screenshots.
  *
- *   node scripts/shoot.mjs                 # all cards → docs/shots/<id>-rest.jpg and <id>-ripple.jpg
+ *   node scripts/shoot.mjs                 # all cards → docs/shots/<id>-rest.jpg and <id>-ripple.gif
  *   node scripts/shoot.mjs --only moon     # one card
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
- * For every card: one frame at rest, then a pointer stroke across the object and a frame mid-ripple.
+ * For every card: one JPEG at rest, then a GIF of a pointer stroke, a short press and the ripples decaying.
+ * The GIFs are frame-stepped (3 simulation steps per GIF frame at 20 fps), so they play at real 60 fps
+ * timing however slow the software GPU is. Needs ffmpeg on PATH for the GIFs.
  * Exits non-zero on any console error, uncaught exception, or a card that did not mount with WebGL.
  * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
  */
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -99,17 +101,19 @@ on('Log.entryAdded', (p) => { if (p.entry.level === 'error') problems.push(`log:
 await send('Runtime.enable');
 await send('Log.enable');
 await send('Page.enable');
-await send('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: 2, mobile: false });
-const loaded = new Promise((r) => on('Page.loadEventFired', r));
-await send('Page.navigate', { url: `${base}/examples/` });
-await loaded;
-const modes = await evaluate('window.__silkReady');
-console.log('mounted:', modes.map((m) => `${m.id}=${m.mode}`).join(' '));
-for (const m of modes) if (m.mode !== 'webgl') problems.push(`card ${m.id} mounted as ${m.mode}`);
-
 const mouse = (type, x, y, extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, button: 'none', ...extra });
+const frames = (n) => evaluate(`new Promise((r) => { let k = ${n}; const f = () => (--k ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); })`);
 await mkdir(OUT, { recursive: true });
 
+async function load(dpr) {
+  await send('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: dpr, mobile: false });
+  const loaded = new Promise((r) => on('Page.loadEventFired', r));
+  await send('Page.navigate', { url: `${base}/examples/` });
+  await loaded;
+  const modes = await evaluate('window.__silkReady');
+  for (const m of modes) if (m.mode !== 'webgl') problems.push(`card ${m.id} mounted as ${m.mode}`);
+  return modes;
+}
 async function rectOf(id) {
   return evaluate(`(() => {
     const fig = document.querySelector('figure[data-id="${id}"]');
@@ -118,46 +122,65 @@ async function rectOf(id) {
     return { x: s.left, y: s.top, w: s.width, h: s.height, sx: scrollX, sy: scrollY };
   })()`);
 }
-async function shot(id, suffix, r) {
-  const { data } = await send('Page.captureScreenshot', { format: 'jpeg', quality: 86, clip: { x: r.x + r.sx, y: r.y + r.sy, width: r.w, height: r.h, scale: 0.8 } });
-  const file = path.join(OUT, `${id}-${suffix}.jpg`);
-  await writeFile(file, Buffer.from(data, 'base64'));
-  return file;
-}
-const frames = (n) => evaluate(`new Promise((r) => { let k = ${n}; const f = () => (--k ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); })`);
+const clipOf = (r, scale) => ({ x: r.x + r.sx, y: r.y + r.sy, width: r.w, height: r.h, scale });
 
+// ---- rest: every object untouched, pointer parked in a corner (DPR 2, JPEG) ----
+const modes = await load(2);
+console.log('mounted:', modes.map((m) => `${m.id}=${m.mode}`).join(' '));
 const ids = modes.map((m) => m.id).filter((id) => !only || id === only);
-
-// pass 1: everything at rest (pointer parked in a corner, never touched)
 await mouse('mouseMoved', 2, 2);
 for (const id of ids) {
   const r = await rectOf(id);
   await sleep(400);
   await frames(6);
-  console.log('rest  ', path.relative(ROOT, await shot(id, 'rest', r)));
+  const { data } = await send('Page.captureScreenshot', { format: 'jpeg', quality: 86, clip: clipOf(r, 0.8) });
+  await writeFile(path.join(OUT, `${id}-rest.jpg`), Buffer.from(data, 'base64'));
+  console.log('rest  ', `docs/shots/${id}-rest.jpg`);
 }
 
-// pass 2: a stroke across each object, a short press, then capture mid-ripple
-const stroke = await evaluate('JSON.stringify(Object.fromEntries((window.__silk||[]).map((h,i)=>[h.canvas.closest("figure").dataset.id, h.canvas.dataset.stroke || ""])))').then(JSON.parse);
+// ---- ripple: a GIF per object. The simulation advances one step per animation frame, so instead of
+//      recording wall-clock time (SwiftShader is far below 60 fps) we step it: per GIF frame, move the
+//      pointer, let exactly STEPS frames run, capture. 3 steps per frame at 20 fps = real 60 fps timing ----
+const FPS = 20, STEPS = 3, TOTAL = 56;            // 2.8 s
+const GIF_BUDGET = 1.5 * 1024 * 1024;
+const STROKE = [4, 26], PRESS = [24, 30];         // frame ranges: stroke across, then a short press at its end
 for (const id of ids) {
+  await load(1);
+  const strokeSpec = await evaluate(`(() => {
+    // record one object alone: the others would only slow the software GPU down
+    for (const h of window.__silk) if (h.canvas.closest('figure').dataset.id !== '${id}') { h.dispose(); h.canvas.closest('figure').remove(); }
+    return document.querySelector('figure[data-id="${id}"] canvas').dataset.stroke || '';
+  })()`);
+  const [fx0, fy0, fx1, fy1] = (strokeSpec || '0.28,0.40,0.70,0.58').split(',').map(Number);
+  await mouse('mouseMoved', 2, 2);
   const r = await rectOf(id);
-  await sleep(300);
-  const [fx0, fy0, fx1, fy1] = (stroke[id] || '0.28,0.40,0.70,0.58').split(',').map(Number);
-  const steps = 26;
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
+  await frames(10);
+  const dir = await mkdtemp(path.join(tmpdir(), `silkify-${id}-`));
+  for (let f = 0; f < TOTAL; f++) {
+    const t = Math.min(1, Math.max(0, (f - STROKE[0]) / (STROKE[1] - STROKE[0])));
     const x = r.x + r.w * (fx0 + (fx1 - fx0) * t);
     const y = r.y + r.h * (fy0 + (fy1 - fy0) * t + 0.05 * Math.sin(t * Math.PI * 2));
-    await mouse('mouseMoved', x, y);
-    await frames(1);
+    if (f >= STROKE[0] && f <= PRESS[1]) await mouse('mouseMoved', x, y);
+    if (f === PRESS[0]) await mouse('mousePressed', x, y, { button: 'left', clickCount: 1 });
+    if (f === PRESS[1]) await mouse('mouseReleased', x, y, { button: 'left', clickCount: 1 });
+    if (f === PRESS[1] + 1) await mouse('mouseMoved', 2, 2);   // pointer leaves; the ripples decay
+    await frames(STEPS);
+    const { data } = await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) });
+    await writeFile(path.join(dir, `f${String(f).padStart(3, '0')}.png`), Buffer.from(data, 'base64'));
   }
-  const px = r.x + r.w * fx1, py = r.y + r.h * fy1;
-  await mouse('mousePressed', px, py, { button: 'left', clickCount: 1 });
-  await frames(8);
-  await mouse('mouseReleased', px, py, { button: 'left', clickCount: 1 });
-  await frames(10);
-  console.log('ripple', path.relative(ROOT, await shot(id, 'ripple', r)));
-  await mouse('mouseMoved', 2, 2);
+  // encode with an optimised palette; step width and colours down until it fits the size budget
+  const gif = path.join(OUT, `${id}-ripple.gif`);
+  for (const [width, colors] of [[320, 128], [288, 128], [288, 96], [256, 96], [240, 64]]) {
+    await new Promise((resolve, reject) => {
+      const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(dir, 'f%03d.png'),
+        '-vf', `scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle`,
+        '-loop', '0', gif], { stdio: 'inherit' });
+      ff.on('exit', (c) => (c ? reject(new Error(`ffmpeg exited ${c}`)) : resolve()));
+    });
+    if ((await stat(gif)).size <= GIF_BUDGET) break;
+  }
+  await rm(dir, { recursive: true, force: true });
+  console.log('ripple', `docs/shots/${id}-ripple.gif`, `${((await stat(gif)).size / 1024).toFixed(0)} KB`);
 }
 
 ws.close();
