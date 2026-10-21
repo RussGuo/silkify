@@ -41,6 +41,9 @@
     touch-action: pan-y;
   }
   .stage canvas, .stage .poster { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* the poster is a picture of the object, not a picture to drag away: holding the pointer must press, not start a drag */
+  .stage .poster, .stage canvas { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
+  .stage .poster { pointer-events: none; }
   .stage { cursor: crosshair; }
   .stage canvas { opacity: 0; transition: opacity 0.25s; }
   .stage.live canvas { opacity: 1; }
@@ -145,7 +148,7 @@
         fig.dataset.id = c.id;
         if (c.stroke) fig.dataset.stroke = c.stroke;   // where scripts/shoot.mjs drags the pointer
         fig.innerHTML = `<div class="stage">
-            <img class="poster" src="posters/${c.id}.webp" srcset="posters/${c.id}.webp 1x, posters/${c.id}@2x.webp 2x"
+            <img class="poster" draggable="false" src="posters/${c.id}.webp" srcset="posters/${c.id}.webp 1x, posters/${c.id}@2x.webp 2x"
                  width="400" height="400" loading="lazy" decoding="async" alt="${c.title}">
             <span class="hint">${touch ? 'touch' : 'hover'} · hold to press deeper</span></div>
           <figcaption><h2>${c.title}</h2><p>${c.note}</p><code>${show(c.options) || 'defaults'}</code></figcaption>`;
