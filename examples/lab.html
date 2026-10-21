@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify Lab</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
+<meta name="description" content="Every silkify option on one page: drag, see it live, copy the options.">
+<style>
+  /* the gallery's tokens and type (examples/index.html) */
+  :root {
+    --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #7a746a; --rule: #d9d2c4; --accent: #8a6d3b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 13px/1.45 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  .lab { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100vh; height: 100dvh; }
+  .stage {
+    position: relative; overflow: hidden; touch-action: pan-y; cursor: crosshair;
+    background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 60%, var(--paper)), var(--stage));
+  }
+  .stage[data-bg="paper"] { background: var(--paper); }
+  .stage[data-bg="white"] { background: #fff; }
+  .stage[data-bg="black"] { background: #000; }
+  .stage[data-bg="checker"] { background: repeating-conic-gradient(var(--rule) 0 25%, var(--paper) 0 50%) 0 0 / 24px 24px; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .stage.drag { outline: 2px dashed var(--accent); outline-offset: -12px; }
+  .top {
+    position: absolute; z-index: 1; left: 0; right: 0; top: 0; padding: 18px 22px; pointer-events: none;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  .top > * { pointer-events: auto; }
+  h1 { margin: 0; font: 400 30px/1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; letter-spacing: -0.01em; }
+  h1 em { color: var(--accent); }
+  h1 a { color: inherit; text-decoration: none; }
+  .read { font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); text-align: right; }
+  .drop-hint { position: absolute; left: 22px; bottom: 16px; font-size: 12px; color: var(--muted); pointer-events: none; }
+  aside { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--rule); background: var(--paper); }
+  .controls { flex: 1; overflow-y: auto; padding: 8px 20px 24px; }
+  details { border-bottom: 1px solid var(--rule); }
+  summary {
+    cursor: pointer; padding: 14px 0 10px; list-style: none;
+    font: 400 17px/1.2 ui-serif, "Iowan Old Style", Georgia, serif;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; float: right; color: var(--muted); font-family: ui-sans-serif, sans-serif; }
+  details[open] summary::after { content: "–"; }
+  details > div { padding: 0 0 14px; }
+  .row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 66px; align-items: center; gap: 8px; min-height: 30px; }
+  .row label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row.set label { color: var(--ink); }
+  .row.set label::before { content: "● "; color: var(--accent); font-size: 8px; vertical-align: 2px; }
+  .row .wide { grid-column: 2 / 4; display: flex; gap: 8px; align-items: center; min-width: 0; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+  input[type=number], input[type=text], select {
+    width: 100%; min-width: 0; padding: 3px 5px; border: 1px solid var(--rule); border-radius: 6px;
+    background: transparent; color: inherit; font: 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  select { font-family: inherit; font-size: 13px; }
+  input[type=color] { width: 44px; height: 24px; padding: 0; border: 1px solid var(--rule); border-radius: 6px; background: none; }
+  input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+  button {
+    padding: 5px 11px; border: 1px solid var(--rule); border-radius: 999px; background: transparent;
+    color: inherit; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  .disc {
+    position: relative; width: 84px; height: 84px; flex: none; border-radius: 50%; touch-action: none; cursor: grab;
+    border: 1px solid var(--rule); background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--rule) 40%, transparent), transparent 70%);
+  }
+  .disc i { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: var(--accent); }
+  .disc::before, .disc::after { content: ""; position: absolute; background: var(--rule); }
+  .disc::before { left: 50%; top: 6px; bottom: 6px; width: 1px; }
+  .disc::after { top: 50%; left: 6px; right: 6px; height: 1px; }
+  .z { flex: 1; min-width: 0; display: grid; gap: 2px; color: var(--muted); }
+  .out { border-top: 1px solid var(--rule); padding: 12px 20px 16px; background: color-mix(in srgb, var(--stage) 55%, var(--paper)); }
+  .out pre {
+    margin: 0 0 10px; max-height: 26vh; overflow: auto; white-space: pre-wrap; word-break: break-word;
+    font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .out .bar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .note { color: var(--muted); font-size: 12px; margin: 6px 0 2px; }
+  @media (max-width: 820px) {
+    .lab { grid-template-columns: 1fr; height: auto; }
+    .stage { height: min(100vw, 72vh); }
+    aside { border-left: 0; border-top: 1px solid var(--rule); }
+    .controls { overflow: visible; padding: 4px 16px 16px; }
+    .out { padding: 12px 16px 20px; }
+    .top { padding: 14px 16px; }
+    .row { grid-template-columns: 100px minmax(0, 1fr) 64px; }
+  }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="lab">
+  <section class="stage" id="stage">
+    <div class="top">
+      <h1><a href="./">silk<em>ify</em></a> Lab</h1>
+      <div class="read" id="read">loading…</div>
+    </div>
+    <span class="drop-hint">drop or paste an image or a URL · hold to press deeper</span>
+  </section>
+  <aside>
+    <div class="controls" id="controls"></div>
+    <div class="out">
+      <pre><code id="code"></code></pre>
+      <div class="bar">
+        <button id="copy">Copy options</button><button id="link">Copy link</button><button id="reset">Reset</button>
+        <a href="./" style="margin-left:auto;align-self:center;color:var(--muted)">← Gallery</a>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script type="module">
+  /*
+   * lab.html — every silkify option on one page, so tuning is something you see rather than guess.
+   * Live options go through handle.setTheme(); options that shape the scene (picture, shape, puff, fit, tier…)
+   * remount it. The page runs exactly the call it prints, and the whole state lives in the URL hash, so a link
+   * reproduces a look. resolveOptions() (silk.js) and the preset tables (presets.js) are the same ones silkify
+   * uses; scripts/shoot.mjs drives this page through window.__lab (verify, and --lab for docs/shots/lab/).
+   */
+  import { silkify, resolveOptions, PUFF } from '../src/silk.js';
+  import { MATERIALS, FEELS, keysOf } from '../src/presets.js';
+
+  /* ============================================
+   * The objects: the gallery's cards (same pictures, same options)
+   * ============================================ */
+  const OBJECTS = {
+    pomegranate: { title: 'Pomegranate', image: 'images/pomegranate.webp', options: { puff: 'dome' } },
+    'ink-drop': { title: 'A drop of ink', image: 'images/ink-drop.webp',
+      options: { albedo: [0.15, 0.15, 0.165], grain: 1, light: [-0.66, 0.72, 0.2], exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14 } },
+    moon: { title: 'The Moon', image: 'images/moon.webp', bump: 'images/moon-bump.webp',
+      options: { shape: 'sphere', phase: 0.38, floor: 0.6, exposure: 1.1, gamma: 0.92, bumpStrength: 7 } },
+    hare: { title: 'Young Hare', image: 'images/hare.webp', options: { puff: 'cushion' } },
+    teapot: { title: 'Teapot', image: 'images/teapot.webp', options: { puff: 'cushion', sheen: 0.5, sheenPower: 14 } },
+    'mona-lisa': { title: 'Mona Lisa', image: 'images/mona-lisa.webp', options: { puff: 'cushion', floor: 0.6, sheen: 0.25 } },
+    carriera: { title: 'Portrait of a Man', image: 'images/carriera.webp', options: { puff: 'flat', floor: 0.6 } },
+    parrot: { title: 'Enamel parrot', image: 'images/parrot.webp', options: { puff: 'cushion', sheen: 0.5, sheenPower: 14 } },
+  };
+
+  /* ============================================
+   * Every option, grouped as in SKILL.md. Ranges are SKILL's tuning ranges, widened to show the extremes.
+   *   [key, kind, ...]  kind: n (min, max, step) · c colour · d direction · b boolean · s select (choices)
+   * Keys in REBUILD need a new renderer (debounced); every other key goes through setTheme() live.
+   * ============================================ */
+  const GROUPS = [
+    ['Ripple', [
+      ['pressDepth', 'n', 0, 0.9, 0.01], ['pressDepthHold', 'n', 0, 1.2, 0.01], ['pressRadius', 'n', 0.02, 0.16, 0.005],
+      ['waveSpeed', 'n', 0.2, 1.98, 0.01], ['damping', 'n', 0.95, 0.9995, 0.0005], ['displace', 'n', 0, 0.9, 0.01], ['ripple', 'n', 0, 140, 1],
+    ]],
+    ['Material', [
+      ['sheen', 'n', 0, 1.5, 0.01], ['sheenPower', 'n', 2, 80, 1], ['sheenColor', 'c'], ['satin', 'n', 0, 1.5, 0.01],
+      ['albedo', 'c', true], ['grain', 'n', 0, 1, 0.01], ['gamma', 'n', 0.5, 1.6, 0.01], ['exposure', 'n', 0.2, 3, 0.01],
+      ['anisotropy', 'n', 0, 1, 0.01], ['anisotropyAngle', 'n', -3.1416, 3.1416, 0.01],
+      ['rim', 'n', 0, 1, 0.01], ['rimPower', 'n', 0.5, 8, 0.1], ['rimColor', 'c', true],
+      ['iridescence', 'n', 0, 1, 0.01], ['silkRest', 'n', 0, 1, 0.01], ['silkSpread', 'n', 0.2, 4, 0.05],
+    ]],
+    ['Light', [
+      ['light', 'd'], ['lightColor', 'c'], ['satinLight', 'd'], ['floor', 'n', 0, 1, 0.01], ['volume', 'n', 0, 1, 0.01],
+      ['fillLight', 'b'], ['idleSweep', 'b'],
+    ]],
+    ['Motion', [['autoplay', 'auto'], ['breeze', 'n', 0, 1, 0.01]]],
+    ['Shape', [
+      ['shape', 's', ['image', 'sphere']], ['puff', 'puff'], ['matte', 's', ['auto', 'alpha', 'rect']],
+      ['corner', 'n', 0, 0.5, 0.01], ['threshold', 'n', 0.05, 0.95, 0.01], ['fit', 'n', 1, 2.2, 0.01],
+      ['phase', 'n', 0, 1, 0.005, true], ['bumpStrength', 'n', 0, 30, 0.5], ['spin', 'b'], ['spinSpeed', 'n', 0, 0.06, 0.001], ['angle', 'n', 0, 1, 0.01],
+    ]],
+    ['Runtime', [['interactive', 'b'], ['tier', 's', ['auto', 'high', 'low', 'static']], ['worker', 's', ['auto', false]]]],
+  ];
+  const IMAGE_ONLY = new Set(['puff', 'matte', 'corner', 'threshold', 'fit', 'albedo', 'grain']);
+  const SPHERE_ONLY = new Set(['phase', 'bumpStrength', 'spin', 'spinSpeed', 'angle']);
+  const REBUILD = new Set(['shape', 'puff', 'matte', 'corner', 'threshold', 'fit', 'angle', 'tier', 'worker']);
+  const MATERIAL_KEYS = keysOf(MATERIALS), FEEL_KEYS = keysOf(FEELS);
+
+  /* ============================================
+   * State: which object, which presets, and the options set on top (the card's own, then yours).
+   * The page runs exactly the call it prints: silkify(canvas, { image, material, feel, ...set }).
+   * ============================================ */
+  const qs = new URLSearchParams(location.search);
+  const fresh = (obj = 'pomegranate') => ({ obj, url: null, material: 'silk', feel: 'silk', bg: 'stage',
+    set: { ...structuredClone(OBJECTS[obj]?.options || {}), ...(qs.get('tier') ? { tier: qs.get('tier') } : {}) } });
+  let state = readHash() || fresh();
+  let custom = null;                       // a dropped or pasted picture (ImageBitmap); never uploaded, never in the link
+
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const call = () => ({ material: state.material, feel: state.feel, ...state.set });
+  const picture = () => (state.obj === 'custom' ? (custom || state.url) : OBJECTS[state.obj].image);
+  const effective = () => resolveOptions({ image: picture() || OBJECTS.pomegranate.image, ...call() });
+  const isSphere = () => effective().shape === 'sphere';
+
+  /* ---- the hash: JSON → base64url, so a link restores every control ---- */
+  function writeHash() {
+    const s = { ...state, obj: state.obj === 'custom' && !state.url ? 'pomegranate' : state.obj };
+    const b = btoa(unescape(encodeURIComponent(JSON.stringify(s)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    history.replaceState(null, '', `${location.pathname}${location.search}#${b}`);
+  }
+  function readHash() {
+    try {
+      const b = location.hash.slice(1);
+      if (!b) return null;
+      const s = JSON.parse(decodeURIComponent(escape(atob(b.replace(/-/g, '+').replace(/_/g, '/')))));
+      return s && typeof s.set === 'object' && (OBJECTS[s.obj] || s.url) && MATERIALS[s.material] && FEELS[s.feel] ? s : null;
+    } catch { return null; }
+  }
+
+  /* ============================================
+   * Mounting: live keys go through setTheme; a rebuild key remounts after 150 ms of quiet
+   * ============================================ */
+  const stage = document.getElementById('stage');
+  let handle = null, mounted = null, remountTimer = 0, lastFrames = null;
+
+  function mount() {
+    handle?.dispose();
+    handle?.canvas.remove();
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    stage.prepend(canvas);
+    const o = OBJECTS[state.obj];
+    mounted = effective();
+    handle = silkify(canvas, { image: picture(), ...(o?.bump ? { bump: o.bump } : {}), ...call() });
+    lastFrames = null;
+    return handle.ready;
+  }
+  /** Apply the state: setTheme the live keys that changed; remount if a rebuild key changed. */
+  function commit({ remount = false } = {}) {
+    const next = effective();
+    const changed = Object.keys(next).filter((k) => !same(next[k], mounted?.[k]));
+    if (remount || changed.some((k) => REBUILD.has(k))) {
+      clearTimeout(remountTimer);
+      remountTimer = setTimeout(mount, 150);
+    } else if (changed.length && handle) {
+      const patch = Object.fromEntries(changed.map((k) => [k, next[k]]));
+      handle.setTheme(patch);
+      Object.assign(mounted, patch);
+    }
+    sync();
+    writeHash();
+  }
+
+  /* ============================================
+   * Controls
+   * ============================================ */
+  const root = document.getElementById('controls');
+  const views = [];                                   // { key, row, show(value) } — refreshed by sync()
+  const hex = (c) => '#' + c.map((x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0')).join('');
+  const rgb = (h) => [1, 3, 5].map((i) => Math.round((parseInt(h.slice(i, i + 2), 16) / 255) * 1000) / 1000);
+  const round = (v, step) => +(Math.round(v / step) * step).toFixed(Math.max(0, -Math.floor(Math.log10(step))));
+  const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
+  const set = (key, value) => { state.set[key] = value; commit(); };
+
+  function row(key, wide) {
+    const r = el('div', { className: 'row' }, el('label', { textContent: key, title: key }));
+    if (wide) { const w = el('div', { className: 'wide' }); r.append(w); return [r, w]; }
+    return [r, r];
+  }
+  const pair = (box, a, b) => { box.append(a); if (b) box.append(b); };
+
+  function number(key, min, max, step, nullable) {
+    const [r, box] = row(key, nullable);
+    const range = el('input', { type: 'range', min, max, step });
+    const num = el('input', { type: 'number', min, max, step });
+    const on = nullable ? el('input', { type: 'checkbox', title: `${key}: null when off` }) : null;
+    const put = (v) => set(key, round(+v, step));
+    range.oninput = () => put(range.value);
+    num.onchange = () => put(num.value);
+    if (on) { on.onchange = () => set(key, on.checked ? round((min + max) / 2, step) : null); pair(box, on); }
+    pair(box, range, nullable ? null : num);
+    if (nullable) box.append(num);
+    return { key, row: r, show(v) {
+      if (on) on.checked = v !== null && v !== undefined;
+      range.disabled = num.disabled = !!on && !on.checked;
+      if (v !== null && v !== undefined) { range.value = v; num.value = v; }
+    } };
+  }
+  function color(key, nullable) {
+    const [r, box] = row(key, true);
+    const pick = el('input', { type: 'color' });
+    const on = nullable ? el('input', { type: 'checkbox', title: `${key}: off = null, the picture's own colour` }) : null;
+    pick.oninput = () => set(key, rgb(pick.value));
+    if (on) { on.onchange = () => set(key, on.checked ? rgb(pick.value) : null); box.append(on); }
+    const txt = el('span', { className: 'note' });
+    box.append(pick, txt);
+    return { key, row: r, show(v) {
+      if (on) on.checked = !!v;
+      pick.disabled = !!on && !v;
+      if (v) pick.value = hex(v);
+      txt.textContent = v ? `[${v.join(', ')}]` : 'null';
+    } };
+  }
+  function direction(key) {
+    const [r, box] = row(key, true);
+    const disc = el('div', { className: 'disc', title: 'drag: x right, y up' }), dot = el('i');
+    disc.append(dot);
+    const z = el('input', { type: 'range', min: 0.05, max: 1.5, step: 0.01 });
+    const out = el('span');
+    box.append(disc, el('div', { className: 'z' }, el('span', { textContent: 'z (towards you)' }), z, out));
+    let cur = [0, 0, 1];
+    const drag = (e) => {
+      const b = disc.getBoundingClientRect();
+      const x = Math.max(-1, Math.min(1, ((e.clientX - b.left) / b.width) * 2 - 1));
+      const y = Math.max(-1, Math.min(1, -(((e.clientY - b.top) / b.height) * 2 - 1)));
+      set(key, [round(x, 0.01), round(y, 0.01), cur[2]]);
+    };
+    disc.onpointerdown = (e) => { disc.setPointerCapture(e.pointerId); drag(e); disc.onpointermove = drag; };
+    disc.onpointerup = disc.onpointercancel = () => { disc.onpointermove = null; };
+    z.oninput = () => set(key, [cur[0], cur[1], +z.value]);
+    return { key, row: r, show(v) {
+      cur = v;
+      dot.style.left = `${50 + 50 * Math.max(-1, Math.min(1, v[0]))}%`;
+      dot.style.top = `${50 - 50 * Math.max(-1, Math.min(1, v[1]))}%`;
+      z.value = v[2];
+      out.textContent = `[${v.join(', ')}]`;
+    } };
+  }
+  function toggle(key) {
+    const [r, box] = row(key, true);
+    const on = el('input', { type: 'checkbox' });
+    on.onchange = () => set(key, on.checked);
+    box.append(on);
+    return { key, row: r, show(v) { on.checked = !!v; } };
+  }
+  function choice(key, options) {
+    const [r, box] = row(key, true);
+    const s = el('select');
+    for (const v of options) s.append(el('option', { value: String(v), textContent: String(v) }));
+    s.onchange = () => set(key, options.find((v) => String(v) === s.value));
+    box.append(s);
+    return { key, row: r, show(v) { s.value = String(v); } };
+  }
+  function puff() {
+    const [r, box] = row('puff', true);
+    const s = el('select');
+    for (const v of [...Object.keys(PUFF), 'number']) s.append(el('option', { value: v, textContent: v }));
+    const range = el('input', { type: 'range', min: 0.1, max: 1.5, step: 0.01 });
+    s.onchange = () => set('puff', s.value === 'number' ? +range.value : s.value);
+    range.oninput = () => set('puff', +range.value);
+    box.append(s, range);
+    return { key: 'puff', row: r, show(v) { s.value = typeof v === 'string' ? v : 'number'; range.value = typeof v === 'string' ? PUFF[v] : v; } };
+  }
+  function autoplay() {
+    const [r, box] = row('autoplay', true);
+    const on = el('input', { type: 'checkbox' });
+    const every = el('input', { type: 'range', min: 600, max: 8000, step: 100, title: 'interval (ms)' });
+    const depth = el('input', { type: 'range', min: 0.05, max: 0.8, step: 0.01, title: 'depth' });
+    const val = () => (on.checked ? { interval: +every.value, depth: +depth.value } : false);
+    on.onchange = every.oninput = depth.oninput = () => set('autoplay', val());
+    const drop = el('button', { textContent: 'ripple()', title: 'handle.ripple() at a random point' });
+    drop.onclick = () => handle?.ripple(0.3 + 0.4 * Math.random(), 0.3 + 0.4 * Math.random());
+    box.append(on, every, depth, drop);
+    return { key: 'autoplay', row: r, show(v) {
+      on.checked = !!v;
+      every.value = v?.interval ?? 2500; depth.value = v?.depth ?? 0.3;
+      every.disabled = depth.disabled = !v;
+    } };
+  }
+  function presets() {
+    const box = el('div');
+    const pick = (label, group, field, keys) => {
+      const [r, w] = row(label, true);
+      const s = el('select');
+      for (const k of Object.keys(group)) s.append(el('option', { value: k, textContent: k }));
+      s.onchange = () => {
+        for (const k of keys) delete state.set[k];          // the preset's values show; edit after to override
+        state[field] = s.value;
+        commit();
+      };
+      w.append(s);
+      box.append(r);
+      return { key: field, row: r, show: () => { s.value = state[field]; } };
+    };
+    views.push(pick('material', MATERIALS, 'material', MATERIAL_KEYS), pick('feel', FEELS, 'feel', FEEL_KEYS));
+    return box;
+  }
+  function object() {
+    const box = el('div');
+    const [r1, w1] = row('object', true);
+    const s = el('select');
+    for (const [k, o] of Object.entries(OBJECTS)) s.append(el('option', { value: k, textContent: o.title }));
+    s.append(el('option', { value: 'custom', textContent: 'Your picture…', disabled: true }));
+    s.onchange = () => { custom = null; state = { ...fresh(s.value), material: state.material, feel: state.feel, bg: state.bg }; commit({ remount: true }); };
+    w1.append(s);
+    const [r2, w2] = row('URL', true);
+    const url = el('input', { type: 'text', placeholder: 'https://… (CORS)' });
+    url.onchange = () => url.value && useUrl(url.value.trim());
+    const file = el('input', { type: 'file', accept: 'image/*', hidden: true });
+    file.onchange = () => file.files[0] && useBlob(file.files[0]);
+    w2.append(url, el('button', { textContent: 'File', onclick: () => file.click() }), file);
+    const [r3, w3] = row('background', true);
+    const bg = el('select');
+    for (const v of ['stage', 'paper', 'white', 'black', 'checker']) bg.append(el('option', { value: v, textContent: v }));
+    bg.onchange = () => { state.bg = bg.value; sync(); writeHash(); };
+    w3.append(bg);
+    box.append(r1, r2, r3);
+    views.push({ key: 'object', row: r1, show() { s.value = state.obj; url.value = state.url || ''; bg.value = state.bg; stage.dataset.bg = state.bg; } });
+    return box;
+  }
+
+  function build() {
+    const section = (title, body, open = true) => {
+      const d = el('details', { open });
+      d.append(el('summary', { textContent: title }), body);
+      root.append(d);
+    };
+    section('Object', object());
+    section('Presets', presets());
+    for (const [title, params] of GROUPS) {
+      const body = el('div');
+      for (const [key, kind, ...a] of params) {
+        const v = kind === 'n' ? number(key, ...a) : kind === 'c' ? color(key, a[0]) : kind === 'd' ? direction(key)
+          : kind === 'b' ? toggle(key) : kind === 's' ? choice(key, a[0]) : kind === 'puff' ? puff() : autoplay();
+        views.push(v);
+        body.append(v.row);
+      }
+      section(title, body, title !== 'Runtime');
+    }
+  }
+
+  /** Controls ← state: values, the "set by you" dot, and which shape's options are shown. */
+  const plainCall = () => resolveOptions({ image: 'x', shape: state.set.shape, material: state.material, feel: state.feel });
+  function sync() {
+    const o = effective(), sphere = o.shape === 'sphere', base = plainCall();
+    for (const v of views) {
+      v.show(o[v.key]);
+      v.row.classList.toggle('set', v.key in state.set && !same(state.set[v.key], base[v.key]));
+      v.row.hidden = (sphere && IMAGE_ONLY.has(v.key)) || (!sphere && SPHERE_ONLY.has(v.key));
+    }
+    code.textContent = printed();
+  }
+
+  /* ---- the printed call: image, presets, and only the keys that differ from what silkify would use anyway ---- */
+  const code = document.getElementById('code');
+  function printed() {
+    const o = OBJECTS[state.obj];
+    const base = plainCall();
+    const lines = [`image: '${state.obj === 'custom' ? state.url || 'your-picture.png' : o.image}'`];
+    if (o?.bump) lines.push(`bump: '${o.bump}'`);
+    if (state.material !== 'silk') lines.push(`material: '${state.material}'`);
+    if (state.feel !== 'silk') lines.push(`feel: '${state.feel}'`);
+    for (const [k, v] of Object.entries(state.set)) {
+      if (v !== undefined && !same(v, base[k])) lines.push(`${k}: ${JSON.stringify(v).replace(/"(\w+)":/g, '$1: ').replace(/,/g, ', ').replace(/"/g, "'")}`);
+    }
+    return `silkify(canvas, {\n  ${lines.join(',\n  ')},\n});`;
+  }
+
+  /* ============================================
+   * Pictures of your own: drop, paste, file or URL. Decoded in the page (createImageBitmap); nothing is uploaded.
+   * ============================================ */
+  async function useBlob(blob) {
+    try {
+      custom = await createImageBitmap(blob);
+    } catch { return; }
+    state = { ...fresh('custom'), set: {}, obj: 'custom', url: null, material: state.material, feel: state.feel, bg: state.bg };
+    commit({ remount: true });
+  }
+  function useUrl(url) {
+    custom = null;
+    state = { ...state, obj: 'custom', url, set: {} };
+    commit({ remount: true });
+  }
+  stage.addEventListener('dragover', (e) => { e.preventDefault(); stage.classList.add('drag'); });
+  stage.addEventListener('dragleave', () => stage.classList.remove('drag'));
+  stage.addEventListener('drop', (e) => {
+    e.preventDefault();
+    stage.classList.remove('drag');
+    const f = [...e.dataTransfer.files].find((x) => x.type.startsWith('image/'));
+    if (f) return useBlob(f);
+    const u = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (/^https?:/.test(u)) useUrl(u.trim());
+  });
+  window.addEventListener('paste', (e) => {
+    if (e.target.closest?.('input, select')) return;
+    const item = [...e.clipboardData.items].find((x) => x.type.startsWith('image/'));
+    if (item) return useBlob(item.getAsFile());
+    const u = e.clipboardData.getData('text/plain');
+    if (/^https?:/.test(u)) useUrl(u.trim());
+  });
+
+  /* ---- output buttons ---- */
+  const flash = (b, text) => { const t = b.textContent; b.textContent = text; setTimeout(() => (b.textContent = t), 1200); };
+  document.getElementById('copy').onclick = (e) => navigator.clipboard.writeText(printed()).then(() => flash(e.target, 'Copied'));
+  document.getElementById('link').onclick = (e) => navigator.clipboard.writeText(location.href).then(() => flash(e.target, 'Copied'));
+  document.getElementById('reset').onclick = () => {
+    const obj = state.obj === 'custom' ? 'pomegranate' : state.obj;
+    custom = null;
+    state = { ...fresh(obj), bg: state.bg };
+    commit({ remount: true });
+  };
+
+  /* ---- readouts: what the renderer chose, and frames it actually drew (handle.stats(), once a second) ---- */
+  const read = document.getElementById('read');
+  setInterval(async () => {
+    if (!handle) return;
+    const h = handle, s = await h.stats(), now = performance.now();
+    if (h !== handle) return;
+    const fps = lastFrames ? ((s.frames - lastFrames.frames) * 1000) / (now - lastFrames.at) : 0;
+    lastFrames = { frames: s.frames, at: now };
+    const i = h.info || {};
+    read.textContent = h.mode === 'webgl'
+      ? `${h.tier} · ${h.thread} · sim ${i.sim}×${i.steps} · mesh ${i.mesh} · ${fps.toFixed(0)} fps · ${s.mode}`
+      : h.mode;
+  }, 1000);
+
+  /* ---- start ---- */
+  build();
+  sync();
+  writeHash();
+  window.__lab = {                                      // hooks for scripts/shoot.mjs
+    get handle() { return handle; }, get state() { return state; }, readHash,
+    ready: () => new Promise((r) => setTimeout(r, 200)).then(() => handle.ready),
+  };
+  mount();
+</script>
+</body>
+</html>

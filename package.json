@@ -14,7 +14,8 @@
     "preview": "npx serve . -l 4173",
     "verify": "node scripts/shoot.mjs",
     "posters": "node scripts/shoot.mjs --posters",
-    "gif": "node scripts/shoot.mjs --gif"
+    "gif": "node scripts/shoot.mjs --gif",
+    "lab": "node scripts/shoot.mjs --lab"
   },
   "peerDependencies": {
     "three": ">=0.152.2"

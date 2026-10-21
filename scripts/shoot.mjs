@@ -5,16 +5,21 @@
  *   node scripts/shoot.mjs                 # verify: rest JPEGs + every card goes live in its Worker and ripples
  *   node scripts/shoot.mjs --gif           # docs/shots/<id>-ripple.gif (needs ffmpeg)
  *   node scripts/shoot.mjs --posters       # examples/posters/<id>.webp and @2x (needs python3 + Pillow)
+ *   node scripts/shoot.mjs --lab           # docs/shots/lab/: every material and feel preset, from examples/lab.html
  *   node scripts/shoot.mjs --only moon     # any mode, one card
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): a JPEG of each poster at rest, then each card is
  *          activated, must mount with WebGL in its Web Worker, and must change under a pointer stroke.
+ *          Then the Lab (low tier): presets switch, a dragged slider changes the frame through setTheme, the link
+ *          restores every control in a fresh page, and at rest the renderer draws 0 frames in 10 s.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped: 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
  * --posters  the rest frames the gallery shows before anyone touches a card: high tier, no fill-light motion,
  *          transparent background, 400 px and 800 px, WebP q92 with lossless alpha.
+ * --lab    one picture per preset on the pomegranate: material-<name>.jpg (at rest | just touched) and
+ *          feel-<name>.jpg (0.15 s | 0.9 s after a stroke and a press), plus lab.jpg, the page itself.
  * Every mode exits non-zero on any console error, uncaught exception, or a card that did not mount as expected.
  * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
  */
@@ -113,7 +118,46 @@ const run = (cmd, argv) => new Promise((resolve, reject) => {
   const p = spawn(cmd, argv, { stdio: 'inherit' });
   p.on('exit', (c) => (c ? reject(new Error(`${cmd} exited ${c}`)) : resolve()));
 });
-const mode = args.includes('--gif') ? 'gif' : args.includes('--posters') ? 'posters' : 'verify';
+const mode = args.includes('--gif') ? 'gif' : args.includes('--posters') ? 'posters' : args.includes('--lab') ? 'lab' : 'verify';
+
+/** Mean |Δ| per channel between two PNG/JPEG screenshots (base64), and the second one's contrast (std). */
+async function diffOf(before, after) {
+  const [fa, fb] = [path.join(profile, 'a.png'), path.join(profile, 'b.png')];
+  await writeFile(fa, Buffer.from(before, 'base64'));
+  await writeFile(fb, Buffer.from(after, 'base64'));
+  return new Promise((resolve) => {
+    const p = spawn('python3', ['-c', 'import sys; from PIL import Image, ImageChops, ImageStat; a=Image.open(sys.argv[1]).convert("RGB"); b=Image.open(sys.argv[2]).convert("RGB"); print(sum(ImageStat.Stat(ImageChops.difference(a,b)).mean)/3, sum(ImageStat.Stat(b).stddev)/3)', fa, fb]);
+    let out = '';
+    p.stdout.on('data', (d) => (out += d));
+    p.on('exit', () => resolve(out.trim().split(' ').map(Number)));
+  });
+}
+async function navigate(url) {
+  const loaded = new Promise((r) => on('Page.loadEventFired', r));
+  await send('Page.navigate', { url });
+  await loaded;
+}
+/* ---- the Lab: a state in the hash, as the page writes it (JSON → base64url) ---- */
+async function openLab(query = '', state = null) {
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await navigate('about:blank');                     // a hash-only change would not load a new document
+  await navigate(`${base}/examples/lab.html${query}${state ? '#' + Buffer.from(JSON.stringify(state)).toString('base64url') : ''}`);
+  return evaluate(`window.__lab.ready().then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier }))`);
+}
+const labRow = (key) => `[...document.querySelectorAll('#controls .row')].find((r) => r.querySelector('label')?.textContent === '${key}')`;
+const stageRect = () => evaluate(`(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, sx: 0, sy: 0 }; })()`);
+const labStats = () => evaluate('window.__lab.handle.stats()');
+async function touchStroke(r, press = true) {
+  const at = await strokeOver(r, '0.32,0.42,0.66,0.56');
+  let p;
+  for (let f = 0; f <= 22; f++) { p = at(f, 22, [0, 22]); await mouse('mouseMoved', p.x, p.y); await sleep(30); }
+  if (press) {
+    await mouse('mousePressed', p.x, p.y, { button: 'left', clickCount: 1 });
+    await sleep(250);
+    await mouse('mouseReleased', p.x, p.y, { button: 'left', clickCount: 1 });
+  }
+  await mouse('mouseMoved', 2, 2);
+}
 
 async function load(dpr, query = '', width = 1240) {
   await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: dpr, mobile: false });
@@ -166,6 +210,55 @@ if (mode === 'posters') {
       await evaluate(`window.__gallery.release('${id}')`);
     }
   }
+} else if (mode === 'lab') {
+  /* ---- one picture per preset, made in the Lab: same object, same stroke, same timing ---- */
+  const dir = path.join(OUT, 'lab');
+  await mkdir(dir, { recursive: true });
+  const { MATERIALS, FEELS } = await import('../src/presets.js');
+  const state = (material, feel) => ({ obj: 'pomegranate', url: null, material, feel, bg: 'stage', set: {} });
+  const grab = async (r) => {
+    const side = Math.min(r.w, r.h) * 0.84;
+    const clip = { x: r.x + (r.w - side) / 2, y: r.y + (r.h - side) / 2 + 10, width: side, height: side, scale: 1 };
+    return (await send('Page.captureScreenshot', { format: 'png', clip })).data;
+  };
+  const pair = async (a, b, labels, file) => {
+    const [fa, fb] = [path.join(profile, 'a.png'), path.join(profile, 'b.png')];
+    await writeFile(fa, Buffer.from(a, 'base64'));
+    await writeFile(fb, Buffer.from(b, 'base64'));
+    await run('python3', ['-c', `import sys
+from PIL import Image, ImageDraw
+a, b = (Image.open(f).convert("RGB").resize((480, 480), Image.LANCZOS) for f in sys.argv[1:3])
+s = Image.new("RGB", (968, 480), (235, 230, 220)); s.paste(a, (0, 0)); s.paste(b, (488, 0))
+d = ImageDraw.Draw(s)
+for x, t in ((12, sys.argv[3]), (500, sys.argv[4])): d.text((x, 456), t, fill=(122, 116, 106))
+s.save(sys.argv[5], quality=86)`, fa, fb, ...labels, path.join(dir, file)]);
+    console.log('lab   ', `docs/shots/lab/${file}`);
+  };
+  for (const m of Object.keys(MATERIALS)) {
+    await openLab('', state(m, 'silk'));
+    await sleep(800);
+    const r = await stageRect();
+    const rest = await grab(r);
+    await touchStroke(r);
+    await sleep(250);
+    await pair(rest, await grab(r), [`material: '${m}' - at rest`, 'just touched'], `material-${m}.jpg`);
+  }
+  for (const f of Object.keys(FEELS)) {
+    await openLab('', state('silk', f));
+    await sleep(800);
+    const r = await stageRect();
+    await touchStroke(r);
+    await sleep(150);
+    const early = await grab(r);
+    await sleep(750);
+    await pair(early, await grab(r), [`feel: '${f}' - 0.15 s after a stroke and a press`, '0.9 s'], `feel-${f}.jpg`);
+  }
+  await openLab('', { ...state('foil', 'water'), obj: 'teapot', set: { puff: 'cushion' } });
+  await sleep(800);
+  await touchStroke(await stageRect());
+  await sleep(300);
+  await writeFile(path.join(dir, 'lab.jpg'), Buffer.from((await send('Page.captureScreenshot', { format: 'jpeg', quality: 84 })).data, 'base64'));
+  console.log('lab   ', 'docs/shots/lab/lab.jpg');
 } else if (mode === 'gif') {
   /* ---- ripple GIFs: main thread, frame-stepped ---- */
   const FPS = 20, STEPS = 3, TOTAL = 56;            // 2.8 s
@@ -232,15 +325,7 @@ if (mode === 'posters') {
     await sleep(300);
     const after = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
     // the stroke must visibly change the object (mean |Δ| per channel), and the object must have real content (std)
-    const [fa, fb] = [path.join(profile, 'a.png'), path.join(profile, 'b.png')];
-    await writeFile(fa, Buffer.from(before, 'base64'));
-    await writeFile(fb, Buffer.from(after, 'base64'));
-    const [diff, std] = await new Promise((resolve) => {
-      const p = spawn('python3', ['-c', 'import sys; from PIL import Image, ImageChops, ImageStat; a=Image.open(sys.argv[1]).convert("RGB"); b=Image.open(sys.argv[2]).convert("RGB"); print(sum(ImageStat.Stat(ImageChops.difference(a,b)).mean)/3, sum(ImageStat.Stat(b).stddev)/3)', fa, fb]);
-      let out = '';
-      p.stdout.on('data', (d) => (out += d));
-      p.on('exit', () => resolve(out.trim().split(' ').map(Number)));
-    });
+    const [diff, std] = await diffOf(before, after);
     const ok = diff > 0.3 && std > 12;
     if (!ok) problems.push(`card ${id}: no visible ripple (mean diff ${diff?.toFixed(2)}, std ${std?.toFixed(1)})`);
     console.log('live  ', id, `${h.tier}/${h.thread}`, `sim ${h.info?.sim}×${h.info?.steps} mesh ${h.info?.mesh}`, h.info?.software ? 'software' : '',
@@ -250,6 +335,62 @@ if (mode === 'posters') {
   const alive = await evaluate('window.__gallery.live.size');
   console.log('live renderers at the end:', alive);
   if (alive > 3) problems.push(`${alive} live renderers (cap is 3)`);
+  if (!only) await verifyLab();
+}
+
+/* ---- verify, part 2: the Lab in the low tier ---- */
+async function verifyLab() {
+  const h = await openLab('?tier=low');
+  if (h.mode !== 'webgl' || h.tier !== 'low') problems.push(`lab: ${h.mode} / ${h.tier}`);
+  for (const [field, value] of [['material', 'foil'], ['feel', 'water'], ['material', 'velvet'], ['feel', 'jelly'], ['material', 'ink']]) {
+    await evaluate(`(() => { const s = ${labRow(field)}.querySelector('select'); s.value = '${value}'; s.dispatchEvent(new Event('change')); })()`);
+    await sleep(300);
+  }
+  const st = await evaluate('window.__lab.state');
+  if (st.material !== 'ink' || st.feel !== 'jelly') problems.push(`lab: presets did not switch (${st.material} / ${st.feel})`);
+
+  // drag the exposure slider: setTheme must reach the renderer and change the frame
+  const r = await stageRect();
+  const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+  const s = await evaluate(`(() => { const i = ${labRow('exposure')}.querySelector('input[type=range]'); i.scrollIntoView({ block: 'center' });
+    const b = i.getBoundingClientRect(); return { x: b.left, y: b.top + b.height / 2, w: b.width }; })()`);
+  await mouse('mousePressed', s.x + s.w * 0.15, s.y, { button: 'left', clickCount: 1 });
+  for (let k = 1; k <= 8; k++) { await mouse('mouseMoved', s.x + s.w * (0.15 + 0.08 * k), s.y, { button: 'left', buttons: 1 }); await sleep(40); }
+  await mouse('mouseReleased', s.x + s.w * 0.79, s.y, { button: 'left', clickCount: 1 });
+  await sleep(600);
+  const after = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+  const [diff] = await diffOf(before, after);
+  const exposure = await evaluate('window.__lab.state.set.exposure');
+  if (!(diff > 1) || !(exposure > 1.5)) problems.push(`lab: slider → setTheme did not change the frame (Δ ${diff.toFixed(2)}, exposure ${exposure})`);
+  console.log('lab   ', `${h.tier}/${h.thread}`, `presets ${st.material} + ${st.feel}`, `slider exposure → ${exposure}, Δ ${diff.toFixed(2)}`);
+
+  // the link restores every control in a fresh page
+  const snap = `JSON.stringify([...document.querySelectorAll('#controls input, #controls select')].map((i) => i.type === 'checkbox' ? i.checked : i.value)) + document.getElementById('code').textContent`;
+  const [url, a] = [await evaluate('location.href'), await evaluate(snap)];
+  await navigate('about:blank');
+  await navigate(url);
+  await evaluate('window.__lab.ready()');
+  const b = await evaluate(snap);
+  const n = await evaluate(`document.querySelectorAll('#controls input, #controls select').length`);
+  if (a !== b) problems.push('lab: the link did not restore the controls');
+  console.log('lab   ', `link round trip: ${n} controls`, a === b ? 'identical' : 'DIFFERENT');
+
+  // breeze and autoplay off → the loop sleeps: 0 frames in 10 s once it reaches rest
+  let mode = '';
+  for (let t = 0; t < 40 && mode !== 'rest'; t++) { await sleep(1000); mode = (await labStats()).mode; }
+  const f0 = (await labStats()).frames;
+  await sleep(10000);
+  const f1 = (await labStats()).frames;
+  if (mode !== 'rest' || f1 !== f0) problems.push(`lab: ${f1 - f0} frames in 10 s at rest (mode ${mode})`);
+  console.log('lab   ', `rest: ${f1 - f0} frames in 10 s`);
+  // and breeze keeps it drawing
+  await evaluate('window.__lab.handle.setTheme({ breeze: 0.6 })');
+  await sleep(1000);
+  const g0 = await labStats();
+  await sleep(2000);
+  const g1 = await labStats();
+  if (g1.mode !== 'breeze' || g1.frames - g0.frames < 10) problems.push(`lab: breeze drew ${g1.frames - g0.frames} frames in 2 s (mode ${g1.mode})`);
+  console.log('lab   ', `breeze 0.6: ${((g1.frames - g0.frames) / 2).toFixed(0)} fps, mode ${g1.mode}`);
 }
 
 ws.close();

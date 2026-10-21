@@ -31,6 +31,8 @@
   .lede b { color: var(--ink); font-weight: 500; }
   .meta { text-align: right; font-size: 13px; color: var(--muted); }
   .meta a { color: inherit; }
+  .meta a.lab { display: inline-block; margin-top: 10px; color: var(--accent); font-size: 15px; text-decoration: none; }
+  .meta a.lab:hover { text-decoration: underline; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 56px 32px; }
   figure { margin: 0; }
   .stage {
@@ -80,7 +82,7 @@
       <p class="lede"><b>Everything can be silk.</b> Each object below is matte and still — until the pointer touches it.
         Then it dents, ripples, and catches the light like satin.</p>
     </div>
-    <div class="meta">万物皆可丝绸化<br><a href="https://github.com/RussGuo/silkify">github.com/RussGuo/silkify</a></div>
+    <div class="meta">万物皆可丝绸化<br><a href="https://github.com/RussGuo/silkify">github.com/RussGuo/silkify</a><br><a class="lab" href="lab.html">Lab →</a></div>
   </header>
 
   <main class="grid" id="grid"></main>
