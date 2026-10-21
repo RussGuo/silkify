@@ -12,7 +12,9 @@
  *           (judged by distance to its target, not speed: the idle sweep never has zero speed) → every frame
  *   tail    ripples left 8–20 s after the last touch → 12 fps, with the missed solver steps caught up, then cleared
  *   sweep   high tier only: the idle light sweep (and a sphere's spin) for one loop, ≈ 28.6 s, at 12 fps
- *   rest    nothing → no frames at all
+ *   breeze  `breeze` > 0: the solver keeps stirring → 30 fps while visible (off by default)
+ *   rest    nothing → no frames at all; with `autoplay`, one timer for the next drop
+ * Programmatic touches (`ripple()`, `autoplay`) count as touches for these rules but never as hovering.
  * Off-screen or hidden tab → stopped. A lifted touch or a pointer that left the window stops counting as hovering.
  * If full-speed frames average > 28 ms, the device-pixel ratio steps down 2 → 1.5 → 1.
  */
@@ -26,12 +28,15 @@ import { SIM_VERT, SIM_FRAG, OBJ_VERT, OBJ_FRAG } from './shaders.js';
 const MOON_SIM = 256;               // the moon's simulation grid; one cell = π / 256 world units (the reference)
 const TEXEL = Math.PI / MOON_SIM;
 const PRESS_MIX = 0.35;             // per step, how far the pressed cells move towards the dent depth
-const SATIN_LIGHT = [0.5, 0.6, 0.45];
 const FILL_HOME = [-0.55, 0.6, 0.58];
 const IDLE_LIGHT_MS = 2500;
 const RIPPLE_MS = 8000;
 const TAIL_MS = 20000;              // by now ripples are ≈ 1 % of their height: clear and stop solving
 const IDLE_FPS = 12;
+const BREEZE_FPS = 30;
+const BREEZE_GAIN = 0.025;          // height nudged per reference step at breeze 1
+const TOUCH_MAX = 4;                // programmatic touches held at once (uTouch[4] in SIM_FRAG)
+const FIRST_DROP_MS = 800;          // autoplay: the first drop comes soon after the object appears
 const SWEEP_RATE = 0.22;            // rad/s → one loop ≈ 28.6 s
 const SWEEP_TURN = (2 * Math.PI) / SWEEP_RATE;
 const SLOW_FRAME_MS = 28;
@@ -161,9 +166,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     bumpTex = own(bitmapTex(THREE, assets.bump, THREE.RepeatWrapping));
     bumpTexel = 1 / (assets.bump.width || 1024);
   }
-  const grainSize = o.grain > 0 ? tier.grain : 1;
-  const grainTex = own(o.grain > 0 ? grainTexture(THREE, grainSize) : dataTex(THREE, new Uint8Array([128]), 1, THREE.RedFormat));
-  const flat = own(dataTex(THREE, new Uint8Array([128]), 1, THREE.RedFormat));
+  const flat = own(dataTex(THREE, new Uint8Array([128]), 1, THREE.RedFormat));   // neutral grain, no bump
+  let grainTex = null;                                                             // made on first grain > 0
 
   /* ---- wave simulation, possibly coarser than the reference grid ----
    * cells r = SIM_REF / SIM times larger → STEPS sub-steps per frame, wave speed × (r / STEPS)² (a discrete
@@ -187,6 +191,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       uMouse: { value: new THREE.Vector2(-10, -10) }, uMouseActive: { value: 0 },
       uPressDepth: { value: o.pressDepth }, uPressRadius: { value: 0 }, uPressMix: { value: 1 - (1 - PRESS_MIX) ** (1 / STEPS) },
       uWaveSpeed: { value: 0 }, uDamping: { value: 0 },
+      uTouch: { value: Array.from({ length: TOUCH_MAX }, () => new THREE.Vector4()) }, uTouchCount: { value: 0 },
+      uBreeze: { value: 0 }, uTime: { value: 0 },
     },
     vertexShader: SIM_VERT, fragmentShader: SIM_FRAG, depthTest: false, depthWrite: false,
   }));
@@ -198,13 +204,16 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   /* ---- the object ---- */
   const vec3 = (a) => new THREE.Vector3().fromArray(a).normalize();
   const U = {
-    uSim: { value: null }, uAlbedo: { value: albedoTex }, uGrain: { value: grainTex }, uGrainSize: { value: grainSize },
+    uSim: { value: null }, uAlbedo: { value: albedoTex }, uGrain: { value: flat }, uGrainSize: { value: 1 },
     uSimSize: { value: new THREE.Vector2(SIM, SIM) }, uSlope: { value: SIM / SIM_REF },
-    uSatinDir: { value: vec3(SATIN_LIGHT) }, uSunDir: { value: new THREE.Vector3() },
+    uSatinDir: { value: new THREE.Vector3() }, uSunDir: { value: new THREE.Vector3() },
     uVolDir: { value: vec3(FILL_HOME) }, uTint: { value: new THREE.Vector3() },
     uRipple: { value: 0 }, uSatin: { value: 0 }, uFloor: { value: 0 }, uExposure: { value: 1 }, uGamma: { value: 1 },
     uVolume: { value: 0 }, uSheen: { value: 0 }, uSheenPow: { value: 1 }, uTintMix: { value: 0 }, uGrainAmt: { value: 0 },
     uDisplace: { value: o.displace },
+    uLightColor: { value: new THREE.Vector3(1, 1, 1) }, uSheenColor: { value: new THREE.Vector3() }, uRimColor: { value: new THREE.Vector3() },
+    uAnisoDir: { value: new THREE.Vector2(1, 0) }, uAnisotropy: { value: 0 }, uRim: { value: 0 }, uRimPower: { value: 3 }, uRimSelf: { value: 0 },
+    uIridescence: { value: 0 }, uSilkRest: { value: 0 }, uSilkSpread: { value: 1 },
     uBump: { value: bumpTex || flat }, uAngle: { value: o.angle || 0 }, uBumpTexel: { value: bumpTexel }, uBumpStrength: { value: 0 },
   };
   const objMat = own(new THREE.RawShaderMaterial({
@@ -243,12 +252,30 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     U.uTintMix.value = o.albedo ? 1 : 0;
     if (o.albedo) U.uTint.value.fromArray(o.albedo);
     U.uGrainAmt.value = o.grain > 0 ? Math.min(1, o.grain) : 0;
+    if (o.grain > 0 && !grainTex) {
+      grainTex = own(grainTexture(THREE, tier.grain));
+      U.uGrain.value = grainTex;
+      U.uGrainSize.value = tier.grain;
+    }
+    U.uLightColor.value.fromArray(o.lightColor);
+    U.uSheenColor.value.fromArray(o.sheenColor);
+    U.uSatinDir.value.copy(vec3(o.satinLight));
+    U.uAnisotropy.value = o.anisotropy;
+    U.uAnisoDir.value.set(Math.cos(o.anisotropyAngle), Math.sin(o.anisotropyAngle));
+    U.uRim.value = o.rim;
+    U.uRimPower.value = o.rimPower;
+    U.uRimSelf.value = o.rimColor ? 0 : 1;                // null: the picture's own colour
+    if (o.rimColor) U.uRimColor.value.fromArray(o.rimColor);
+    U.uIridescence.value = o.iridescence;
+    U.uSilkRest.value = o.silkRest;
+    U.uSilkSpread.value = o.silkSpread;
     U.uBumpStrength.value = bumpTex ? o.bumpStrength : 0;
     const su = simMat.uniforms;
     su.uWaveSpeed.value = o.waveSpeed * (ratio / STEPS) ** 2;
     su.uDamping.value = o.damping ** (1 / STEPS);
-    su.uPressRadius.value = SPHERE ? o.pressRadius : (o.pressRadius * MOON_SIM) / SIM_REF;
+    su.uPressRadius.value = toUv(o.pressRadius);
   }
+  const toUv = (radius) => (SPHERE ? radius : (radius * MOON_SIM) / SIM_REF);   // pressRadius is in the moon's uv units
 
   /* ---- pointer and fill light ---- */
   const ndc = new THREE.Vector2(-10, -10);
@@ -260,24 +287,52 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   let sweepUsed = 0;
   const interactive = () => o.interactive && !still;
 
-  function hitTest() {
-    if (!interactive() || lifted) return null;
+  /** The uv on the object under a point in normalised device coordinates, or null. */
+  function uvAt(p) {
     if (SPHERE) {
-      raycaster.setFromCamera(ndc, camera);
+      raycaster.setFromCamera(p, camera);
       return raycaster.intersectObject(mesh)[0]?.uv || null;
     }
-    const u = (ndc.x * camera.right) / side + 0.5, v = (ndc.y * camera.top) / side + 0.5;
+    const u = (p.x * camera.right) / side + 0.5, v = (p.y * camera.top) / side + 0.5;
     return inside(u, v) ? new THREE.Vector2(u, v) : null;
+  }
+  const hitTest = () => (!interactive() || lifted ? null : uvAt(ndc));
+
+  /* ---- programmatic touches (handle.ripple, autoplay): their own dents, never the pointer's, never hovering ---- */
+  const touches = [];   // { uv, depth, radius (uv units), left: 60 fps frames still to press }
+  let nextDrop = 0;     // autoplay: when the next drop falls (0 = off)
+  const autoplay = () => (o.autoplay && !still ? { interval: 2500, depth: 0.3, ...(o.autoplay === true ? {} : o.autoplay) } : null);
+  const breezing = () => o.breeze > 0 && !still;
+
+  function addTouch(uv, { depth = o.pressDepth, radius = o.pressRadius, hold = 120 } = {}) {
+    if (touches.length >= TOUCH_MAX) touches.shift();
+    // the hold is counted in solver frames, not wall time, so a slow device presses as deep as a fast one
+    touches.push({ uv, depth, radius: toUv(radius), left: Math.max(1, Math.round(hold / (1000 / 60))) });
+  }
+  /** One drop at a random point well inside the outline (a sphere: its visible face). */
+  function drop(a) {
+    for (let k = 0; k < 32; k++) {
+      let uv = null;
+      if (SPHERE) {
+        const r = 0.6 * Math.sqrt(Math.random()), t = Math.random() * 2 * Math.PI;
+        uv = uvAt(new THREE.Vector2(r * Math.cos(t), r * Math.sin(t)));
+      } else {
+        const u = 0.1 + 0.8 * Math.random(), v = 0.1 + 0.8 * Math.random(), m = 0.04;
+        if (inside(u, v) && inside(u - m, v) && inside(u + m, v) && inside(u, v - m) && inside(u, v + m)) uv = new THREE.Vector2(u, v);
+      }
+      if (uv) return addTouch(uv, { depth: a.depth, radius: a.radius });
+    }
   }
 
   /* ---- loop ---- */
   let elapsed = 0, frameId = 0, timerId = 0, lastTick = 0, dead = false, drawn = false;
-  let simDirty = false, frameMs = 1000 / 60, slowRun = 0, slowSum = 0;
+  let simDirty = false, frameMs = 1000 / 60, slowRun = 0, slowSum = 0, lastStir = -1e9, drawCount = 0;
   const sweeping = () => tier.idleSweep && o.idleSweep && !still && sweepUsed < SWEEP_TURN;
   const chasing = () => tmp.copy(target).sub(fill).lengthSq() > 0.0016 || vel.lengthSq() > 0.02;
   function modeAt(now) {
-    if (hovering || pointerDown || now - lastHit < RIPPLE_MS || (interactive() && now - lastMove < IDLE_LIGHT_MS) || (o.fillLight && chasing())) return 'active';
-    if (simDirty && now - lastHit < TAIL_MS) return 'tail';
+    if (hovering || pointerDown || touches.length || now - lastHit < RIPPLE_MS || (interactive() && now - lastMove < IDLE_LIGHT_MS) || (o.fillLight && chasing())) return 'active';
+    if (breezing()) return 'breeze';
+    if (simDirty && now - lastStir < TAIL_MS) return 'tail';
     return sweeping() ? 'sweep' : 'rest';
   }
 
@@ -306,11 +361,27 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     const raw = lastTick ? (now - lastTick) / 1000 : 0;
     lastTick = now;
 
+    // autoplay: a drop every `interval` ms while visible, skipped while someone is touching the object
+    const a = autoplay();
+    if (!a) nextDrop = 0;
+    else if (!nextDrop) nextDrop = now + Math.min(a.interval, FIRST_DROP_MS);
+    else if (now >= nextDrop) {
+      if (!hovering && !pointerDown && !(interactive() && now - lastMove < IDLE_LIGHT_MS)) drop(a);
+      nextDrop = now + a.interval;
+    }
+
+    const su = simMat.uniforms;
     const uv = hitTest();
     if (!!uv !== hovering) { hovering = !!uv; init.onHover?.(hovering); }
-    if (uv) { lastHit = now; simDirty = true; simMat.uniforms.uMouse.value.copy(uv); }
-    simMat.uniforms.uMouseActive.value = uv ? 1 : 0;
-    simMat.uniforms.uPressDepth.value = pointerDown ? o.pressDepthHold : o.pressDepth;
+    if (uv) { lastHit = lastStir = now; simDirty = true; su.uMouse.value.copy(uv); }
+    su.uMouseActive.value = uv ? 1 : 0;
+    su.uPressDepth.value = pointerDown ? o.pressDepthHold : o.pressDepth;
+    touches.forEach((t, i) => su.uTouch.value[i].set(t.uv.x, t.uv.y, t.depth, t.radius));
+    su.uTouchCount.value = touches.length;
+    if (touches.length) { lastHit = lastStir = now; simDirty = true; }
+    const breeze = breezing();
+    su.uBreeze.value = breeze ? (o.breeze * BREEZE_GAIN) / STEPS : 0;
+    if (breeze) { lastStir = now; simDirty = true; }
 
     const mode = modeAt(now);
     const active = mode === 'active';
@@ -351,9 +422,11 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     }
 
     // waves: one frame's worth of steps while active; in the tail, catch up the steps missed between 12 fps frames
-    if (hovering || (simDirty && now - lastHit < TAIL_MS)) {
+    su.uTime.value = elapsed;
+    if (hovering || touches.length || breeze || (simDirty && now - lastStir < TAIL_MS)) {
       const frames = active ? 1 : Math.min(12, Math.max(1, Math.round((raw * 1000) / frameMs)));
       stepSim(frames * STEPS);
+      for (let i = touches.length - 1; i >= 0; i--) if ((touches[i].left -= frames) <= 0) touches.splice(i, 1);
     } else if (simDirty) {
       clearSim();
       simDirty = false;
@@ -362,6 +435,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     U.uSim.value = fboA.texture;
     if (SPHERE && o.spin && !still && (active || mode === 'sweep')) U.uAngle.value += dt * o.spinSpeed;
     renderer.render(scene, camera);
+    drawCount++;
     if (!drawn) { drawn = true; init.onFirstFrame?.(); }
     schedule(now);
   }
@@ -370,8 +444,10 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     if (dead || !visible || frameId || timerId) return;
     const mode = modeAt(now);
     if (mode === 'active') frameId = nextFrame(tick);
-    else if (mode !== 'rest') timerId = setTimeout(() => { timerId = 0; frameId = nextFrame(tick); }, 1000 / IDLE_FPS);
+    else if (mode !== 'rest') timerId = setTimeout(later, 1000 / (mode === 'breeze' ? BREEZE_FPS : IDLE_FPS));
+    else if (nextDrop) timerId = setTimeout(later, Math.max(0, nextDrop - now));   // autoplay: wait for the next drop
   }
+  function later() { timerId = 0; frameId = nextFrame(tick); }
   function wake() {
     if (dead || !visible || frameId) return;
     if (timerId) { clearTimeout(timerId); timerId = 0; }
@@ -423,10 +499,18 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     setVisible(v) { visible = v; if (v) wake(); else halt(); },
     setStill(s) {
       still = s;
-      if (still) { lifted = true; pointerDown = false; }
+      if (still) { lifted = true; pointerDown = false; touches.length = 0; }
       wake();
     },
     setOptions(patch) { Object.assign(o, patch); apply(); wake(); },
+    /** A programmatic touch at canvas coordinates (0–1, top-left origin). False if it misses the object. */
+    touch(x, y, opts) {
+      if (still || dead) return false;
+      const uv = uvAt(new THREE.Vector2(x * 2 - 1, 1 - y * 2));
+      if (uv) { addTouch(uv, opts); wake(); }
+      return !!uv;
+    },
+    stats: () => ({ frames: drawCount, mode: modeAt(performance.now()) }),
     wake,
     dispose() {
       dead = true;
@@ -439,8 +523,9 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 
 /* ============================================
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
- * fallback calls it directly. Messages in: init, pointer, press, lift, view, visible, still, options, wake,
- * dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, fail { reason }.
+ * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
+ * stats, dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, mode },
+ * fail { reason }.
  * ============================================ */
 export function serve(post, loadThree) {
   let silk = null, dead = false;
@@ -475,6 +560,8 @@ export function serve(post, loadThree) {
       case 'pointer': silk?.pointer(m.x, m.y); break;
       case 'press': silk?.press(m.down); break;
       case 'lift': silk?.lift(); break;
+      case 'touch': silk?.touch(m.x, m.y, m); break;
+      case 'stats': post({ t: 'stats', id: m.id, ...(silk ? silk.stats() : { frames: 0, mode: 'loading' }) }); break;
       case 'view': latest.view = m.view; silk?.resize(m.view); break;
       case 'visible': latest.visible = m.visible; silk?.setVisible(m.visible); break;
       case 'still': latest.still = m.still; silk?.setStill(m.still); break;

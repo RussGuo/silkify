@@ -23,7 +23,18 @@ export const SIM_FRAG = /* glsl */ `
   uniform sampler2D uPrev, uMask;
   uniform vec2 uSize, uMouse;
   uniform float uMouseActive, uPressDepth, uPressRadius, uPressMix, uWaveSpeed, uDamping;
+  uniform vec4 uTouch[4];          // programmatic touches (handle.ripple, autoplay): uv, depth, radius in uv units
+  uniform float uTouchCount, uBreeze, uTime;
   varying vec2 vUv;
+
+  // value noise for the breeze: smooth, cheap, no texture
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + 1.0), f.x), f.y);
+  }
+
   void main() {
     vec4 data = texture2D(uPrev, vUv);
     vec2 dx = vec2(1.0 / uSize.x, 0.0), dy = vec2(0.0, 1.0 / uSize.y);
@@ -36,6 +47,18 @@ export const SIM_FRAG = /* glsl */ `
     if (uMouseActive > 0.5) {
       float influence = smoothstep(uPressRadius, 0.0, distance(vUv, uMouse));
       data.r = mix(data.r, -uPressDepth, influence * uPressMix);
+    }
+    // the pointer and programmatic touches never share a slot: each one mixes its own dent in
+    for (int i = 0; i < 4; i++) {
+      if (float(i) >= uTouchCount) break;
+      float influence = smoothstep(uTouch[i].w, 0.0, distance(vUv, uTouch[i].xy));
+      data.r = mix(data.r, -uTouch[i].z, influence * uPressMix);
+    }
+    // breeze: a slow, drifting noise field nudges the height; the wave equation turns it into soft swells
+    if (uBreeze > 0.0) {
+      vec2 q = vUv * 7.0;
+      float n = vnoise(q + vec2(uTime * 0.23, uTime * 0.11)) + 0.5 * vnoise(q * 2.3 - vec2(uTime * 0.17, -uTime * 0.29));
+      data.r += (n - 0.75) * uBreeze;
     }
   #ifndef SPHERE
     data.rg *= step(0.5, texture2D(uMask, vUv).a);   // zero outside: waves reflect at the outline, which never moves
@@ -70,8 +93,10 @@ export const OBJ_FRAG = /* glsl */ `
   precision highp float;
   uniform sampler2D uSim, uAlbedo, uGrain;
   uniform vec2 uSimSize;
-  uniform vec3 uSatinDir, uSunDir, uVolDir, uTint;
+  uniform vec3 uSatinDir, uSunDir, uVolDir, uTint, uLightColor, uSheenColor, uRimColor;
+  uniform vec2 uAnisoDir;          // (cos, sin) of the thread direction in the tangent plane
   uniform float uRipple, uSlope, uSatin, uFloor, uExposure, uGamma, uVolume, uSheen, uSheenPow, uTintMix, uGrainAmt, uGrainSize;
+  uniform float uAnisotropy, uRim, uRimPower, uRimSelf, uIridescence, uSilkRest, uSilkSpread;
 #ifdef SPHERE
   uniform sampler2D uBump;
   uniform float uAngle, uBumpTexel, uBumpStrength;
@@ -80,6 +105,7 @@ export const OBJ_FRAG = /* glsl */ `
 
   float blendOverlay(float b, float s) { return b < 0.5 ? (2.0 * b * s) : (1.0 - 2.0 * (1.0 - b) * (1.0 - s)); }
   vec3 blendOverlay(vec3 b, vec3 s) { return vec3(blendOverlay(b.r, s.r), blendOverlay(b.g, s.g), blendOverlay(b.b, s.b)); }
+  vec3 hue(float h) { return clamp(abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0); }
 
   void main() {
   #ifdef SPHERE
@@ -94,7 +120,8 @@ export const OBJ_FRAG = /* glsl */ `
     vec4 data = texture2D(uSim, vUv);
     float hx = (texture2D(uSim, vec2(vUv.x + 1.0 / uSimSize.x, vUv.y)).r - data.r) * uSlope;
     float hy = (texture2D(uSim, vec2(vUv.x, vUv.y + 1.0 / uSimSize.y)).r - data.r) * uSlope;
-    float silk = clamp(abs(data.r) * 5.0 + length(vec2(hx, hy)) * 26.0, 0.0, 1.0);
+    float silk = clamp((abs(data.r) * 5.0 + length(vec2(hx, hy)) * 26.0) * uSilkSpread, 0.0, 1.0);
+    silk = max(silk, uSilkRest);                         // silkRest 1: silk everywhere, touched or not
 
     vec3 geoN = normalize(vViewNormal + vec3(0.0, 0.0, 1e-4));
     vec3 viewDir = normalize(-vViewPos);
@@ -127,7 +154,7 @@ export const OBJ_FRAG = /* glsl */ `
     float lunar = clamp(2.0 * mu0 / max(mu0 + mu, DEN), 0.0, 1.0);
     float dayT = smoothstep(-0.05, 0.06, muGeo);
     float lum = lunar + uFloor * (1.0 - lunar);           // floor, not a gate: no black groove at the terminator
-    vec3 col = albedo * lum * uExposure;
+    vec3 col = albedo * lum * uExposure * uLightColor;
     col *= mix(1.0 - uVolume, 1.0, smoothstep(-1.0, 1.0, dot(geoN, uVolDir)));
 
     // ---- silk only where touched, and only on the lit side ----
@@ -135,7 +162,31 @@ export const OBJ_FRAG = /* glsl */ `
     float satin = mix(0.5, max(dot(N, uSatinDir), 0.0), 0.45);
     col = mix(col, blendOverlay(col, vec3(satin)), silkLit * uSatin);
     float spec = pow(max(dot(viewDir, reflect(-uSatinDir, N)), 0.0), uSheenPow);
-    col += uSheen * spec * silkLit * vec3(0.9, 0.95, 1.0);
+    if (uAnisotropy > 0.0) {
+      // Kajiya–Kay: the highlight stretches across the threads. Image: the tangent plane is xy.
+      // Sphere: the texture's u direction, (n.z, 0, −n.x) for a sphere about the view-space y axis
+    #ifdef SPHERE
+      vec3 tu = normalize(vec3(geoN.z, 0.0, -geoN.x) + vec3(1e-4, 0.0, 0.0));
+      vec3 t0 = tu * uAnisoDir.x + cross(geoN, tu) * uAnisoDir.y;
+    #else
+      vec3 t0 = vec3(uAnisoDir, 0.0);
+    #endif
+      vec3 T = normalize(t0 - N * dot(N, t0) + vec3(0.0, 0.0, 1e-5));
+      float th = dot(T, normalize(uSatinDir + viewDir));
+      spec = mix(spec, pow(sqrt(max(1.0 - th * th, 0.0)), uSheenPow), uAnisotropy);
+    }
+    vec3 sheenColor = uSheenColor;
+    if (uIridescence > 0.0) {
+      // the highlight's hue turns with the viewing angle and the ripple height, like shot silk
+      float nv = max(dot(N, viewDir), 0.0);
+      sheenColor = mix(sheenColor, 0.35 + 0.65 * hue(0.55 + 1.3 * (1.0 - nv) + 2.5 * data.r), uIridescence);
+    }
+    col += uSheen * spec * silkLit * sheenColor;
+    if (uRim > 0.0) {
+      // Fresnel edge: a coloured light (rimColor), or the picture's own colour lifted, like the pile of velvet
+      vec3 rimColor = mix(uRimColor, min(albedo * 1.8 + 0.08, 1.0), uRimSelf);
+      col += uRim * pow(1.0 - max(dot(N, viewDir), 0.0), uRimPower) * rimColor;
+    }
 
     gl_FragColor = vec4(col * base.a, base.a);            // premultiplied
   }

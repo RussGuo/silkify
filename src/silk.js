@@ -29,6 +29,12 @@ const COMMON = {
   pressDepth: 0.3, pressDepthHold: 0.6, pressRadius: 0.075,
   waveSpeed: 1.6, damping: 0.996, displace: 0.32, ripple: 62,
   satin: 0.9, exposure: 1, gamma: 1, volume: 0.28,
+  // material dimensions: every default leaves the classic look untouched
+  lightColor: [1, 1, 1], sheenColor: [0.9, 0.95, 1], satinLight: [0.5, 0.6, 0.45],
+  anisotropy: 0, anisotropyAngle: 0, rim: 0, rimPower: 3, rimColor: [1, 1, 1], iridescence: 0, silkRest: 0, silkSpread: 1,
+  // motion that does not wait for a pointer: off by default, because both keep the loop awake
+  autoplay: false,         // true | { interval: 2500, depth: 0.3, radius } — a drop at a random point every interval ms
+  breeze: 0,               // 0–1: a slow noise field keeps the surface faintly alive (30 fps while visible)
   fillLight: true, idleSweep: true,
   dpr: undefined,          // device-pixel-ratio cap; undefined → the tier's (2 high, 1 low)
   reducedMotion: 'auto',
@@ -51,12 +57,12 @@ const transferred = new WeakSet();   // a canvas can be handed to a worker only 
 
 const absolute = (src) => (typeof src === 'string' ? new URL(src, document.baseURI).href : src);
 
-/** Plain data the worker can receive: no functions, no DOM objects. */
+/** Plain data the worker can receive: no functions, no DOM objects (object literals such as `autoplay` pass). */
 function plain(o) {
   const out = {};
   for (const [k, v] of Object.entries(o)) {
-    if (typeof v === 'function' || (v && typeof v === 'object' && !Array.isArray(v))) continue;
-    out[k] = v;
+    if (typeof v === 'function' || (v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) !== Object.prototype)) continue;
+    out[k] = v && typeof v === 'object' && !Array.isArray(v) ? plain(v) : v;
   }
   return out;
 }
@@ -119,6 +125,8 @@ export function silkify(canvasIn, options = {}) {
   let canvas = canvasIn;
   let send = () => {};
   let worker = null, disposed = false, inView = true, staticPic = null;
+  const asked = new Map();   // stats requests in flight: id → resolve
+  let askId = 0;
   const ctl = new AbortController();
   const on = { signal: ctl.signal, passive: true };
 
@@ -131,6 +139,13 @@ export function silkify(canvasIn, options = {}) {
     ready: null,
     setTheme(patch) { Object.assign(o, patch); send({ t: 'options', patch: plain(patch) }); },
     setPhase(f) { handle.setTheme({ phase: f }); },
+    /** A programmatic touch at canvas coordinates (0–1, top-left origin): a short press, then the ripples run. */
+    ripple(x, y, { depth, radius, hold } = {}) { send({ t: 'touch', x, y, depth, radius, hold }); },
+    /** For measuring: frames drawn since mount and the loop's current mode ('active', 'breeze', 'tail', 'sweep', 'rest'). */
+    stats() {
+      if (handle.mode !== 'webgl') return Promise.resolve({ frames: 0, mode: handle.mode });
+      return new Promise((resolve) => { asked.set(++askId, resolve); send({ t: 'stats', id: askId }); });
+    },
     wake() { send({ t: 'wake' }); },
     dispose() {
       if (disposed) return;
@@ -210,6 +225,7 @@ export function silkify(canvasIn, options = {}) {
       const receive = (m) => {
         if (m.t === 'ready') resolve(m);
         else if (m.t === 'hover') o.onHover?.(m.on);
+        else if (m.t === 'stats') { asked.get(m.id)?.({ frames: m.frames, mode: m.mode }); asked.delete(m.id); }
         else if (m.t === 'fail') reject(new Error(m.reason));
       };
       if (onWorker) {
