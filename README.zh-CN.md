@@ -15,15 +15,14 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKIL
 | Agent | 安装 |
 |---|---|
 | Claude Code | `/plugin marketplace add RussGuo/silkify`，再 `/plugin install silkify@silkify` |
-| Codex（CLI、IDE 插件、ChatGPT 桌面端） | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
+| Codex（CLI、IDE 插件）与 ChatGPT 桌面端 | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
 | Cursor | 同一条 clone（Cursor 读取 `~/.agents/skills`），或把 [`integrations/cursor/silkify.mdc`](integrations/cursor/silkify.mdc) 放进 `.cursor/rules/` |
-| GitHub Copilot | 同一条 clone（Copilot 读取 `~/.agents/skills`），或把 [`integrations/copilot/copilot-instructions.md`](integrations/copilot/copilot-instructions.md) 放到 `.github/copilot-instructions.md` |
+| GitHub Copilot | 同一条 clone（Copilot 读取 `~/.agents/skills`）；只给某个仓库用时，把 [`integrations/copilot/silkify.instructions.md`](integrations/copilot/silkify.instructions.md) 放进 `.github/instructions/`（只作用于页面与组件文件） |
 | Gemini CLI | 同一条 clone（`~/.agents/skills` 是 `~/.gemini/skills` 的别名） |
 | OpenCode、Amp 等支持 Skill 的 Agent | 同一条 clone，或 `npx skills add RussGuo/silkify` |
-| ChatGPT | 用生成的 instructions 与知识文件[建一个自定义 GPT](integrations/chatgpt/README.md) |
 | 其他 | 把 [SKILL.md](SKILL.md) 原文贴进对话，或让 Agent 读 [llms.txt](llms.txt) |
 
-然后对它说「把这张图丝绸化」。想固定版本，clone 时加 `--branch v0.2.0`。ChatGPT、Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都由 `npm run build:integrations` 从 SKILL.md 生成，各宿主读到的是同一份说明。
+然后对它说「把这张图丝绸化」。想固定版本，clone 时加 `--branch v0.2.0`。Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都由 `npm run build:integrations` 从 SKILL.md 生成，各宿主读到的是同一份说明。
 
 ## 画廊
 
@@ -173,7 +172,7 @@ scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背
 scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版；控制台检查
 scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt（--check 查漂移）
 examples/           画廊、Lab 调参页与 cdn.html（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
-integrations/       生成物：ChatGPT 自定义 GPT 的 instructions 与知识文件、Cursor rule、Copilot instructions
+integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions
 AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引
 .claude-plugin/     插件 marketplace 清单（Skill 本体是根目录的 SKILL.md）
 ```

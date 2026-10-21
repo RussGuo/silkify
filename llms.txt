@@ -20,9 +20,8 @@ silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Impo
 
 ## Integrations
 
-- [ChatGPT custom GPT](https://github.com/RussGuo/silkify/blob/v0.2.0/integrations/chatgpt/README.md): instructions and knowledge files
 - [Cursor rule](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/integrations/cursor/silkify.mdc): for .cursor/rules/
-- [Copilot instructions](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/integrations/copilot/copilot-instructions.md): for .github/copilot-instructions.md
+- [Copilot instructions](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/integrations/copilot/silkify.instructions.md): for .github/instructions/ (applies to page and component files only)
 
 ## Optional
 

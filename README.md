@@ -15,15 +15,14 @@ silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) th
 | Agent | Install |
 |---|---|
 | Claude Code | `/plugin marketplace add RussGuo/silkify`, then `/plugin install silkify@silkify` |
-| Codex (CLI, IDE extension, ChatGPT desktop app) | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
+| Codex (CLI, IDE extension) and the ChatGPT desktop app | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
 | Cursor | the same clone (Cursor reads `~/.agents/skills`), or copy [`integrations/cursor/silkify.mdc`](integrations/cursor/silkify.mdc) into `.cursor/rules/` |
-| GitHub Copilot | the same clone (Copilot reads `~/.agents/skills`), or copy [`integrations/copilot/copilot-instructions.md`](integrations/copilot/copilot-instructions.md) to `.github/copilot-instructions.md` |
+| GitHub Copilot | the same clone (Copilot reads `~/.agents/skills`), or, for one repository, copy [`integrations/copilot/silkify.instructions.md`](integrations/copilot/silkify.instructions.md) into `.github/instructions/` (it applies to page and component files only) |
 | Gemini CLI | the same clone (`~/.agents/skills` is an alias of `~/.gemini/skills`) |
 | OpenCode, Amp and other skill-aware agents | the same clone, or `npx skills add RussGuo/silkify` |
-| ChatGPT | [build a custom GPT](integrations/chatgpt/README.md) from the generated instructions and knowledge files |
 | Anything else | paste [SKILL.md](SKILL.md) into the chat, or point the agent at [llms.txt](llms.txt) |
 
-Then ask it to "silkify" a picture. Add `--branch v0.2.0` to the clone to pin a release. The files for ChatGPT, Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
+Then ask it to "silkify" a picture. Add `--branch v0.2.0` to the clone to pin a release. The files for Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
 
 ## Gallery
 
@@ -173,7 +172,7 @@ scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixi
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, then the Lab), --posters, --gif (ffmpeg), --lab, --cdn; console check
 scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt (--check for drift)
 examples/           the gallery, the Lab and cdn.html (static; GitHub Pages), WebP pictures and posters, image credits
-integrations/       generated: ChatGPT GPT instructions + knowledge, a Cursor rule, Copilot instructions
+integrations/       generated: a Cursor rule and a path-scoped Copilot instruction
 AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index
 .claude-plugin/     the plugin marketplace manifest (the skill is SKILL.md at the root)
 ```
