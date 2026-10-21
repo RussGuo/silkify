@@ -41,7 +41,7 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKIL
 
 示例图片均为公有领域或 CC0，来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
 
-**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数排在一页：拖动滑杆，物体实时变化；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数，或者分享链接（完整状态都在网址里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
+**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数排在一页：拖动滑杆，物体实时变化；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
 

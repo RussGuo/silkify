@@ -41,7 +41,7 @@ Every frame below is a real headless-Chrome render of [`examples/index.html`](ex
 
 The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
-**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture, then copy the options or share the link (the whole state is in the URL). One picture per preset is in [docs/shots/lab](docs/shots/lab).
+**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture, then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it. One picture per preset is in [docs/shots/lab](docs/shots/lab).
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="the silkify Lab: a teapot in foil, with every option beside it">
 

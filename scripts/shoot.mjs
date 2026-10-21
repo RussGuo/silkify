@@ -47,7 +47,7 @@ const CHROME = process.env.CHROME || {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---- static server for the repo root ---- */
-const server = await serve(ROOT);
+const server = await serve(ROOT, { cors: true });   // cors: a downloaded Lab page on file:// imports silk.js from here
 const base = server.base;
 
 /* ---- Chrome ---- */
@@ -434,6 +434,7 @@ async function verifyLab() {
   if (a !== b) problems.push('lab: the link did not restore the controls');
   console.log('lab   ', `link round trip: ${n} controls`, a === b ? 'identical' : 'DIFFERENT');
 
+
   // breeze and autoplay off → the loop sleeps: 0 frames in 10 s once it reaches rest
   let mode = '';
   for (let t = 0; t < 40 && mode !== 'rest'; t++) { await sleep(1000); mode = (await labStats()).mode; }
@@ -446,9 +447,10 @@ async function verifyLab() {
   const panel = await evaluate(`(() => { const b = document.querySelector('aside').getBoundingClientRect(); return { x: b.left + 40, y: b.top + 40, w: b.width - 80, h: b.height - 80 }; })()`);
   const o0 = (await labStats()).frames;
   for (let k = 0; k < 60; k++) { await mouse('mouseMoved', panel.x + (k % 12) * panel.w / 12, panel.y + (k % 7) * panel.h / 7); await sleep(25); }
-  await mouse('mousePressed', panel.x, panel.y + panel.h, { button: 'left', clickCount: 1 });
+  const pre = await evaluate(`(() => { const b = document.querySelector('.out pre').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
+  await mouse('mousePressed', pre.x, pre.y, { button: 'left', clickCount: 1 });   // held on the printed code: no control there
   await sleep(1300);
-  await mouse('mouseReleased', panel.x, panel.y + panel.h, { button: 'left', clickCount: 1 });
+  await mouse('mouseReleased', pre.x, pre.y, { button: 'left', clickCount: 1 });
   const o1 = await labStats();
   if (o1.frames !== o0 || o1.mode !== 'rest') problems.push(`lab: a pointer off the canvas drew ${o1.frames - o0} frames (mode ${o1.mode})`);
   console.log('lab   ', `pointer moving and held off the canvas for 3 s: ${o1.frames - o0} frames`);
@@ -460,6 +462,20 @@ async function verifyLab() {
   const g1 = await labStats();
   if (g1.mode !== 'breeze' || g1.frames - g0.frames < 10) problems.push(`lab: breeze drew ${g1.frames - g0.frames} frames in 2 s (mode ${g1.mode})`);
   console.log('lab   ', `breeze 0.6: ${((g1.frames - g0.frames) / 2).toFixed(0)} fps, mode ${g1.mode}`);
+
+  // Download HTML: one file, the picture inside, opened from file:// (silk.js from this server instead of the CDN tag)
+  const html = await evaluate('window.__lab.exportHtml()');
+  const cdn = /https:\/\/cdn\.jsdelivr\.net\/gh\/RussGuo\/silkify@[\w.-]+\/src\/silk\.js/;
+  if (!/const PICTURE = 'data:image\//.test(html) || !cdn.test(html) || !/<\/script>\s*<\/body>/.test(html)) problems.push('lab: Download HTML is not a complete page');
+  const file = path.join(profile, 'download.html');
+  await writeFile(file, html.replace(cdn, `${base}/src/silk.js`));
+  await navigate('about:blank');
+  await navigate(`file://${file}`);
+  const d = await evaluate(`new Promise((r) => { const t = setInterval(() => window.silk && (clearInterval(t), r(window.silk.ready)), 50); })
+    .then((h) => h.stats().then((s0) => { h.ripple(0.5, 0.5); return new Promise((r) => setTimeout(r, 600)).then(() => h.stats())
+    .then((s1) => ({ mode: h.mode, thread: h.thread, frames: s1.frames - s0.frames })); }))`);
+  if (d.mode !== 'webgl' || !(d.frames > 5)) problems.push(`lab: the downloaded page from file:// is ${d.mode} (${d.frames} frames after a ripple)`);
+  console.log('lab   ', `Download HTML: ${(html.length / 1024).toFixed(0)} KB, from file:// ${d.mode}/${d.thread}, ${d.frames} frames after ripple()`);
 }
 
 /* ---- verify, part 3: test/edge.html, the cases that once failed silently (it checks itself; see the page) ---- */

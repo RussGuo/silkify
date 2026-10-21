@@ -39,7 +39,7 @@ export async function loadBitmap(src, { flipY = false } = {}) {
   const opts = { imageOrientation: flipY ? 'flipY' : 'from-image', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
   if (typeof src === 'string') {
     const res = await fetch(src, { mode: 'cors' });
-    if (!res.ok) throw new Error(`${src} → HTTP ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(`${src} → HTTP ${res.status}`), { http: true });
     const blob = await res.blob();
     // createImageBitmap cannot decode SVG (in a worker there is no <img> either): the page rasterises it
     if (/svg/i.test(blob.type)) throw Object.assign(new Error(`${src} is an SVG`), { svg: true });

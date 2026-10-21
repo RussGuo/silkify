@@ -56,6 +56,12 @@
     font-size: 12px; color: var(--paper); background: var(--ink); opacity: 0; transition: opacity 0.15s; pointer-events: none;
   }
   .stage.compare .badge { opacity: 0.85; }
+  .still {
+    position: absolute; z-index: 1; left: 50%; bottom: 58px; transform: translateX(-50%); width: min(560px, calc(100% - 32px));
+    margin: 0; padding: 10px 14px; border: 1px solid var(--rule); border-radius: 12px; font-size: 12px; color: var(--muted);
+    background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(6px);
+  }
+  .still button { margin-left: 6px; color: var(--accent); border-color: var(--accent); }
   aside { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--rule); background: var(--paper); }
   .controls { flex: 1; overflow-y: auto; padding: 8px 20px 24px; }
   details { border-bottom: 1px solid var(--rule); }
@@ -126,6 +132,8 @@
     </div>
     <span class="drop-hint">drop or paste an image or a URL · hold to press deeper · hold B to compare</span>
     <span class="badge" id="badge">defaults</span>
+    <p class="still" id="still" hidden>Your system asks for reduced motion, so silkify draws one still frame, as it will on your
+      own pages. <button id="play">Play anyway in the Lab</button></p>
     <div class="acts">
       <button id="touch" title="handle.ripple() in the middle of the object">Touch</button>
       <button id="stroke" title="a line of handle.ripple() drops across the object">Stroke</button>
@@ -137,7 +145,7 @@
     <div class="out">
       <pre><code id="code"></code></pre>
       <div class="bar">
-        <button id="copy">Copy options</button><button id="link">Copy link</button><button id="reset">Reset</button>
+        <button id="copy">Copy options</button><button id="link">Copy link</button><button id="download" title="this object and these options as one HTML file that opens with a double-click">Download HTML</button><button id="reset">Reset</button>
         <a href="./" style="margin-left:auto;align-self:center;color:var(--muted)">← Gallery</a>
       </div>
     </div>
@@ -151,6 +159,8 @@
    * remount it. The page runs exactly the call it prints, and the whole state lives in the URL hash, so a link
    * reproduces a look. resolveOptions() (silk.js) and the preset tables (presets.js) are the same ones silkify
    * uses; scripts/shoot.mjs drives this page through window.__lab (verify, and --lab for docs/shots/lab/).
+   * Download HTML writes the same call into a page of its own, with the picture inside it. When the system asks for
+   * reduced motion, the stage says so and offers to play anyway, for this page only.
    */
   import { silkify, resolveOptions, PUFF } from '../src/silk.js';
   import { MATERIALS, FEELS, keysOf } from '../src/presets.js';
@@ -243,7 +253,11 @@
    * Mounting: live keys go through setTheme; a rebuild key remounts after 150 ms of quiet
    * ============================================ */
   const stage = document.getElementById('stage');
-  let handle = null, mounted = null, remountTimer = 0, lastFrames = null;
+  let handle = null, mounted = null, remountTimer = 0, lastFrames = null, playAnyway = false;
+  const reduceMq = matchMedia('(prefers-reduced-motion: reduce)');
+  const stillNote = document.getElementById('still');
+  document.getElementById('play').onclick = () => { playAnyway = true; mount(); };
+  reduceMq.addEventListener?.('change', () => mount());
 
   function mount() {
     comparing = false;
@@ -255,7 +269,9 @@
     stage.prepend(canvas);
     const o = OBJECTS[state.obj];
     mounted = effective();
-    handle = silkify(canvas, { image: picture(), ...(o?.bump ? { bump: o.bump } : {}), ...call() });
+    // reduced motion: the Lab is a tuning page, so it may play anyway when asked (never printed, never in the link)
+    handle = silkify(canvas, { image: picture(), ...(o?.bump ? { bump: o.bump } : {}), ...call(), ...(playAnyway ? { reducedMotion: false } : {}) });
+    stillNote.hidden = !(reduceMq.matches && !playAnyway && (state.set.reducedMotion ?? 'auto') === 'auto');
     lastFrames = null;
     return handle.ready;
   }
@@ -471,17 +487,87 @@
 
   /* ---- the printed call: image, presets, and only the keys that differ from what silkify would use anyway ---- */
   const code = document.getElementById('code');
-  function printed() {
-    const o = OBJECTS[state.obj];
-    const base = plainCall();
-    const lines = [`image: '${state.obj === 'custom' ? state.url || 'your-picture.png' : o.image}'`];
-    if (o?.bump) lines.push(`bump: '${o.bump}'`);
+  /** The options that differ from what silkify would use anyway (presets first), as source lines. */
+  function optionLines() {
+    const base = plainCall(), lines = [];
     if (state.material !== 'silk') lines.push(`material: '${state.material}'`);
     if (state.feel !== 'silk') lines.push(`feel: '${state.feel}'`);
     for (const [k, v] of Object.entries(state.set)) {
       if (v !== undefined && !same(v, base[k])) lines.push(`${k}: ${JSON.stringify(v).replace(/"(\w+)":/g, '$1: ').replace(/,/g, ', ').replace(/"/g, "'")}`);
     }
-    return `silkify(canvas, {\n  ${lines.join(',\n  ')},\n});`;
+    return lines;
+  }
+  function printed() {
+    const o = OBJECTS[state.obj];
+    const lines = [`image: '${state.obj === 'custom' ? state.url || 'your-picture.png' : o.image}'`];
+    if (o?.bump) lines.push(`bump: '${o.bump}'`);
+    return `silkify(canvas, {\n  ${[...lines, ...optionLines()].join(',\n  ')},\n});`;
+  }
+
+  /* ============================================
+   * Download HTML: this object and these options as one file that opens with a double-click (file:// is fine).
+   * The picture is inside it as a data: URL; silk.js and three.js come from jsDelivr, pinned to the release, so
+   * the file needs the network but no server. Nothing leaves the browser: the file is made here.
+   * ============================================ */
+  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js';
+  const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+  const BACKGROUND = { stage: '#ebe6dc', paper: '#f3efe7', white: '#ffffff', black: '#000000', checker: '#f3efe7' };
+  const dataUrl = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+  const fetched = (url) => fetch(url, { mode: 'cors' }).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`))));
+  // (this page's own script element holds the markup below, so it escapes the closing tag and the comment opener)
+  async function exportHtml() {
+    const o = OBJECTS[state.obj];
+    const image = await dataUrl(state.obj === 'custom' ? custom || (await fetched(state.url)) : await fetched(o.image));
+    const bump = o?.bump ? await dataUrl(await fetched(o.bump)) : null;
+    const title = state.obj === 'custom' ? 'your picture' : o.title;
+    const lines = ['image: PICTURE', ...(bump ? ['bump: BUMP'] : []), ...optionLines()];
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title.replace(/</g, '&lt;')}, silkified</title>
+<\!-- Made in the silkify Lab (https://russguo.github.io/silkify/examples/lab.html). Open it with a double-click:
+     the picture is inside this file; silk.js and three.js load from jsDelivr, so it needs the network. -->
+<style>
+  html, body { margin: 0; height: 100%; background: ${BACKGROUND[state.bg] || BACKGROUND.paper}; }
+  canvas { display: block; width: min(92vw, 92vh); aspect-ratio: 1; margin: 4vh auto; touch-action: pan-y; }
+</style>
+<\script type="importmap">
+  { "imports": { "three": "${THREE_CDN}" } }
+<\/script>
+</head>
+<body>
+<canvas id="silk" aria-hidden="true"></canvas>
+<\script type="module">
+  import { silkify } from '${SILK_CDN}';
+  const PICTURE = '${image}';
+${bump ? `  const BUMP = '${bump}';\n` : ''}  window.silk = silkify(document.getElementById('silk'), {
+    ${lines.join(',\n    ')},
+  });
+<\/script>
+</body>
+</html>
+`;
+  }
+  async function download(button) {
+    try {
+      const html = await exportHtml();
+      const name = (state.obj === 'custom' ? 'picture' : state.obj) + (state.material !== 'silk' ? `-${state.material}` : '');
+      const a = el('a', { href: URL.createObjectURL(new Blob([html], { type: 'text/html' })), download: `silkify-${name}.html` });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      flash(button, 'Downloaded');
+    } catch (e) {
+      flash(button, `Could not read the picture (${e.message})`);
+    }
   }
 
   /* ============================================
@@ -520,6 +606,7 @@
   document.getElementById('copy').onclick = (e) => navigator.clipboard.writeText(printed()).then(() => flash(e.target, 'Copied'));
   document.getElementById('link').onclick = (e) => navigator.clipboard.writeText(location.href)
     .then(() => flash(e.target, isLocal() ? 'Copied, without your local picture' : 'Copied'));
+  document.getElementById('download').onclick = (e) => download(e.target);
   document.getElementById('reset').onclick = () => {
     const obj = state.obj === 'custom' ? 'pomegranate' : state.obj;
     custom = null;
@@ -583,7 +670,7 @@
   sync();
   writeHash();
   window.__lab = {                                      // hooks for scripts/shoot.mjs
-    get handle() { return handle; }, get state() { return state; }, readHash, compare,
+    get handle() { return handle; }, get state() { return state; }, readHash, compare, exportHtml,
     ready: () => new Promise((r) => setTimeout(r, 200)).then(() => handle.ready),
   };
   mount();

@@ -557,8 +557,9 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
  * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
  * stats, dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode },
- * fail { reason, fatal, svg }. `fatal` means another thread would fail the same way (the picture cannot be
- * loaded or decoded, or nothing in it is opaque); `svg` means the picture is an SVG the page must rasterise.
+ * fail { reason, fatal, picture, svg }. `fatal` means another thread would fail the same way (an HTTP error, or
+ * nothing in the picture is opaque); `picture` that the picture could not be decoded here, which another thread may
+ * still manage; `svg` that the picture is an SVG the page must rasterise.
  * ============================================ */
 export function serve(post, loadThree) {
   let silk = null, dead = false;
@@ -585,7 +586,9 @@ export function serve(post, loadThree) {
       ]);
     } catch (e) {
       opened.renderer.dispose();
-      return post({ t: 'fail', reason: e.svg ? 'svg' : `could not load the picture (${e?.message || e})`, fatal: !e.svg, svg: !!e.svg });
+      // an HTTP error is the same on every thread; a decoding error may not be (WebKit cannot read a data: URL's blob
+      // in a worker on a file:// page), so the page tries the main thread before it gives up
+      return post({ t: 'fail', reason: e.svg ? 'svg' : `could not load the picture (${e?.message || e})`, fatal: !!e.http, picture: !e.svg, svg: !!e.svg });
     }
     if (dead) return opened.renderer.dispose();
     silk = createSilk(THREE, opened, { picture, bump }, { ...m.options, ...latest.options }, tier, {

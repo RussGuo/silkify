@@ -356,7 +356,7 @@ export function silkify(canvasIn, options = {}) {
         if (m.t === 'ready') resolve(m);
         else if (m.t === 'hover') o.onHover?.(m.on);
         else if (m.t === 'stats') { asked.get(m.id)?.({ frames: m.frames, mode: m.mode, steps: m.steps }); asked.delete(m.id); }
-        else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, svg: !!m.svg }));
+        else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, picture: !!m.picture, svg: !!m.svg }));
       };
       if (onWorker) {
         const offscreen = canvas.transferControlToOffscreen();
@@ -417,11 +417,13 @@ export function silkify(canvasIn, options = {}) {
   handle.ready = (async () => {
     await sized(canvas, ctl.signal);
     if (disposed) return handle;
-    let why = handle.reason;
+    let why = handle.reason, pictureError = null;
     if (tier.tier !== 'static') {
       // without an import map or threeUrl, the worker imports 'three' itself, which works where a bundler built it
       const threeUrl = resolveThree(o.threeUrl);
-      const tries = o.worker !== false && canWorker() ? [true, false] : [false];
+      // a page opened from file:// has an opaque origin: Chrome refuses its blob: worker and WebKit's cannot read
+      // blobs, so it renders on the main thread (the Lab's downloaded pages open this way)
+      const tries = o.worker !== false && canWorker() && location.protocol !== 'file:' ? [true, false] : [false];
       for (let i = 0; i < tries.length; i++) {
         const onWorker = tries[i];
         try {
@@ -442,13 +444,15 @@ export function silkify(canvasIn, options = {}) {
             if (raster) { i--; continue; }
           }
           if (e.fatal) { fail(e.message); return handle; }
+          if (e.picture) pictureError = e.message;
           why = e.message;
         }
       }
     }
     Object.assign(handle, { mode: 'static', tier: 'static', thread: null, info: null, reason: why || 'no live renderer' });
     if (!(await paintStatic()) && !disposed) {
-      fail(o.poster ? `the poster ${o.poster} could not be drawn` : `the picture ${typeof o.image === 'string' ? o.image : describe(o.image)} could not be loaded, or it has nothing opaque in it`);
+      fail(pictureError || (o.poster ? `the poster ${o.poster} could not be drawn`
+        : `the picture ${typeof o.image === 'string' ? o.image : describe(o.image)} could not be loaded, or it has nothing opaque in it`));
     }
     return handle;
   })();
