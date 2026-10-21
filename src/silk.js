@@ -203,7 +203,7 @@ export function silkify(canvasIn, options = {}) {
 
   let canvas = canvasIn;
   let send = () => {};
-  let worker = null, disposed = false, inView = true, staticPic = null, raster = null;
+  let worker = null, disposed = false, inView = true, staticPic = null, staticWhy = null, raster = null;
   const early = [];          // ripple() calls made before the renderer was ready: replayed by the renderer
   const asked = new Map();   // stats requests in flight: id → resolve
   let askId = 0;
@@ -294,9 +294,13 @@ export function silkify(canvasIn, options = {}) {
   async function paintStatic() {
     if (disposed) return true;
     if (!staticPic) {
-      const src = o.poster || o.image;
-      staticPic = await (raster || (isSvg(src) && !o.poster ? rasterize(src) : loadImage(src))).catch(() => null);
-      if (staticPic && !o.poster && !opaque(staticPic)) staticPic = null;
+      const src = o.poster || o.image, name = typeof src === 'string' ? src : describe(src);
+      staticPic = !o.poster && raster ? raster : await (isSvg(src) ? rasterize(src) : loadImage(src)).catch(() => null);
+      if (!staticPic) staticWhy = `could not load the ${o.poster ? 'poster' : 'picture'} ${name}`;
+      else if (!o.poster && !opaque(staticPic)) {
+        staticPic = null;
+        staticWhy = `the picture ${name} has nothing opaque in it: use a PNG whose subject is visible`;
+      }
     }
     if (disposed) return true;
     if (!staticPic) return false;
@@ -414,7 +418,11 @@ export function silkify(canvasIn, options = {}) {
     reduceMq?.addEventListener?.('change', () => send({ t: 'still', still: reduced() }), on);
   }
 
-  handle.ready = (async () => {
+  handle.ready = mount().catch((e) => {   // ready never rejects: anything unexpected is a failure with its reason
+    if (!disposed) fail(`unexpected error (${e?.message || e})`);
+    return handle;
+  });
+  async function mount() {
     await sized(canvas, ctl.signal);
     if (disposed) return handle;
     let why = handle.reason, pictureError = null;
@@ -451,11 +459,10 @@ export function silkify(canvasIn, options = {}) {
     }
     Object.assign(handle, { mode: 'static', tier: 'static', thread: null, info: null, reason: why || 'no live renderer' });
     if (!(await paintStatic()) && !disposed) {
-      fail(pictureError || (o.poster ? `the poster ${o.poster} could not be drawn`
-        : `the picture ${typeof o.image === 'string' ? o.image : describe(o.image)} could not be loaded, or it has nothing opaque in it`));
+      fail(pictureError || staticWhy || 'nothing could be drawn on this canvas');
     }
     return handle;
-  })();
+  }
   return handle;
 }
 

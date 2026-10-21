@@ -50,7 +50,7 @@ jobs:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
 
   browsers:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest   # Linux WebKit renders WebGL only on the main thread, so the worker path is checked on macOS
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
