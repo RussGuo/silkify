@@ -6,10 +6,15 @@
   "type": "module",
   "license": "MIT",
   "author": "Guo Hao",
-  "repository": { "type": "git", "url": "https://github.com/RussGuo/silkify.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RussGuo/silkify.git"
+  },
   "scripts": {
     "preview": "npx serve . -l 4173",
-    "shots": "node scripts/shoot.mjs"
+    "verify": "node scripts/shoot.mjs",
+    "posters": "node scripts/shoot.mjs --posters",
+    "gif": "node scripts/shoot.mjs --gif"
   },
   "peerDependencies": {
     "three": ">=0.152.2"
