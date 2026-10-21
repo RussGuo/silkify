@@ -9,6 +9,9 @@
  * ripples spread, and only there does it turn to silk: a satin overlay and a soft highlight scale with local
  * ripple energy, so the two materials blend continuously instead of being switched.
  *
+ * Presets name a whole look: `material` (silk, satin, velvet, wet, foil, paper, ink) and `feel` (silk, water,
+ * gel, jelly), from presets.js, merged under the explicit options (see resolveOptions).
+ *
  * This file is the page side. It picks a tier (tier.js), then renders in a Web Worker on an OffscreenCanvas,
  * or on the main thread where workers cannot render, or, in the static tier, draws `poster` (or the picture)
  * once without loading three.js. The renderer itself is core.js; the dome is built by shape.js.
@@ -17,8 +20,9 @@
  */
 import { pickTier, TIERS } from './tier.js';
 import { PUFF } from './shape.js';
+import { MATERIALS, FEELS, keysOf } from './presets.js';
 
-export { PUFF };
+export { PUFF, MATERIALS, FEELS };
 
 /* ============================================
  * Defaults
@@ -110,12 +114,26 @@ function sized(canvas) {
   });
 }
 
+/**
+ * The options silkify will actually use: COMMON < DEFAULTS[shape] < material < feel < explicit options.
+ * Exported for tools (examples/lab.html prints only what differs from it).
+ */
+export function resolveOptions(options = {}) {
+  const kind = options.shape === 'sphere' ? 'sphere' : 'image';
+  return { ...COMMON, ...DEFAULTS[kind], ...preset(MATERIALS, options.material), ...preset(FEELS, options.feel), ...options, shape: kind };
+}
+function preset(group, name) {
+  if (name === undefined || name === null) return {};
+  if (!group[name]) throw new Error(`silkify: unknown preset '${name}' (${Object.keys(group).join(', ')})`);
+  return group[name];
+}
+
 /* ============================================
  * silkify(canvas, options) → handle
  * ============================================ */
 export function silkify(canvasIn, options = {}) {
-  const kind = options.shape === 'sphere' ? 'sphere' : 'image';
-  const o = { ...COMMON, ...DEFAULTS[kind], ...options, shape: kind };
+  const o = resolveOptions(options);
+  const kind = o.shape;
   if (!o.image) throw new Error('silkify: options.image is required');
 
   const reduceMq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -137,7 +155,15 @@ export function silkify(canvasIn, options = {}) {
     thread: null,             // 'worker' | 'main' when live
     info: null,               // { sim, steps, mesh, software } when live
     ready: null,
-    setTheme(patch) { Object.assign(o, patch); send({ t: 'options', patch: plain(patch) }); },
+    setTheme(patch) {
+      // a preset name resets every key its group can set (to the new preset's value or the default), then the rest applies
+      const base = { ...COMMON, ...DEFAULTS[kind] };
+      const swap = (group, name, p = preset(group, name)) => Object.fromEntries(keysOf(group).map((k) => [k, k in p ? p[k] : base[k]]));
+      if (patch.material !== undefined) patch = { ...swap(MATERIALS, patch.material), ...patch };
+      if (patch.feel !== undefined) patch = { ...swap(FEELS, patch.feel), ...patch };
+      Object.assign(o, patch);
+      send({ t: 'options', patch: plain(patch) });
+    },
     setPhase(f) { handle.setTheme({ phase: f }); },
     /** A programmatic touch at canvas coordinates (0–1, top-left origin): a short press, then the ripples run. */
     ripple(x, y, { depth, radius, hold } = {}) { send({ t: 'touch', x, y, depth, radius, hold }); },
