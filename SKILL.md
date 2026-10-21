@@ -15,11 +15,15 @@ Files in this skill:
 
 | File | What it is |
 |---|---|
-| `src/silk.js` | The renderer. `silkify(canvas, options)` returns a handle. Its peer dependency is `three` (tested with 0.152.2). |
-| `src/shape.js` | Silhouette → dome geometry, using only plain arrays and a 2D canvas. `silk.js` imports it, so always copy both files. |
+| `src/silk.js` | The entry point. `silkify(canvas, options)` returns a handle. It picks a tier, then renders in a Web Worker, on the main thread, or as a still frame. |
+| `src/core.js` | The renderer itself (no DOM). It runs in the worker, or on the main thread as a fallback. |
+| `src/worker.js` | The Web Worker entry. |
+| `src/tier.js` | Device tiers and grid sizing. |
+| `src/shape.js` | Silhouette → dome geometry, using only plain arrays and a 2D canvas. |
+| | Copy the whole `src/` folder; the five files import each other. The peer dependency is `three` (tested with 0.152.2). |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Renders a gallery page in headless Chrome, saves a rest JPEG and a frame-stepped ripple GIF per object (ffmpeg), and fails on any console error. |
-| `examples/index.html` | A working gallery: seven objects, each with the options that make it look right. Start from the closest one. |
+| `scripts/shoot.mjs` | Headless Chrome. The default run checks that every object goes live in its worker and ripples, and saves rest JPEGs. `--posters` renders the still frames; `--gif` records ripple GIFs (needs ffmpeg). It fails on any console error. |
+| `examples/index.html` | A working gallery of eight objects, each with the options that make it look right. It also shows the many-objects pattern: poster first, go live on touch, at most 3 live. Start from the closest card. |
 
 ## Step 1: Get the silhouette right
 
@@ -73,7 +77,7 @@ The canvas sets the size: style it with CSS (for example `width: 100%; aspect-ra
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from './silk/silk.js';            // silk.js and shape.js side by side
+  import { silkify } from './silk/silk.js';            // the whole src/ folder, copied to ./silk/
 
   const pear = silkify(document.getElementById('pear'), { image: 'pear.png' });
   await pear.ready;                                     // optional: resolves once mounted
@@ -81,7 +85,11 @@ The canvas sets the size: style it with CSS (for example `width: 100%; aspect-ra
 </script>
 ```
 
-The page must be served over http(s), not opened as `file://`, because module imports and image decoding need it. A picture on another origin must send CORS headers.
+The page must be served over http(s), not opened as `file://`, because module imports, workers and image fetches need it. A picture on another origin must send CORS headers.
+
+**Worker and three.js.** By default the renderer runs in a Web Worker on an OffscreenCanvas, so three.js, decoding, the dome and every frame stay off the main thread. Import maps do not apply inside workers, so silk.js resolves `three` on the page (`import.meta.resolve('three')`) and hands the worker that absolute URL. If that does not give an http(s) URL, as in some bundler setups, silk.js renders on the main thread instead. To keep the worker, pass `threeUrl` (in Vite: `import threeUrl from 'three/build/three.module.js?url'`). Pass `worker: false` to force the main thread.
+
+**The canvas belongs to the renderer.** In a worker, the canvas is transferred and cannot be transferred again. If silkify meets a canvas that is already transferred (a remount, or a failed worker falling back), it swaps in a fresh clone with the same attributes. Read the current element from `handle.canvas`.
 
 ### React (and Next.js)
 
@@ -94,7 +102,7 @@ export default function Silk({ src, options, className }) {
   const ref = useRef(null);
   useEffect(() => {
     const silk = silkify(ref.current, { image: src, ...options });
-    return () => silk.dispose();                        // StrictMode's mount → unmount → mount is safe
+    return () => silk.dispose();                        // StrictMode's mount → unmount → mount is safe (see above)
   }, [src]);                                            // options are read once; use silk.setTheme() to change them live
   return <canvas ref={ref} className={className} style={{ width: '100%', aspectRatio: '1' }} aria-hidden />;
 }
@@ -106,8 +114,9 @@ To keep three.js out of pages that do not use it, load the component lazily (`ne
 
 | Member | Purpose |
 |---|---|
-| `ready` | A promise that resolves to the handle once mounted. It rejects if the image fails to load. |
-| `mode` | `'loading'`, `'webgl'`, `'static'` or `'failed'`. |
+| `ready` | A promise that resolves to the handle once the first frame is on screen, live or static. It never rejects; check `mode`. |
+| `mode` | `'loading'`, `'webgl'`, `'static'` or `'failed'` (nothing could be drawn, for example because the image did not load). |
+| `tier`, `thread`, `info` | The tier actually used (`'high'`, `'low'` or `'static'`), `'worker'` or `'main'`, and `{ sim, steps, mesh, texture, software }`. |
 | `setTheme({ exposure, floor, volume, sheen, albedo, light, … })` | Changes any lighting option live, for example on a light/dark theme switch. |
 | `setPhase(f)` | Sphere only: lunar phase from 0 to 1 (0.5 is full, `null` is lit from the front). |
 | `wake()` | Restarts a sleeping render loop, for example after you move the canvas yourself. |
@@ -142,7 +151,7 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `floor` | 0.05 / 0.55 | Brightness on the side facing away from the light (lunar "earthshine") | raise it on light pages so the dark side is not a hole |
 | `volume` | 0.28 | Fill-light gradient across the object (0 = none) | |
 | `fillLight` | `true` | The fill light follows the pointer, springs home and sweeps slowly when idle | |
-| `idleSweep` | `true` | The slow idle sweep (runs at 12 fps) | `false` lets the loop stop completely when idle |
+| `idleSweep` | `true` | High tier: after the pointer leaves, the fill light (and a sphere's spin) makes one slow loop (≈ 28.6 s at 12 fps), then nothing is drawn. The low tier never sweeps. | `false` makes the loop stop as soon as the ripples have died away |
 | **Shape (image)** | | | |
 | `puff` | `'dome'` | `'dome'`, `'cushion'`, `'flat'` or a number (see step 2) | |
 | `matte` | `'auto'` | `'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one | |
@@ -156,9 +165,12 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `spin`, `spinSpeed`, `angle` | `true`, 0.006, 0 | Slow rotation of the texture; initial longitude offset (0–1) | |
 | **Runtime** | | | |
 | `interactive` | `true` | `false` keeps it still and ignores the pointer | |
-| `dpr` | 2 | Device-pixel-ratio cap | 1.5 on heavy pages |
-| `reducedMotion` | `'auto'` | Follows `prefers-reduced-motion`; `true` or `false` to force | |
-| `poster` | — | Image to draw when WebGL2 is unavailable (defaults to `image`) | |
+| `tier` | `'auto'` | `'high'`, `'low'` or `'static'` forces a tier (see Performance) | `'low'` for a page that must stay light |
+| `worker` | `'auto'` | Render in a Web Worker when the browser can; `false` keeps rendering on the main thread | |
+| `threeUrl` | — | Absolute URL of `three.module.js` for the worker (default: `import.meta.resolve('three')`) | needed with some bundlers |
+| `dpr` | per tier (2 / 1) | Device-pixel-ratio cap; the renderer lowers it further (2 → 1.5 → 1) if frames take > 28 ms | |
+| `reducedMotion` | `'auto'` | Follows `prefers-reduced-motion`, which selects the static tier; `true` or `false` to force | |
+| `poster` | — | A still frame of this canvas, shown in the static tier (default: the picture, drawn flat) | render one with `scripts/shoot.mjs --posters` |
 | `onHover` | — | `(isOver) => {}` | for a cursor or caption change |
 
 ### Recipes (from the gallery)
@@ -172,11 +184,50 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 
 ## Performance and fallbacks
 
-- **One canvas per object.** Each canvas has its own WebGL context, and browsers allow about 16, so keep a page under roughly 10.
-- **DPR cap.** `dpr: 2` by default. Fill rate is the main cost, so lower it for large canvases.
-- **The loop sleeps.** It runs at 60 fps while touched and for 8 s after the last touch, at 12 fps while only the idle sweep or spin runs, and stops when the canvas is off-screen or the tab is hidden. With `prefers-reduced-motion` it draws one frame and ignores the pointer. Set `idleSweep: false` (and `spin: false` for spheres) to make it fully idle.
-- **Mount cost.** The dome is built on the main thread, which takes about 100–300 ms for a 1024 px picture. Mount after first paint, or when the canvas scrolls into view.
-- **No WebGL2** (or no renderable half-float textures): the picture is drawn once on the same canvas with 2D, and `mode === 'static'`. Nothing throws.
+**Three tiers, decided once at mount.** `tier: 'auto'` reads the device; pass `'high'`, `'low'` or `'static'` to force one.
+
+| Tier | Chosen when | Renders |
+|---|---|---|
+| `high` | anything else (desktop-class) | Live in a worker. Pixel ratio up to 2. Simulation up to 256 cells, mesh up to 240 segments. One idle light loop, then sleep. |
+| `low` | `(pointer: coarse)`, viewport < 1024 px, ≤ 4 CPU cores, ≤ 4 GB memory, or a software rasteriser (SwiftShader, llvmpipe), which is detected inside the renderer | Live in a worker. Pixel ratio 1. Simulation ≤ 128 cells, mesh ≤ 120. No idle sweep: frames are drawn only around interaction. |
+| `static` | reduced motion, Save-Data, 2G, ≤ 2 cores or ≤ 2 GB, or no WebGL2 / renderable half floats | three.js is never loaded. The canvas shows `poster` (or the picture), drawn once. |
+
+**Resolution follows the object on screen**, not the source picture:
+- At most one simulation cell per 3.15 CSS px and one mesh segment per 2.8 CSS px.
+- The colour/silhouette texture is as many device pixels as the object covers.
+
+Below the reference grid, the solver takes sub-steps with rescaled constants, so dents and waves keep their size and speed on the object. `handle.info` reports what was chosen.
+
+**The loop sleeps.**
+- **Active, 60 fps:** while the object is touched or held, for 8 s after the last touch, and while the pointer moved in the last 2.5 s or the fill light is still travelling. "Travelling" is judged by distance to its target, not by speed: the idle sweep never has zero speed.
+- **Tail, 12 fps, 8–20 s after the last touch:** the solver catches up the steps it skipped. Then the field is cleared.
+- **Rest:** high tier, one idle light loop (≈ 28.6 s at 12 fps). After that, and always in the low tier, no frames at all.
+- **Stopped:** off-screen or in a hidden tab.
+
+A lifted finger, a cancelled touch, or a pointer leaving the window ends "hovering", so a phone does not keep rendering its last touch point. If full-speed frames average more than 28 ms, the pixel ratio steps down 2 → 1.5 → 1.
+
+**No MSAA, no depth or stencil buffer.** The triangles never overlap on screen and the outline is cut per pixel by the alpha, so these buffers add nothing. At ratio 2 they would cost about 18 MB per 373 px canvas.
+
+**Many objects on one page.** Each live canvas is a WebGL context, and browsers allow about 16. Use the gallery's pattern (`examples/index.html`):
+- Show a **poster** first: an `<img loading="lazy">` WebP at 1x and 2x, rendered by `node scripts/shoot.mjs --posters`.
+- Mount `silkify` on the first `pointerenter` or `pointerdown`, and fade the canvas in when `ready` resolves.
+- `dispose()` it when the card leaves the viewport.
+- Keep at most 3 live, releasing the least recently touched.
+
+**Measured on the gallery** (eight objects; Lighthouse 12.8.2, mobile preset with 4× CPU slowdown, median of 3; headless Chrome):
+
+| | Before (all eight live on the main thread) | After |
+|---|---|---|
+| Performance score | 73 | **100** |
+| Total Blocking Time | 964 ms | **18 ms** |
+| Main-thread work | 5.14 s | **0.25 s** |
+| Bytes transferred | 8.0 MB | **0.49 MB** |
+| CLS | 0.086 | **0** |
+| Long task while an object mounts | — | 94 ms on the main thread, **none** in the worker |
+| Frames in 10 s of idle (35–45 s after a touch) | 264, never sleeps | **0** |
+| GPU buffers (estimate, 373 px card at ratio 2) | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × ≤ 3 live, 0 until touched |
+
+Lighthouse does not touch the page, so the interactive rows were measured separately in headless Chrome.
 
 ## Troubleshooting
 
@@ -190,10 +241,12 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | Dark object shows no silk | Overlay cannot lift a dark albedo | Raise `sheen` to 0.5 and lower `sheenPower` to 14 |
 | The ripple is invisible | Pointer events blocked by an overlay, or `interactive: false` / reduced motion | Check `pointer-events` on elements above the canvas |
 | Ripples feel jittery or slow on a 120 Hz display | The simulation steps once per frame | Lower `waveSpeed` (1.2) and raise `damping` slightly |
+| Live on desktop, but a still image on a phone | The static tier: reduced motion, Save-Data, or no WebGL2 in workers or on the page | Expected. Ship a `poster`. Force `tier: 'low'` only if the user really wants motion there. |
+| Works, but `handle.thread` is `'main'` | The worker could not load three.js (bundler, CSP) | Pass `threeUrl`, or accept the main thread |
 | Black square or nothing at all | Page opened as `file://`, image CORS, or an unsized canvas | Serve over http, check CORS headers, and give the canvas a CSS size |
 
 ## Verify before you hand it over
 
 1. Serve the page (`npx serve .`) and move the pointer across every object. Each should stay matte until touched and ripple only where touched.
-2. For a gallery like `examples/`, run `node scripts/shoot.mjs`. It saves real headless-Chrome renders (a rest JPEG and a ripple GIF per object, which needs ffmpeg) to `docs/shots/` and exits non-zero on any console error or any object that did not mount with WebGL. Look at the screenshots.
-3. Test a narrow viewport (375 px) and `prefers-reduced-motion`.
+2. For a gallery like `examples/`, run `node scripts/shoot.mjs`. It activates every object in headless Chrome and checks three things: each mounts with WebGL in its worker, each visibly changes under a pointer stroke, and the console has no errors. It exits non-zero otherwise. It also saves rest JPEGs to `docs/shots/`; look at them. Re-render posters with `--posters` whenever the look changes, or the static tier will no longer match the live one.
+3. Test a narrow viewport (375 px, low tier) and `prefers-reduced-motion` (static tier).

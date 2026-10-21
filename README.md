@@ -40,7 +40,7 @@ npx serve .            # or: python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from './src/silk.js';   // copy src/silk.js and src/shape.js
+  import { silkify } from './src/silk.js';   // copy the whole src/ folder
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // any PNG with a transparent background
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // an equirectangular map
@@ -69,7 +69,7 @@ silk.dispose();
 | Light | `light` (view-space key light) · `floor` 0.05 / 0.55 · `volume` 0.28 · `fillLight` true · `idleSweep` true |
 | Shape (image) | `puff` `'dome'` / `'cushion'` / `'flat'` / a number · `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | Shape (sphere) | `phase` null or 0–1 · `bump` (elevation map) · `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
-| Runtime | `interactive` true · `dpr` 2 · `reducedMotion` `'auto'` · `poster` · `onHover` |
+| Runtime | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'` · `worker` `'auto'` / false · `threeUrl` · `poster` · `dpr` (per tier) · `reducedMotion` `'auto'` · `onHover` |
 
 [SKILL.md](SKILL.md#parameters) explains what each option does and how to tune it, gives recipes for logos, photos, paintings and the moon, and has a troubleshooting table.
 
@@ -90,17 +90,59 @@ flowchart LR
 4. **Matte photometry.** The surface is lit by Lommel–Seeliger, the back-scattering model of lunar soil. The lit face stays almost flat, so the picture looks like itself, and the terminator is crisp. A floor keeps the far side from going black. A fill-light gradient follows the pointer on a critically damped spring and drifts slowly when idle.
 5. **Silk only where touched.** A satin overlay and a soft highlight both scale with the local ripple energy. At rest that energy is zero, so the object is a photograph. Where it ripples, the object turns to silk, and nothing switches abruptly between the two materials.
 
-The render loop sleeps. It runs at 60 fps while touched, at 12 fps while only the idle sweep runs, and stops off-screen or with `prefers-reduced-motion`. Without WebGL2 the picture is drawn once with 2D canvas.
+## Performance
+
+By default, silkify renders inside a **Web Worker** on an OffscreenCanvas, so three.js, picture decoding, the Poisson solve, shader compilation and every frame stay off the main thread. Where workers cannot render, it falls back to the main thread; without WebGL2 it falls back to a still frame.
+
+| Tier | When | What it does |
+|---|---|---|
+| `high` | desktop-class devices | pixel ratio ≤ 2, simulation ≤ 256 cells, mesh ≤ 240; one idle light loop, then sleep |
+| `low` | touch-first, < 1024 px wide, ≤ 4 cores, ≤ 4 GB, or a software GPU | pixel ratio 1, simulation ≤ 128, mesh ≤ 120; frames only around interaction |
+| `static` | reduced motion, Save-Data, 2G, very small devices, no WebGL2 | three.js is never loaded; `poster` (or the picture) is drawn once |
+
+The tier is decided once, at mount; `tier` forces one.
+- **Resolution** (simulation, mesh, texture) follows the object's size on screen, with sub-stepping that keeps dents and waves the same size and speed.
+- **No MSAA, no depth or stencil buffer.** They add nothing to this picture and cost about 18 MB per canvas at ratio 2.
+- **The loop sleeps:**
+  - 60 fps while touched and for 8 s after;
+  - 12 fps for the ripple tail until 20 s;
+  - then nothing.
+  - A lifted finger stops counting as hovering.
+  - Off-screen and hidden tabs stop the loop.
+  - The pixel ratio steps down 2 → 1.5 → 1 if the GPU falls behind.
+
+The gallery shows the pattern for many objects on a page:
+- Each card starts as a lazy-loaded WebP **poster** (a real rendered rest frame, 1x/2x).
+- The live renderer mounts on the first touch and is released when the card scrolls away.
+- At most 3 are live at once.
+
+Measured on the gallery: Lighthouse 12.8.2, mobile preset (4× CPU slowdown), median of 3 runs, headless Chrome.
+
+| | Before (8 live canvases on the main thread) | After |
+|---|---|---|
+| Performance score | 73 | **100** |
+| Total Blocking Time | 964 ms | **18 ms** |
+| Main-thread work | 5.14 s | **0.25 s** |
+| Bytes transferred | 8.0 MB | **0.49 MB** |
+| Cumulative Layout Shift | 0.086 | **0** |
+| Main-thread long task when an object mounts | — | 94 ms on the main thread; **none** in the worker |
+| Frames drawn in 10 s of idle (35–45 s after a touch) | 264 (never sleeps) | **0** |
+| GPU buffers, estimated (373 px card, ratio 2) | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × at most 3, and 0 until touched |
+
+Lighthouse never touches the page, so the last three rows were measured separately with headless Chrome over the DevTools protocol. Details are in [SKILL.md](SKILL.md#performance-and-fallbacks).
 
 ## Repository
 
 ```
 SKILL.md            the Agent Skill: when to use it, cut-out → dome → render, every parameter, troubleshooting
-src/silk.js         the renderer (peer dependency: three ≥ 0.152.2)
+src/silk.js         the entry point: tiers, Worker / main-thread / still-frame fallback, pointer forwarding
+src/core.js         the renderer, DOM-free (peer dependency: three ≥ 0.152.2)
+src/worker.js       the Web Worker entry
+src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
-scripts/shoot.mjs   headless Chrome: rest JPEGs, frame-stepped ripple GIFs (ffmpeg), console check
-examples/           the gallery (static; works on GitHub Pages) and image credits
+scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples), --posters, --gif (ffmpeg); console check
+examples/           the gallery (static; GitHub Pages), WebP pictures and posters, image credits
 ```
 
 ## Credits

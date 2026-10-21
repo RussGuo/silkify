@@ -2,14 +2,20 @@
 /**
  * shoot.mjs — render the gallery in headless Chrome and take real screenshots.
  *
- *   node scripts/shoot.mjs                 # all cards → docs/shots/<id>-rest.jpg and <id>-ripple.gif
- *   node scripts/shoot.mjs --only moon     # one card
+ *   node scripts/shoot.mjs                 # verify: rest JPEGs + every card goes live in its Worker and ripples
+ *   node scripts/shoot.mjs --gif           # docs/shots/<id>-ripple.gif (needs ffmpeg)
+ *   node scripts/shoot.mjs --posters       # examples/posters/<id>.webp and @2x (needs python3 + Pillow)
+ *   node scripts/shoot.mjs --only moon     # any mode, one card
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
- * For every card: one JPEG at rest, then a GIF of a pointer stroke, a short press and the ripples decaying.
- * The GIFs are frame-stepped (3 simulation steps per GIF frame at 20 fps), so they play at real 60 fps
- * timing however slow the software GPU is. Needs ffmpeg on PATH for the GIFs.
- * Exits non-zero on any console error, uncaught exception, or a card that did not mount with WebGL.
+ * verify   the gallery as a visitor gets it (auto tier): a JPEG of each poster at rest, then each card is
+ *          activated, must mount with WebGL in its Web Worker, and must change under a pointer stroke.
+ * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
+ *          and frame-stepped: 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
+ *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
+ * --posters  the rest frames the gallery shows before anyone touches a card: high tier, no fill-light motion,
+ *          transparent background, 400 px and 800 px, WebP q92 with lossless alpha.
+ * Every mode exits non-zero on any console error, uncaught exception, or a card that did not mount as expected.
  * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
  */
 import { spawn } from 'node:child_process';
@@ -30,7 +36,7 @@ const CHROME = process.env.CHROME || {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---- static server for the repo root ---- */
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.css': 'text/css', '.md': 'text/plain' };
+const TYPES = { '.webp': 'image/webp', '.gif': 'image/gif', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.css': 'text/css', '.md': 'text/plain' };
 const server = createServer(async (req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p.endsWith('/')) p += 'index.html';
@@ -103,84 +109,147 @@ await send('Log.enable');
 await send('Page.enable');
 const mouse = (type, x, y, extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, button: 'none', ...extra });
 const frames = (n) => evaluate(`new Promise((r) => { let k = ${n}; const f = () => (--k ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); })`);
-await mkdir(OUT, { recursive: true });
+const run = (cmd, argv) => new Promise((resolve, reject) => {
+  const p = spawn(cmd, argv, { stdio: 'inherit' });
+  p.on('exit', (c) => (c ? reject(new Error(`${cmd} exited ${c}`)) : resolve()));
+});
+const mode = args.includes('--gif') ? 'gif' : args.includes('--posters') ? 'posters' : 'verify';
 
-async function load(dpr) {
-  await send('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: dpr, mobile: false });
+async function load(dpr, query = '', width = 1240) {
+  await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: dpr, mobile: false });
   const loaded = new Promise((r) => on('Page.loadEventFired', r));
-  await send('Page.navigate', { url: `${base}/examples/` });
+  await send('Page.navigate', { url: `${base}/examples/${query}` });
   await loaded;
-  const modes = await evaluate('window.__silkReady');
-  for (const m of modes) if (m.mode !== 'webgl') problems.push(`card ${m.id} mounted as ${m.mode}`);
-  return modes;
+  return evaluate('window.__gallery.ids');
 }
-async function rectOf(id) {
+async function rectOf(id, sel = '.stage') {
   return evaluate(`(() => {
     const fig = document.querySelector('figure[data-id="${id}"]');
     fig.scrollIntoView({ block: 'center' });
-    const s = fig.querySelector('.stage').getBoundingClientRect();
+    const s = fig.querySelector('${sel}').getBoundingClientRect();
     return { x: s.left, y: s.top, w: s.width, h: s.height, sx: scrollX, sy: scrollY };
   })()`);
 }
 const clipOf = (r, scale) => ({ x: r.x + r.sx, y: r.y + r.sy, width: r.w, height: r.h, scale });
-
-// ---- rest: every object untouched, pointer parked in a corner (DPR 2, JPEG) ----
-const modes = await load(2);
-console.log('mounted:', modes.map((m) => `${m.id}=${m.mode}`).join(' '));
-const ids = modes.map((m) => m.id).filter((id) => !only || id === only);
-await mouse('mouseMoved', 2, 2);
-for (const id of ids) {
-  const r = await rectOf(id);
-  await sleep(400);
-  await frames(6);
-  const { data } = await send('Page.captureScreenshot', { format: 'jpeg', quality: 86, clip: clipOf(r, 0.8) });
-  await writeFile(path.join(OUT, `${id}-rest.jpg`), Buffer.from(data, 'base64'));
-  console.log('rest  ', `docs/shots/${id}-rest.jpg`);
+async function activate(id, extra) {
+  const h = await evaluate(`window.__gallery.activate('${id}', ${JSON.stringify(extra || {})})
+    .then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier, info: h.info }))`);
+  return h;
+}
+async function strokeOver(r, spec, perFrame) {
+  const [fx0, fy0, fx1, fy1] = (spec || '0.28,0.40,0.70,0.58').split(',').map(Number);
+  return (f, total, stroke, press) => {
+    const t = Math.min(1, Math.max(0, (f - stroke[0]) / (stroke[1] - stroke[0])));
+    return { x: r.x + r.w * (fx0 + (fx1 - fx0) * t), y: r.y + r.h * (fy0 + (fy1 - fy0) * t + 0.05 * Math.sin(t * Math.PI * 2)) };
+  };
 }
 
-// ---- ripple: a GIF per object. The simulation advances one step per animation frame, so instead of
-//      recording wall-clock time (SwiftShader is far below 60 fps) we step it: per GIF frame, move the
-//      pointer, let exactly STEPS frames run, capture. 3 steps per frame at 20 fps = real 60 fps timing ----
-const FPS = 20, STEPS = 3, TOTAL = 56;            // 2.8 s
-const GIF_BUDGET = 1.5 * 1024 * 1024;
-const STROKE = [4, 26], PRESS = [24, 30];         // frame ranges: stroke across, then a short press at its end
-for (const id of ids) {
-  await load(1);
-  const strokeSpec = await evaluate(`(() => {
-    // record one object alone: the others would only slow the software GPU down
-    for (const h of window.__silk) if (h.canvas.closest('figure').dataset.id !== '${id}') { h.dispose(); h.canvas.closest('figure').remove(); }
-    return document.querySelector('figure[data-id="${id}"] canvas').dataset.stroke || '';
-  })()`);
-  const [fx0, fy0, fx1, fy1] = (strokeSpec || '0.28,0.40,0.70,0.58').split(',').map(Number);
-  await mouse('mouseMoved', 2, 2);
-  const r = await rectOf(id);
-  await frames(10);
-  const dir = await mkdtemp(path.join(tmpdir(), `silkify-${id}-`));
-  for (let f = 0; f < TOTAL; f++) {
-    const t = Math.min(1, Math.max(0, (f - STROKE[0]) / (STROKE[1] - STROKE[0])));
-    const x = r.x + r.w * (fx0 + (fx1 - fx0) * t);
-    const y = r.y + r.h * (fy0 + (fy1 - fy0) * t + 0.05 * Math.sin(t * Math.PI * 2));
-    if (f >= STROKE[0] && f <= PRESS[1]) await mouse('mouseMoved', x, y);
-    if (f === PRESS[0]) await mouse('mousePressed', x, y, { button: 'left', clickCount: 1 });
-    if (f === PRESS[1]) await mouse('mouseReleased', x, y, { button: 'left', clickCount: 1 });
-    if (f === PRESS[1] + 1) await mouse('mouseMoved', 2, 2);   // pointer leaves; the ripples decay
-    await frames(STEPS);
-    const { data } = await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) });
-    await writeFile(path.join(dir, `f${String(f).padStart(3, '0')}.png`), Buffer.from(data, 'base64'));
+let ids;
+if (mode === 'posters') {
+  /* ---- rest frames for the gallery: high tier, no fill-light motion, transparent ---- */
+  const dir = path.join(ROOT, 'examples', 'posters');
+  await mkdir(dir, { recursive: true });
+  for (const [dpr, suffix] of [[1, ''], [2, '@2x']]) {
+    ids = (await load(dpr, '?poster=1&tier=high', 1400)).filter((id) => !only || id === only);
+    await send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } });
+    for (const id of ids) {
+      const h = await activate(id, { fillLight: false, idleSweep: false, interactive: false });
+      if (h.mode !== 'webgl') problems.push(`poster ${id}: mounted as ${h.mode}`);
+      const r = await rectOf(id, 'canvas');
+      await sleep(500);                      // the canvas fades in over 0.25 s
+      const { data } = await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) });
+      const png = path.join(profile, `${id}${suffix}.png`);
+      await writeFile(png, Buffer.from(data, 'base64'));
+      await run('python3', ['-c', 'import sys; from PIL import Image; Image.open(sys.argv[1]).save(sys.argv[2], "WEBP", quality=92, alpha_quality=100, method=6)',
+        png, path.join(dir, `${id}${suffix}.webp`)]);
+      console.log('poster', `examples/posters/${id}${suffix}.webp`, `${((await stat(path.join(dir, `${id}${suffix}.webp`))).size / 1024).toFixed(0)} KB`);
+      await evaluate(`window.__gallery.release('${id}')`);
+    }
   }
-  // encode with an optimised palette; step width and colours down until it fits the size budget
-  const gif = path.join(OUT, `${id}-ripple.gif`);
-  for (const [width, colors] of [[320, 128], [288, 128], [288, 96], [256, 96], [240, 64]]) {
-    await new Promise((resolve, reject) => {
-      const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(dir, 'f%03d.png'),
+} else if (mode === 'gif') {
+  /* ---- ripple GIFs: main thread, frame-stepped ---- */
+  const FPS = 20, STEPS = 3, TOTAL = 56;            // 2.8 s
+  const STROKE = [4, 26], PRESS = [24, 30];         // frame ranges: stroke across, then a short press at its end
+  const GIF_BUDGET = 1.5 * 1024 * 1024;
+  ids = (await load(1, '?tier=high')).filter((id) => !only || id === only);
+  for (const id of ids) {
+    await load(1, '?tier=high');
+    await mouse('mouseMoved', 2, 2);
+    const h = await activate(id, { worker: false });
+    if (h.mode !== 'webgl') problems.push(`gif ${id}: mounted as ${h.mode}`);
+    const r = await rectOf(id);
+    const at = await strokeOver(r, await evaluate(`window.__gallery.stroke('${id}')`));
+    await frames(10);
+    const dir = await mkdtemp(path.join(tmpdir(), `silkify-${id}-`));
+    for (let f = 0; f < TOTAL; f++) {
+      const { x, y } = at(f, TOTAL, STROKE, PRESS);
+      if (f >= STROKE[0] && f <= PRESS[1]) await mouse('mouseMoved', x, y);
+      if (f === PRESS[0]) await mouse('mousePressed', x, y, { button: 'left', clickCount: 1 });
+      if (f === PRESS[1]) await mouse('mouseReleased', x, y, { button: 'left', clickCount: 1 });
+      if (f === PRESS[1] + 1) await mouse('mouseMoved', 2, 2);   // pointer leaves; the ripples decay
+      await frames(STEPS);
+      const { data } = await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) });
+      await writeFile(path.join(dir, `f${String(f).padStart(3, '0')}.png`), Buffer.from(data, 'base64'));
+    }
+    const gif = path.join(OUT, `${id}-ripple.gif`);
+    for (const [width, colors] of [[320, 128], [288, 128], [288, 96], [256, 96], [240, 64]]) {
+      await run('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', path.join(dir, 'f%03d.png'),
         '-vf', `scale=${width}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle`,
-        '-loop', '0', gif], { stdio: 'inherit' });
-      ff.on('exit', (c) => (c ? reject(new Error(`ffmpeg exited ${c}`)) : resolve()));
-    });
-    if ((await stat(gif)).size <= GIF_BUDGET) break;
+        '-loop', '0', gif]);
+      if ((await stat(gif)).size <= GIF_BUDGET) break;
+    }
+    await rm(dir, { recursive: true, force: true });
+    console.log('ripple', `docs/shots/${id}-ripple.gif`, `${((await stat(gif)).size / 1024).toFixed(0)} KB`);
   }
-  await rm(dir, { recursive: true, force: true });
-  console.log('ripple', `docs/shots/${id}-ripple.gif`, `${((await stat(gif)).size / 1024).toFixed(0)} KB`);
+} else {
+  /* ---- verify: posters at rest (JPEG), then each card live in its Worker, and it must ripple ---- */
+  await mkdir(OUT, { recursive: true });
+  ids = (await load(2)).filter((id) => !only || id === only);
+  await mouse('mouseMoved', 2, 2);
+  for (const id of ids) {
+    const r = await rectOf(id);
+    await evaluate(`(() => { const i = document.querySelector('figure[data-id="${id}"] .poster'); i.loading = 'eager'; return i.decode(); })()`);
+    await sleep(200);
+    const { data } = await send('Page.captureScreenshot', { format: 'jpeg', quality: 86, clip: clipOf(r, 0.8) });
+    await writeFile(path.join(OUT, `${id}-rest.jpg`), Buffer.from(data, 'base64'));
+    console.log('rest  ', `docs/shots/${id}-rest.jpg`);
+  }
+  for (const id of ids) {
+    let r = await rectOf(id);
+    await mouse('mouseMoved', r.x + r.w / 2, r.y + r.h / 2);           // pointerenter mounts the live renderer
+    const h = await evaluate(`window.__gallery.activate('${id}').then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier, info: h.info }))`);
+    if (h.mode !== 'webgl' || h.thread !== 'worker') problems.push(`card ${id}: ${h.mode} on ${h.thread}`);
+    await mouse('mouseMoved', 2, 2);
+    await sleep(1500);
+    r = await rectOf(id);
+    const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+    const at = await strokeOver(r, await evaluate(`window.__gallery.stroke('${id}')`));
+    for (let f = 0; f <= 22; f++) {
+      const { x, y } = at(f, 22, [0, 22]);
+      await mouse('mouseMoved', x, y);
+      await sleep(30);
+    }
+    await sleep(300);
+    const after = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+    // the stroke must visibly change the object (mean |Δ| per channel), and the object must have real content (std)
+    const [fa, fb] = [path.join(profile, 'a.png'), path.join(profile, 'b.png')];
+    await writeFile(fa, Buffer.from(before, 'base64'));
+    await writeFile(fb, Buffer.from(after, 'base64'));
+    const [diff, std] = await new Promise((resolve) => {
+      const p = spawn('python3', ['-c', 'import sys; from PIL import Image, ImageChops, ImageStat; a=Image.open(sys.argv[1]).convert("RGB"); b=Image.open(sys.argv[2]).convert("RGB"); print(sum(ImageStat.Stat(ImageChops.difference(a,b)).mean)/3, sum(ImageStat.Stat(b).stddev)/3)', fa, fb]);
+      let out = '';
+      p.stdout.on('data', (d) => (out += d));
+      p.on('exit', () => resolve(out.trim().split(' ').map(Number)));
+    });
+    const ok = diff > 0.3 && std > 12;
+    if (!ok) problems.push(`card ${id}: no visible ripple (mean diff ${diff?.toFixed(2)}, std ${std?.toFixed(1)})`);
+    console.log('live  ', id, `${h.tier}/${h.thread}`, `sim ${h.info?.sim}×${h.info?.steps} mesh ${h.info?.mesh}`, h.info?.software ? 'software' : '',
+      `Δ ${diff.toFixed(2)} std ${std.toFixed(1)}`, ok ? 'ripples' : 'NO RIPPLE');
+    await mouse('mouseMoved', 2, 2);
+  }
+  const alive = await evaluate('window.__gallery.live.size');
+  console.log('live renderers at the end:', alive);
+  if (alive > 3) problems.push(`${alive} live renderers (cap is 3)`);
 }
 
 ws.close();

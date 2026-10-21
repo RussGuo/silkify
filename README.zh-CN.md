@@ -40,7 +40,7 @@ npx serve .            # 或：python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from './src/silk.js';   // 把 src/silk.js 与 src/shape.js 一起拷过去
+  import { silkify } from './src/silk.js';   // 把整个 src/ 目录拷过去
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // 任意透明底 PNG
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // 等距圆柱投影贴图
@@ -69,7 +69,7 @@ silk.dispose();
 | 光 | `light`（视空间主光方向）· `floor` 0.05 / 0.55（背光处亮度地板）· `volume` 0.28（体积感梯度）· `fillLight` true（补光跟随指针）· `idleSweep` true（闲置扫光） |
 | 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（体量档位）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | 形状（球体） | `phase` null 或 0–1（月相）· `bump`（高程图）· `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
-| 运行 | `interactive` true · `dpr` 2（像素比上限）· `reducedMotion` `'auto'` · `poster` · `onHover` |
+| 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态帧）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
 
 每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方，以及常见问题排查，都在 [SKILL.md](SKILL.md#parameters)。
 
@@ -90,17 +90,59 @@ flowchart LR
 4. **哑光光度。** 用 Lommel–Seeliger 光照，也就是月壤的背散射模型。受光面几乎是平的，所以图片看上去就是它本来的样子；明暗交界线利落，背光处有亮度地板，不会变成黑洞。补光梯度跟随指针，靠临界阻尼弹簧追随，闲置时缓慢扫动。
 5. **只在被触碰处显出丝绸。** 缎面叠加与柔和高光都随局部涟漪能量缩放。静止时能量为零，物体就是一张照片；起涟漪的地方变成丝绸，两种材质之间没有生硬的切换。
 
-渲染循环会睡觉：被触碰时 60 fps，只剩闲置扫光时 12 fps，离开视口或开启「减少动态效果」时停下。没有 WebGL2 时用 2D 画布只画一帧。
+## 性能
+
+silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的执行、图片解码、泊松求解、着色器编译和每一帧的绘制都不占主线程。Worker 不能渲染时退回主线程；没有 WebGL2 时退回静态一帧。
+
+| 档 | 何时 | 做什么 |
+|---|---|---|
+| `high` 高 | 桌面级设备 | 像素比 ≤ 2，模拟 ≤ 256 格，网格 ≤ 240 段；闲置时补光扫一圈后睡 |
+| `low` 低 | 触屏为主、视口窄于 1024、核数 ≤ 4、内存 ≤ 4 GB，或软件光栅 | 像素比 1，模拟 ≤ 128，网格 ≤ 120；只在交互前后画 |
+| `static` 静态 | 减少动态效果、省流量、2G、极弱设备、无 WebGL2 | 不加载 three.js；画 `poster`（或原图）一帧 |
+
+档位在挂载时判一次，`tier` 参数可以强制。
+- **分辨率随物体的屏幕尺寸取。** 模拟、网格和贴图都按物体在屏幕上的像素决定；模拟格子变粗时按格折算、分步推进，凹坑与波的相对大小和快慢不变。
+- **去掉 MSAA 与深度、模板缓冲。** 它们对这个画面没有贡献，像素比 2 时每块画布约占 18 MB。
+- **渲染循环会睡觉：**
+  - 被触碰时和碰后 8 秒内 60 fps；
+  - 之后 12 fps 补算余波，到 20 秒清零；
+  - 再之后一帧不画。
+  - 手指抬起即不再算悬停。
+  - 离开视口或标签页隐藏时停下。
+  - GPU 跟不上时像素比自动 2 → 1.5 → 1。
+
+画廊演示了「一页多个物体」的做法：
+- 每张卡片先显示懒加载的 WebP **静态帧**（真实渲染的静止画面，1x/2x 两档）。
+- 第一次被碰到时才挂载实时渲染，滚出视口就释放。
+- 同时最多 3 个实时渲染。
+
+画廊实测数据：Lighthouse 12.8.2，移动预设（CPU 4 倍降速），3 次取中位数，无头 Chrome。
+
+| | 改前（8 个画布都在主线程实时渲染） | 改后 |
+|---|---|---|
+| 性能分 | 73 | **100** |
+| TBT（总阻塞时间） | 964 ms | **18 ms** |
+| 主线程总工作 | 5.14 s | **0.25 s** |
+| 传输字节 | 8.0 MB | **0.49 MB** |
+| CLS（累计布局偏移） | 0.086 | **0** |
+| 挂载一个物体时主线程的长任务 | — | 主线程渲染时 94 ms；Worker 里**没有** |
+| 闲置 10 秒画的帧数（碰后 35–45 秒） | 264（永不睡） | **0** |
+| 显存估算（373 px 卡片，像素比 2） | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × 至多 3 个，未被碰前为 0 |
+
+Lighthouse 不会和页面交互，所以最后三行是另外用无头 Chrome 通过 DevTools 协议量的。细节见 [SKILL.md](SKILL.md#performance-and-fallbacks)。
 
 ## 仓库结构
 
 ```
 SKILL.md            Agent Skill：何时使用、抠图 → 穹面 → 渲染、全部参数、常见问题
-src/silk.js         渲染器（peer 依赖：three ≥ 0.152.2）
+src/silk.js         入口：分档、Worker / 主线程 / 静态帧三级退路、转发指针
+src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
+src/worker.js       Web Worker 入口
+src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
-scripts/shoot.mjs   无头 Chrome：静止 JPEG、逐帧步进的涟漪 GIF（ffmpeg）、控制台检查
-examples/           画廊（静态页面，可直接用 GitHub Pages 打开）与图片来源说明
+scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪）、--posters 静态帧、--gif 涟漪动图（ffmpeg）；控制台检查
+examples/           画廊（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
 ```
 
 ## 致谢

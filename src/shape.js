@@ -1,7 +1,8 @@
 /**
  * shape.js — turn any picture's silhouette into an inflated dome.
  *
- * Pure arrays and a 2D canvas; no three.js. silk.js is the only caller.
+ * Pure arrays and a 2D canvas (OffscreenCanvas when there is no document); no three.js, no DOM.
+ * core.js calls it, inside the Web Worker or on the main thread.
  *
  *   picture ──► matte (its own alpha, or a rounded rectangle for opaque pictures)
  *           ──► square UV "domain" around the silhouette (RGBA, v up, colours bled past the edge)
@@ -20,31 +21,33 @@
 /* ============================================
  * Constants
  * ============================================ */
-const MESH = 240;      // grid segments → 241 × 241 vertices (< 65 536, so 16-bit indices)
+const MESH_MAX = 240;  // grid segments → at most 241 × 241 vertices (< 65 536, so 16-bit indices); a multiple of 4
 const PAD = 0.03;      // empty border around the silhouette, per side, as a fraction of its long side
 const MAX_DOMAIN = 2048;
 const BLEED_PASSES = 10;
 
-/** Load anything drawable: a URL, an <img>, an ImageBitmap or a canvas. */
-export async function loadPicture(src) {
-  if (typeof src !== 'string') {
-    if (src instanceof HTMLImageElement && !src.complete) await src.decode();
-    return src;
+/** How high the dome bulges: a disc becomes a hemisphere at 1. */
+export const PUFF = { flat: 0.35, cushion: 0.6, dome: 1 };
+
+/**
+ * Decode a picture into an ImageBitmap. `src` is a URL (fetched with CORS) or anything createImageBitmap
+ * accepts (<img>, canvas, ImageBitmap, Blob). `flipY` is for textures sampled with v up (the sphere's map).
+ */
+export async function loadBitmap(src, { flipY = false } = {}) {
+  const opts = { imageOrientation: flipY ? 'flipY' : 'from-image', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
+  if (typeof src === 'string') {
+    const res = await fetch(src, { mode: 'cors' });
+    if (!res.ok) throw new Error(`silkify: ${src} → HTTP ${res.status}`);
+    return createImageBitmap(await res.blob(), opts);
   }
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.decoding = 'async';
-  img.src = src;
-  await img.decode();
-  return img;
+  if (typeof HTMLImageElement !== 'undefined' && src instanceof HTMLImageElement && !src.complete) await src.decode();
+  return createImageBitmap(src, opts);
 }
 
 const sizeOf = (p) => ({ w: p.naturalWidth || p.videoWidth || p.width, h: p.naturalHeight || p.videoHeight || p.height });
 
 function canvas2d(w, h) {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
+  const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
   return [c, c.getContext('2d', { willReadFrequently: true })];
 }
 
@@ -125,9 +128,11 @@ function relax(n, inner, h2, iters, x) {
 
 /**
  * Build the dome for a picture.
- * @returns {null | {positions, normals, uvs, index, domain: Uint8Array, domainSize, side, aspect, mode, inside(u,v)}}
+ * `meshFor(side, aspect)` and `domainFor(side, aspect)` pick the grid segments (a multiple of 4, ≤ 240) and the
+ * texture size of the UV domain once the silhouette's extent is known: the caller sizes both to the object on screen.
+ * @returns {null | {positions, normals, uvs, index, domain: Uint8Array, domainSize, side, aspect, mesh, mode, inside(u,v)}}
  */
-export function buildShape(pic, { matte = 'auto', corner = 0.06, threshold = 0.5, puff = 1 } = {}) {
+export function buildShape(pic, { matte = 'auto', corner = 0.06, threshold = 0.5, puff = 1, meshFor = () => MESH_MAX, domainFor = () => MAX_DOMAIN } = {}) {
   const m = makeMatte(pic, { matte, corner });
   const { w: W, h: H, data: a } = m;
   const cut = Math.round(threshold * 255);
@@ -149,9 +154,11 @@ export function buildShape(pic, { matte = 'auto', corner = 0.06, threshold = 0.5
   const cx = x0 + bw / 2, cy = y0 + bh / 2;
   const sidePx = Math.max(bw, bh) * (1 + 2 * PAD);
   const side = (sidePx * 2) / bw;                       // world units; silhouette width = 2
+  const MESH = Math.max(40, Math.min(MESH_MAX, Math.round(meshFor(side, bh / bw) / 4) * 4));
 
   // ---- the square domain, v up: albedo in rgb, silhouette in alpha ----
-  const D = Math.min(MAX_DOMAIN, Math.max(256, Math.round(sidePx)));
+  // texture size: no more than the source has, no more than the screen shows (device pixels across the domain)
+  const D = Math.max(256, Math.min(MAX_DOMAIN, Math.round(sidePx), Math.ceil(domainFor(side, bh / bw))));
   const [, dg] = canvas2d(D, D);
   const s = D / sidePx;
   dg.drawImage(m.canvas, (sidePx / 2 - cx) * s, (sidePx / 2 - cy) * s, W * s, H * s);
@@ -254,32 +261,7 @@ export function buildShape(pic, { matte = 'auto', corner = 0.06, threshold = 0.5
 
   return {
     positions, normals, uvs, index: Uint16Array.from(tris),
-    domain, domainSize: D, side, aspect: bh / bw, mode: m.mode,
+    domain, domainSize: D, side, aspect: bh / bw, mesh: MESH, mode: m.mode,
     inside: (uu, vv) => alphaAt(uu, vv) >= threshold,
   };
-}
-
-/** No WebGL2: draw the picture once, contain-fitted, on a 2D canvas. Sphere pictures get the front half, clipped to a disc. */
-export function paintStill(canvas, pic, { sphere = false, dpr = 2 } = {}) {
-  const g = canvas.getContext('2d');
-  if (!g) return;
-  const k = Math.min(window.devicePixelRatio || 1, dpr);
-  const cw = Math.round(canvas.clientWidth * k), ch = Math.round(canvas.clientHeight * k);
-  if (!cw || !ch) return;
-  canvas.width = cw;
-  canvas.height = ch;
-  const { w, h } = sizeOf(pic);
-  g.clearRect(0, 0, cw, ch);
-  if (sphere) {
-    const r = Math.min(cw, ch) * 0.455;
-    g.save();
-    g.beginPath();
-    g.arc(cw / 2, ch / 2, r, 0, Math.PI * 2);
-    g.clip();
-    g.drawImage(pic, w * 0.25, 0, w * 0.5, h, cw / 2 - r, ch / 2 - r, 2 * r, 2 * r);
-    g.restore();
-    return;
-  }
-  const s = Math.min(cw / w, ch / h) * 0.8;
-  g.drawImage(pic, (cw - w * s) / 2, (ch - h * s) / 2, w * s, h * s);
 }
