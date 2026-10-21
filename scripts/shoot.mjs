@@ -20,7 +20,7 @@
  *          transparent background, 400 px and 800 px, WebP q92 with lossless alpha.
  * --lab    one picture per preset on the pomegranate: material-<name>.jpg (at rest | just touched),
  *          material-rest-strip.jpg (every material untouched, side by side) and feel-<name>.jpg (0.15 s | 0.9 s
- *          after a stroke and a press), plus lab.jpg, the page itself.
+ *          after a stroke and a press), plus lab.jpg, the page itself, and lab-mobile.jpg at 375 px.
  * Every mode exits non-zero on any console error, uncaught exception, or a card that did not mount as expected.
  * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
  */
@@ -273,6 +273,15 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   await sleep(300);
   await writeFile(path.join(dir, 'lab.jpg'), Buffer.from((await send('Page.captureScreenshot', { format: 'jpeg', quality: 84 })).data, 'base64'));
   console.log('lab   ', 'docs/shots/lab/lab.jpg');
+  // the Lab on a phone: 375 px, the controls folded under the stage
+  await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
+  await navigate('about:blank');
+  await navigate(`${base}/examples/lab.html#${Buffer.from(JSON.stringify(state('satin', 'water'))).toString('base64url')}`);
+  await evaluate('window.__lab.ready()');
+  await evaluate(`document.getElementById('touch').click()`);
+  await sleep(700);
+  await writeFile(path.join(dir, 'lab-mobile.jpg'), Buffer.from((await send('Page.captureScreenshot', { format: 'jpeg', quality: 80 })).data, 'base64'));
+  console.log('lab   ', 'docs/shots/lab/lab-mobile.jpg');
 } else if (mode === 'gif') {
   /* ---- ripple GIFs: main thread, frame-stepped ---- */
   const FPS = 20, STEPS = 3, TOTAL = 56;            // 2.8 s
@@ -377,6 +386,29 @@ async function verifyLab() {
   const exposure = await evaluate('window.__lab.state.set.exposure');
   if (!(diff > 1) || !(exposure > 1.5)) problems.push(`lab: slider → setTheme did not change the frame (Δ ${diff.toFixed(2)}, exposure ${exposure})`);
   console.log('lab   ', `${h.tier}/${h.thread}`, `presets ${st.material} + ${st.feel}`, `slider exposure → ${exposure}, Δ ${diff.toFixed(2)}`);
+
+  // Touch and Stroke (handle.ripple) move the object without a pointer; holding Compare shows the defaults and lets go
+  const shot = async () => (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+  await sleep(1500);
+  for (const id of ['touch', 'stroke']) {
+    const a0 = await shot();
+    await evaluate(`document.getElementById('${id}').click()`);
+    await sleep(id === 'stroke' ? 700 : 350);
+    const [d] = await diffOf(a0, await shot());
+    if (!(d > 0.3)) problems.push(`lab: the ${id} button did not move the object (Δ ${d.toFixed(2)})`);
+    console.log('lab   ', `${id} button: Δ ${d.toFixed(2)}`);
+  }
+  await sleep(2500);
+  const c0 = await shot();
+  await evaluate('window.__lab.compare(true)');
+  await sleep(400);
+  const c1 = await shot();
+  await evaluate('window.__lab.compare(false)');
+  await sleep(400);
+  const c2 = await shot();
+  const [[dOn], [dOff]] = [await diffOf(c0, c1), await diffOf(c0, c2)];
+  if (!(dOn > 1) || !(dOff < dOn / 3)) problems.push(`lab: compare did not switch to the defaults and back (Δ on ${dOn.toFixed(2)}, off ${dOff.toFixed(2)})`);
+  console.log('lab   ', `compare: Δ ${dOn.toFixed(2)} while held, ${dOff.toFixed(2)} after`);
 
   // the link restores every control in a fresh page
   const snap = `JSON.stringify([...document.querySelectorAll('#controls input, #controls select')].map((i) => i.type === 'checkbox' ? i.checked : i.value)) + document.getElementById('code').textContent`;

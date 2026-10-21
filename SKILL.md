@@ -24,9 +24,9 @@ Files in this skill:
 | `src/shape.js` | Silhouette → dome geometry, using only plain arrays and a 2D canvas. |
 | | Copy the whole `src/` folder; the files import each other. The peer dependency is `three` (tested with 0.152.2). |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Headless Chrome. The default run checks that every object goes live in its worker and ripples, then that the Lab switches presets, changes the frame on a slider, restores itself from its link and draws 0 frames at rest; it saves rest JPEGs. `--posters` renders the still frames; `--gif` records ripple GIFs (needs ffmpeg); `--lab` renders one picture per preset into `docs/shots/lab/`. It fails on any console error. |
+| `scripts/shoot.mjs` | Headless Chrome. The default run checks that every object goes live in its worker and ripples, then that the Lab switches presets, changes the frame on a slider, moves the object from its Touch and Stroke buttons, compares with the defaults and back, restores itself from its link and draws 0 frames at rest; it saves rest JPEGs. `--posters` renders the still frames; `--gif` records ripple GIFs (needs ffmpeg); `--lab` renders one picture per preset into `docs/shots/lab/`, a strip of all seven materials at rest, and the Lab at 375 px. It fails on any console error. |
 | `examples/index.html` | A working gallery of ten objects, each with the options that make it look right (the last two use presets). It also shows the many-objects pattern: poster first, go live on touch, at most 3 live. Start from the closest card. |
-| `examples/lab.html` | The Lab: every option as a live control, presets, your own picture by drop / paste / URL, the options printed ready to copy, and the whole state in the URL hash. Tune here, then paste. |
+| `examples/lab.html` | The Lab: every option as a live control, presets, your own picture by drop / paste / URL, Touch and Stroke buttons (`ripple()`), hold B to compare with the defaults, the options printed ready to copy, and the whole state (object included, except a local picture) in the URL hash. Tune here, then paste. |
 
 ## Step 1: Get the silhouette right
 
