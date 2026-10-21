@@ -3,7 +3,8 @@
 cutout.py — prepare a picture for silkify.
 
 Produces a PNG no larger than --max pixels on its long side, with a transparent background
-when the picture sits on a plain one. Requires Pillow and numpy (scipy is used if present).
+when the picture sits on a plain one. Requires Pillow and numpy; --keep-largest also needs scipy.
+The camera's EXIF orientation is applied first, as a browser would.
 
   # plain background (white studio shot, paper, black velvet): key it out
   python3 scripts/cutout.py pear.jpg pear.png
@@ -14,12 +15,19 @@ when the picture sits on a plain one. Requires Pillow and numpy (scipy is used i
   # keep the whole rectangle (a painting, a poster): silkify turns it into a cushion
   python3 scripts/cutout.py mona.jpg mona.png --rect
 
+  # a dark logo on white: the insides of O, B, e are enclosed, so key every white pixel
+  python3 scripts/cutout.py logo.jpg logo.png --no-flood
+
+  # a scan whose border is not the background (a black scan edge): crop to the paper first
+  python3 scripts/cutout.py scan.jpg out.png --crop 60,60,1860,1960
+
 How the key works
   1. background colour = median of the border pixels (or --bg)
   2. distance of every pixel to it, in a perceptual-ish RGB metric, scaled 0..1; inside
      --shadow-box, darker pixels with the backdrop's hue (a cast shadow) count as background too
   3. only pixels CONNECTED to the border are background candidates (so white eyes, a white
-     label, a pale highlight inside the subject survive); --no-flood keys globally
+     label, a pale highlight inside the subject survive); --no-flood keys globally. When a
+     sizeable enclosed area matches the background (the counters of a wordmark), a hint says so
   4. alpha ramps from 0 at --tolerance to 1 at --tolerance + --softness, then a small
      Gaussian feather (--feather px) smooths the outline
   5. edge colours are "un-mixed" from the background, so no halo of the old backdrop remains
@@ -29,7 +37,7 @@ import argparse
 import sys
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 try:
     from scipy import ndimage
@@ -99,8 +107,26 @@ def main(argv=None):
     p.add_argument('--no-flood', action='store_true', help='key every matching pixel, not only those touching the border')
     p.add_argument('--keep-largest', action='store_true', help='drop islands: keep only the largest opaque component')
     a = p.parse_args(argv)
+    if a.keep_largest and ndimage is None:
+        print('--keep-largest needs scipy: pip install scipy (or crop the islands away with --crop)', file=sys.stderr)
+        return 2
 
-    im = Image.open(a.src).convert('RGBA')
+    try:
+        im = ImageOps.exif_transpose(Image.open(a.src)).convert('RGBA')   # as a browser shows it
+    except FileNotFoundError:
+        print(f'{a.src}: no such file', file=sys.stderr)
+        return 2
+    except (UnidentifiedImageError, OSError) as e:
+        ext = a.src.lower().rsplit('.', 1)[-1]
+        hint = {
+            'svg': 'an SVG needs no cut-out: silkify takes it directly (image: "logo.svg") and rasterises it; '
+                   'or export a PNG first (rsvg-convert -w 1024 logo.svg > logo.png)',
+            'heic': 'convert it to JPEG or PNG first (macOS: sips -s format png in.heic --out in.png), or pip install pillow-heif',
+            'heif': 'convert it to JPEG or PNG first (macOS: sips -s format png in.heif --out in.png), or pip install pillow-heif',
+            'avif': 'convert it to PNG first, or use a Pillow built with AVIF support',
+        }.get(ext, 'Pillow cannot read this file: save it as PNG, JPEG or WebP first')
+        print(f'{a.src}: not a picture Pillow can open ({e.__class__.__name__}). {hint}', file=sys.stderr)
+        return 2
     ox = oy = 0
     if a.crop:
         box = tuple(int(v) for v in a.crop.split(','))
@@ -133,11 +159,14 @@ def main(argv=None):
         d[sub] = np.where(darker & near, 0.0, d[sub])
     ramp = np.clip((d - a.tolerance) / max(a.softness, 1e-4), 0, 1)
     candidate = d < a.tolerance + a.softness
+    enclosed = 0.0
     if not a.no_flood:
-        candidate = connected_to_border(candidate)
+        reach = connected_to_border(candidate)
+        enclosed = float((candidate & ~reach & (d < a.tolerance)).mean())   # backdrop-coloured, but walled in
+        candidate = reach
     alpha = np.where(candidate, ramp, 1.0) * alpha0
 
-    if a.keep_largest and ndimage is not None:
+    if a.keep_largest:
         lab, n = ndimage.label(alpha > 0.5)
         if n > 1:
             sizes = ndimage.sum(np.ones_like(alpha), lab, index=np.arange(1, n + 1))
@@ -165,6 +194,9 @@ def main(argv=None):
         out = Image.merge('RGBA', (r, g, b, al.filter(ImageFilter.GaussianBlur(a.feather))))
     out.save(a.dst, optimize=True)
     print(f'{a.dst}: {out.width}x{out.height}, background {"#%02x%02x%02x" % tuple(int(c) for c in bg)}')
+    if enclosed > 0.002:
+        print(f'note: {enclosed:.1%} of the picture has the background colour but is enclosed by the subject, so it was kept '
+              'opaque. If those are holes (the insides of O, B, e in a wordmark), run again with --no-flood.', file=sys.stderr)
     return 0
 
 

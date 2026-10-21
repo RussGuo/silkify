@@ -2,7 +2,7 @@
 name: silkify
 description: Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Covers cutting the subject out, inflating its silhouette into a dome, choosing a material and feel (satin, velvet, wet, foil, paper, ink; water, gel, jelly), tuning it live in the Lab, and embedding the three.js renderer in plain HTML or React.
 license: MIT
-compatibility: A web page served over http(s) in a browser with ES modules (WebGL2 for the live renderer; without it a still frame is drawn). three.js 0.152.2 or later. Optional tools - Python 3 with Pillow and numpy for scripts/cutout.py; Node 22+ and Google Chrome for scripts/shoot.mjs.
+compatibility: A web page served over http(s) in a browser with ES modules (WebGL2 for the live renderer; without it a still frame is drawn). three.js 0.152.2 or later. Optional tools - Python 3 with Pillow and numpy for scripts/cutout.py (scipy for --keep-largest); Node 22+ and Google Chrome for scripts/shoot.mjs.
 metadata:
   version: "0.2.0"
   repository: "https://github.com/RussGuo/silkify"
@@ -65,15 +65,20 @@ The input decides the result more than any parameter does. Check the picture bef
 ```bash
 python3 scripts/cutout.py input.jpg out.png                        # background = median of the border
 python3 scripts/cutout.py input.jpg out.png --bg "#efe6d2" --tolerance 0.14
-python3 scripts/cutout.py input.jpg out.png --crop 120,40,980,1010 --keep-largest
+python3 scripts/cutout.py input.jpg out.png --crop 120,40,980,1010 --keep-largest   # --keep-largest needs scipy
+python3 scripts/cutout.py logo.jpg logo.png --no-flood                              # a logo with enclosed counters
 ```
 
-It removes only background connected to the border, un-mixes the backdrop from edge pixels, crops, downsizes to ≤ 1024 px and feathers the outline. Always look at the output.
+It applies the photo's EXIF orientation, removes only background connected to the border, un-mixes the backdrop from edge pixels, crops, downsizes to ≤ 1024 px and feathers the outline. Always look at the output.
+
+**A logo or wordmark on white:** the insides of O, B, e are enclosed by the letters, so the default keeps them opaque white. Use `--no-flood` (it keys every background-coloured pixel); cutout.py prints a note when it sees such enclosed areas.
 <!-- /core -->
 
 - Background left as speckles or a rim: raise `--tolerance` in 0.02 steps, or pass `--bg` sampled from the backdrop.
 - Parts of the subject eaten (pale fur, a white collar): lower `--tolerance` or `--softness`.
 - Stray islands (dust, a signature): `--keep-largest`, or `--crop` them away first. Cast shadows count as subject: crop them or raise the tolerance.
+- The border is not the background (a scan with a black edge, a frame): `--crop` to the paper first, because the background colour is read from the border.
+- SVG needs no cut-out (pass it to silkify as it is); HEIC must be converted to JPEG or PNG first. cutout.py says so instead of failing with a traceback.
 
 <!-- core -->
 **Busy background** (a street, foliage, a room): colour keying will not work. Ask the user for a cut-out PNG or use a matting tool they already have (for example `rembg i in.jpg out.png`); do not install models without asking. Otherwise keep the rectangle (`cutout.py in.jpg out.png --rect`) and use `puff: 'cushion'`: a painting, poster or photo becomes a silk cushion, often better than a rough cut-out.
