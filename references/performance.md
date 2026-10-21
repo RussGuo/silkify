@@ -7,8 +7,10 @@
 | Tier | Chosen when | Renders |
 |---|---|---|
 | `high` | anything else (desktop-class) | Live in a worker. Pixel ratio up to 2. Simulation up to 256 cells, mesh up to 240 segments. One idle light loop, then sleep. |
-| `low` | `(pointer: coarse)`, viewport < 1024 px, ≤ 4 CPU cores, ≤ 4 GB memory, or a software rasteriser (SwiftShader, llvmpipe), which is detected inside the renderer | Live in a worker. Pixel ratio 1. Simulation ≤ 128 cells, mesh ≤ 120. No idle sweep: frames are drawn only around interaction. |
-| `static` | reduced motion, Save-Data, 2G, ≤ 2 cores or ≤ 2 GB, or no WebGL2 / renderable half floats | three.js is never loaded. The canvas shows `poster` (or the picture), drawn once. |
+| `low` | `(pointer: coarse)`, a screen < 1024 px on its long side (the screen, not the window: a desktop window split in half stays high), ≤ 4 CPU cores, ≤ 4 GB memory, or a software rasteriser (SwiftShader, llvmpipe), which is detected inside the renderer | Live in a worker. Pixel ratio 1. Simulation ≤ 128 cells, mesh ≤ 120. No idle sweep: frames are drawn only around interaction. |
+| `static` | reduced motion, Save-Data, 2G, ≤ 2 cores or ≤ 2 GB, or no WebGL2 / renderable half floats | three.js is never loaded. The canvas shows `poster` (or the picture), drawn once. `handle.reason` says which. |
+
+WebGL2 is probed on the canvas itself, by the renderer (in the worker), before three.js is loaded: no throwaway context on the main thread, which used to cost 2.5 s of main-thread time on a software GPU.
 
 **Resolution follows the object on screen**, not the source picture:
 - At most one simulation cell per 3.15 CSS px and one mesh segment per 2.8 CSS px.

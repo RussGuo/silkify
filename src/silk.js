@@ -89,15 +89,22 @@ function resolveThree(explicit) {
   }
 }
 
+/**
+ * The worker. Same origin: the literal `new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })`,
+ * the form Vite, webpack and Turbopack recognise, so a bundler builds worker.js with its imports (three included).
+ * Another origin (silk.js from a CDN): a page cannot start a worker from there, and Firefox and Safari only say so
+ * asynchronously, so it is decided up front: a same-origin blob: trampoline imports the CDN worker. The worker's
+ * URL is built with string operations here, so bundlers do not mistake it for an asset.
+ */
 function spawnWorker() {
-  try {
-    return new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-  } catch {
-    // a cross-origin script (silk.js from a CDN) cannot start a worker directly: start a same-origin trampoline
-    const url = new URL('./worker.js', import.meta.url);
-    const blob = new Blob([`import ${JSON.stringify(url.href)};`], { type: 'text/javascript' });
-    return new Worker(URL.createObjectURL(blob), { type: 'module' });
+  if (new URL(import.meta.url).origin !== location.origin) {
+    const src = import.meta.url.replace(/[^/]*$/, 'worker.js');
+    const url = URL.createObjectURL(new Blob([`import ${JSON.stringify(src)};`], { type: 'text/javascript' }));
+    const worker = new Worker(url, { type: 'module' });
+    worker.addEventListener('message', () => URL.revokeObjectURL(url), { once: true });
+    return worker;
   }
+  return new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 }
 
 const canWorker = () => typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
@@ -359,8 +366,9 @@ export function silkify(canvasIn, options = {}) {
         msg.canvas = offscreen;
         send(msg, [offscreen, ...(picture instanceof ImageBitmap ? [picture] : [])]);
       } else {
-        Promise.all([import('./core.js'), import('three')]).then(([core, THREE]) => {
-          const endpoint = core.serve((m) => queueMicrotask(() => receive(m)), async () => THREE);
+        import('./core.js').then((core) => {
+          // three is imported only after the renderer has found WebGL2 on this canvas
+          const endpoint = core.serve((m) => queueMicrotask(() => receive(m)), () => import('three'));
           send = endpoint;
           msg.canvas = canvas;
           claimed.add(canvas);
@@ -392,8 +400,9 @@ export function silkify(canvasIn, options = {}) {
     if (disposed) return handle;
     let why = handle.reason;
     if (tier.tier !== 'static') {
+      // without an import map or threeUrl, the worker imports 'three' itself, which works where a bundler built it
       const threeUrl = resolveThree(o.threeUrl);
-      const tries = o.worker !== false && canWorker() && threeUrl ? [true, false] : [false];
+      const tries = o.worker !== false && canWorker() ? [true, false] : [false];
       for (let i = 0; i < tries.length; i++) {
         const onWorker = tries[i];
         try {

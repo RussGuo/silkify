@@ -57,25 +57,40 @@ function sunFromPhase(f) {
 }
 
 /**
- * WebGL2 only (three would quietly fall back to WebGL1). No MSAA, no depth or stencil buffer: the triangles never
- * overlap on screen and the outline is cut per pixel by the alpha, so they would add nothing to the picture while
- * costing (at ratio 2) tens of MB of GPU memory and 4× the write bandwidth. `software` = SwiftShader, llvmpipe…
+ * The canvas's own WebGL2 context, or null: the capability probe, made before three.js is even loaded, so a
+ * device without WebGL2 never downloads it, and no throwaway context is ever made (that cost a 2.5 s main-thread
+ * stall on a software GPU). No MSAA, no depth or stencil buffer: the triangles never overlap on screen and the
+ * outline is cut per pixel by the alpha, so they would add nothing to the picture while costing (at ratio 2) tens
+ * of MB of GPU memory and 4× the write bandwidth. Renderable half floats are needed for the wave simulation.
  */
-export function openRenderer(THREE, canvas) {
-  let renderer;
+export function openContext(canvas) {
+  let gl = null;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: true });
+    gl = canvas.getContext('webgl2', {
+      alpha: true, depth: false, stencil: false, antialias: false, premultipliedAlpha: true,
+      preserveDrawingBuffer: false, powerPreference: 'default', failIfMajorPerformanceCaveat: false,
+    });
   } catch {
     return null;
   }
-  const gl = renderer.getContext();
-  const ok = renderer.capabilities.isWebGL2 && !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'));
-  if (!ok) {
-    renderer.dispose();
+  return gl && (gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float')) ? gl : null;
+}
+
+/** three's renderer on that context. `software` = SwiftShader, llvmpipe… (the low tier is then chosen). */
+export function openRenderer(THREE, canvas, gl) {
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, context: gl, alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: true });
+  } catch {
     return null;
   }
-  const info = gl.getExtension('WEBGL_debug_renderer_info');
-  const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || '');
+  // Chrome and Safari mask RENDERER ('WebKit WebGL') and unmask it through the debug extension; Firefox already
+  // answers RENDERER and warns when that extension is asked for, so it is asked for only when needed
+  let name = String(gl.getParameter(gl.RENDERER) || '');
+  if (/^webkit webgl$/i.test(name)) {
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    if (info) name = String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL) || name);
+  }
   return { renderer, software: /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name) };
 }
 
@@ -539,9 +554,11 @@ export function serve(post, loadThree) {
   async function init(m) {
     Object.assign(latest, { view: m.view, visible: m.visible, still: m.still });
     latest.touches.unshift(...(m.touches || []));
+    const gl = openContext(m.canvas);
+    if (!gl) return post({ t: 'fail', reason: 'no WebGL2 with renderable half floats' });
     const THREE = await loadThree(m.threeUrl);
-    const opened = openRenderer(THREE, m.canvas);
-    if (!opened) return post({ t: 'fail', reason: 'no WebGL2 with renderable half floats' });
+    const opened = openRenderer(THREE, m.canvas, gl);
+    if (!opened) return post({ t: 'fail', reason: 'three.js could not start a WebGL2 renderer' });
     // a software rasteriser cannot afford the high tier, unless the caller forced it
     const tier = opened.software && m.tier.tier === 'high' && !m.forced ? m.lowTier : m.tier;
     const sphere = m.options.shape === 'sphere';

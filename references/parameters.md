@@ -6,7 +6,7 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 
 | Option | Default | What it does | Tuning |
 |---|---|---|---|
-| `image` | (required) | URL, `<img>`, `ImageBitmap` or canvas | PNG with alpha; ≤ 1024 px |
+| `image` | (required) | URL, `<img>`, `ImageBitmap`, canvas, or a `Blob` / `File`. SVG is rasterised to 1024 px | PNG with alpha; ≤ 1024 px |
 | `shape` | `'image'` | `'image'` inflates the silhouette; `'sphere'` wraps an equirectangular map | |
 | **Presets** | | Merged as defaults < `material` < `feel` < your explicit options | |
 | `material` | `'silk'` | What the surface is: `'silk'` (the classic look), `'satin'`, `'velvet'`, `'wet'`, `'foil'`, `'paper'`, `'ink'` | see Recipes |

@@ -122,7 +122,7 @@ By default, silkify renders inside a **Web Worker** on an OffscreenCanvas, so th
 | Tier | When | What it does |
 |---|---|---|
 | `high` | desktop-class devices | pixel ratio ≤ 2, simulation ≤ 256 cells, mesh ≤ 240; one idle light loop, then sleep |
-| `low` | touch-first, < 1024 px wide, ≤ 4 cores, ≤ 4 GB, or a software GPU | pixel ratio 1, simulation ≤ 128, mesh ≤ 120; frames only around interaction |
+| `low` | touch-first, a screen < 1024 px on its long side, ≤ 4 cores, ≤ 4 GB, or a software GPU | pixel ratio 1, simulation ≤ 128, mesh ≤ 120; frames only around interaction |
 | `static` | reduced motion, Save-Data, 2G, very small devices, no WebGL2 | three.js is never loaded; `poster` (or the picture) is drawn once |
 
 The tier is decided once, at mount; `tier` forces one.
