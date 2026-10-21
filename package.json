@@ -1,6 +1,6 @@
 {
   "name": "silkify",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Silkify anything: turn any image into a touchable silk surface on the web",
   "type": "module",
@@ -15,7 +15,9 @@
     "verify": "node scripts/shoot.mjs",
     "posters": "node scripts/shoot.mjs --posters",
     "gif": "node scripts/shoot.mjs --gif",
-    "lab": "node scripts/shoot.mjs --lab"
+    "lab": "node scripts/shoot.mjs --lab",
+    "build:integrations": "node scripts/build-integrations.mjs",
+    "cdn": "node scripts/shoot.mjs --cdn"
   },
   "peerDependencies": {
     "three": ">=0.152.2"

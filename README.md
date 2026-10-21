@@ -6,7 +6,24 @@ English | [简体中文](README.zh-CN.md)
 
 **Silkify anything.** silkify turns any image into a touchable silk surface on the web. At rest the object is matte and photographic. Where your pointer touches it, the surface dents, ripples and catches the light like satin.
 
-silkify is a small WebGL library (one ES module on top of [three.js](https://threejs.org)) and an [Agent Skill](SKILL.md) that teaches Claude how to cut out a picture, inflate it and embed it in any page.
+silkify is a small WebGL library (one ES module on top of [three.js](https://threejs.org)) and an [Agent Skill](SKILL.md) that teaches any coding agent how to cut out a picture, inflate it and embed it in any page.
+
+## Use it from your agent
+
+silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) that any coding agent can follow, from cutting out the picture to the finished page. Nothing has to be copied into your project, because the skill imports silk.js from the CDN.
+
+| Agent | Install |
+|---|---|
+| Claude Code | `/plugin marketplace add RussGuo/silkify`, then `/plugin install silkify@silkify` |
+| Codex (CLI, IDE extension, ChatGPT desktop app) | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
+| Cursor | the same clone (Cursor reads `~/.agents/skills`), or copy [`integrations/cursor/silkify.mdc`](integrations/cursor/silkify.mdc) into `.cursor/rules/` |
+| GitHub Copilot | the same clone (Copilot reads `~/.agents/skills`), or copy [`integrations/copilot/copilot-instructions.md`](integrations/copilot/copilot-instructions.md) to `.github/copilot-instructions.md` |
+| Gemini CLI | the same clone (`~/.agents/skills` is an alias of `~/.gemini/skills`) |
+| OpenCode, Amp and other skill-aware agents | the same clone, or `npx skills add RussGuo/silkify` |
+| ChatGPT | [build a custom GPT](integrations/chatgpt/README.md) from the generated instructions and knowledge files |
+| Anything else | paste [SKILL.md](SKILL.md) into the chat, or point the agent at [llms.txt](llms.txt) |
+
+Then ask it to "silkify" a picture. Add `--branch v0.2.0` to the clone to pin a release. The files for ChatGPT, Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
 
 ## Gallery
 
@@ -44,7 +61,7 @@ npx serve .            # or: python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from './src/silk.js';   // copy the whole src/ folder
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js';   // or copy src/ and import './src/silk.js'
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // any PNG with a transparent background
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // an equirectangular map
@@ -53,7 +70,7 @@ npx serve .            # or: python3 -m http.server
 
 - **No transparent background?** Run `python3 scripts/cutout.py photo.jpg out.png` to key out a plain backdrop, or keep the rectangle and let silkify make a cushion.
 - **React?** See the component in [SKILL.md](SKILL.md#react-and-nextjs).
-- **Use it as a Claude skill:** `git clone https://github.com/RussGuo/silkify ~/.claude/skills/silkify`, then ask Claude to "silkify" an image.
+- **From an agent?** See [Use it from your agent](#use-it-from-your-agent).
 
 `silkify()` returns a handle right away:
 
@@ -79,7 +96,7 @@ Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`
 | Shape (sphere) | `phase` null or 0–1 · `bump` (elevation map) · `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
 | Runtime | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'` · `worker` `'auto'` / false · `threeUrl` · `poster` · `dpr` (per tier) · `reducedMotion` `'auto'` · `onHover` |
 
-[SKILL.md](SKILL.md#parameters) explains what each option does and how to tune it, gives recipes for logos, photos, paintings and the moon, and has a troubleshooting table.
+[references/parameters.md](references/parameters.md) explains what each option does and how to tune it and gives recipes for logos, photos, paintings and the moon; [references/troubleshooting.md](references/troubleshooting.md) has the fixes.
 
 ## How it works
 
@@ -138,12 +155,13 @@ Measured on the gallery: Lighthouse 12.8.2, mobile preset (4× CPU slowdown), me
 | Frames drawn in 10 s of idle (35–45 s after a touch) | 264 (never sleeps) | **0** |
 | GPU buffers, estimated (373 px card, ratio 2) | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × at most 3, and 0 until touched |
 
-Lighthouse never touches the page, so the last three rows were measured separately with headless Chrome over the DevTools protocol. Details are in [SKILL.md](SKILL.md#performance-and-fallbacks).
+Lighthouse never touches the page, so the last three rows were measured separately with headless Chrome over the DevTools protocol. Details are in [references/performance.md](references/performance.md).
 
 ## Repository
 
 ```
-SKILL.md            the Agent Skill: when to use it, cut-out → dome → render, every parameter, troubleshooting
+SKILL.md            the Agent Skill: get the code (CDN or copy), cut-out → puff → material and feel → render → verify
+references/         parameters, performance, troubleshooting: the detail SKILL.md points to
 src/silk.js         the entry point: tiers, Worker / main-thread / still-frame fallback, pointer forwarding
 src/core.js         the renderer, DOM-free (peer dependency: three ≥ 0.152.2)
 src/shaders.js      the GLSL: wave solver and object shader (one source, two shapes)
@@ -152,8 +170,12 @@ src/presets.js      material and feel presets: plain option fragments
 src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
-scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, then the Lab), --posters, --gif (ffmpeg), --lab; console check
-examples/           the gallery and the Lab (static; GitHub Pages), WebP pictures and posters, image credits
+scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, then the Lab), --posters, --gif (ffmpeg), --lab, --cdn; console check
+scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt (--check for drift)
+examples/           the gallery, the Lab and cdn.html (static; GitHub Pages), WebP pictures and posters, image credits
+integrations/       generated: ChatGPT GPT instructions + knowledge, a Cursor rule, Copilot instructions
+AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index
+.claude-plugin/     the plugin marketplace manifest (the skill is SKILL.md at the root)
 ```
 
 ## Credits

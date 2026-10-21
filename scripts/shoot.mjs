@@ -6,6 +6,7 @@
  *   node scripts/shoot.mjs --gif           # docs/shots/<id>-ripple.gif (needs ffmpeg)
  *   node scripts/shoot.mjs --posters       # examples/posters/<id>.webp and @2x (needs python3 + Pillow)
  *   node scripts/shoot.mjs --lab           # docs/shots/lab/: every material and feel preset, from examples/lab.html
+ *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
  *   node scripts/shoot.mjs --only moon     # any mode, one card
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
@@ -21,6 +22,8 @@
  * --lab    one picture per preset on the pomegranate: material-<name>.jpg (at rest | just touched),
  *          material-rest-strip.jpg (every material untouched, side by side) and feel-<name>.jpg (0.15 s | 0.9 s
  *          after a stroke and a press), plus lab.jpg, the page itself, and lab-mobile.jpg at 375 px.
+ * --cdn    examples/cdn.html with silk.js from jsDelivr at ref (default: the page's pinned tag): it must go live in
+ *          its Web Worker across origins and ripple under a stroke. Needs the network.
  * Every mode exits non-zero on any console error, uncaught exception, or a card that did not mount as expected.
  * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
  */
@@ -119,7 +122,7 @@ const run = (cmd, argv) => new Promise((resolve, reject) => {
   const p = spawn(cmd, argv, { stdio: 'inherit' });
   p.on('exit', (c) => (c ? reject(new Error(`${cmd} exited ${c}`)) : resolve()));
 });
-const mode = args.includes('--gif') ? 'gif' : args.includes('--posters') ? 'posters' : args.includes('--lab') ? 'lab' : 'verify';
+const mode = args.includes('--gif') ? 'gif' : args.includes('--posters') ? 'posters' : args.includes('--lab') ? 'lab' : args.includes('--cdn') ? 'cdn' : 'verify';
 
 /** Mean |Δ| per channel between two PNG/JPEG screenshots (base64), and the second one's contrast (std). */
 async function diffOf(before, after) {
@@ -190,7 +193,26 @@ async function strokeOver(r, spec, perFrame) {
 }
 
 let ids;
-if (mode === 'posters') {
+if (mode === 'cdn') {
+  /* ---- the CDN build: only silk.js's URL differs from the gallery; the worker must start across origins ---- */
+  const ref = args[args.indexOf('--cdn') + 1];
+  const query = ref && !ref.startsWith('--') ? `?ref=${encodeURIComponent(ref)}` : '';
+  await send('Emulation.setDeviceMetricsOverride', { width: 1100, height: 800, deviceScaleFactor: 1, mobile: false });
+  await navigate(`${base}/examples/cdn.html${query}`);
+  const h = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__cdn && (clearInterval(t), r()), 50); })
+    .then(() => window.__cdn.ready).then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier, info: h.info }))`);
+  const r = await evaluate(`(() => { const b = document.getElementById('pear').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, sx: 0, sy: 0 }; })()`);
+  await sleep(1500);
+  const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+  const at = await strokeOver(r);
+  for (let f = 0; f <= 22; f++) { const { x, y } = at(f, 22, [0, 22]); await mouse('mouseMoved', x, y); await sleep(30); }
+  await sleep(300);
+  const [diff] = await diffOf(before, (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data);
+  const src = await evaluate(`performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('/src/silk.js'))`);
+  if (h.mode !== 'webgl' || h.thread !== 'worker' || !(diff > 0.3)) problems.push(`cdn: ${h.mode} on ${h.thread}, Δ ${diff.toFixed(2)}`);
+  console.log('cdn   ', src);
+  console.log('cdn   ', `${h.mode} ${h.tier}/${h.thread}`, `sim ${h.info?.sim}×${h.info?.steps} mesh ${h.info?.mesh}`, `Δ ${diff.toFixed(2)}`, diff > 0.3 ? 'ripples' : 'NO RIPPLE');
+} else if (mode === 'posters') {
   /* ---- rest frames for the gallery: high tier, no fill-light motion, transparent ---- */
   const dir = path.join(ROOT, 'examples', 'posters');
   await mkdir(dir, { recursive: true });

@@ -6,7 +6,24 @@
 
 **万物皆可丝绸化。** silkify 把任意一张图片变成网页上可以触碰的丝绸物体：静止时是哑光的实物照片，指针碰到的地方被压出凹坑，涟漪荡开，泛起缎面的光泽。
 
-它由两部分组成：一个小巧的 WebGL 库（基于 [three.js](https://threejs.org) 的一个 ES module），和一个 [Agent Skill](SKILL.md)。后者教 Claude 抠图、把轮廓吹成穹面，再嵌进任意页面。
+它由两部分组成：一个小巧的 WebGL 库（基于 [three.js](https://threejs.org) 的一个 ES module），和一个 [Agent Skill](SKILL.md)。后者教任何编码 Agent 抠图、把轮廓吹成穹面，再嵌进任意页面。
+
+## 从你的 Agent 使用
+
+silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKILL.md)，任何编码 Agent 都能照着做完从抠图到成品页面的全过程。项目里不用拷贝任何文件，Skill 直接从 CDN 引入 silk.js。
+
+| Agent | 安装 |
+|---|---|
+| Claude Code | `/plugin marketplace add RussGuo/silkify`，再 `/plugin install silkify@silkify` |
+| Codex（CLI、IDE 插件、ChatGPT 桌面端） | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
+| Cursor | 同一条 clone（Cursor 读取 `~/.agents/skills`），或把 [`integrations/cursor/silkify.mdc`](integrations/cursor/silkify.mdc) 放进 `.cursor/rules/` |
+| GitHub Copilot | 同一条 clone（Copilot 读取 `~/.agents/skills`），或把 [`integrations/copilot/copilot-instructions.md`](integrations/copilot/copilot-instructions.md) 放到 `.github/copilot-instructions.md` |
+| Gemini CLI | 同一条 clone（`~/.agents/skills` 是 `~/.gemini/skills` 的别名） |
+| OpenCode、Amp 等支持 Skill 的 Agent | 同一条 clone，或 `npx skills add RussGuo/silkify` |
+| ChatGPT | 用生成的 instructions 与知识文件[建一个自定义 GPT](integrations/chatgpt/README.md) |
+| 其他 | 把 [SKILL.md](SKILL.md) 原文贴进对话，或让 Agent 读 [llms.txt](llms.txt) |
+
+然后对它说「把这张图丝绸化」。想固定版本，clone 时加 `--branch v0.2.0`。ChatGPT、Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都由 `npm run build:integrations` 从 SKILL.md 生成，各宿主读到的是同一份说明。
 
 ## 画廊
 
@@ -44,7 +61,7 @@ npx serve .            # 或：python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from './src/silk.js';   // 把整个 src/ 目录拷过去
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js';   // 或拷贝 src/ 后 import './src/silk.js'
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // 任意透明底 PNG
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // 等距圆柱投影贴图
@@ -53,7 +70,7 @@ npx serve .            # 或：python3 -m http.server
 
 - **图片没有透明底？** 运行 `python3 scripts/cutout.py photo.jpg out.png` 抠掉纯色背景；或者保留整张矩形，让 silkify 把它做成软垫。
 - **用 React？** 组件写法见 [SKILL.md](SKILL.md#react-and-nextjs)。
-- **当作 Claude Skill 使用：** 先 `git clone https://github.com/RussGuo/silkify ~/.claude/skills/silkify`，再对 Claude 说「把这张图丝绸化」。
+- **在 Agent 里用？** 见[从你的 Agent 使用](#从你的-agent-使用)。
 
 `silkify()` 会立即返回一个句柄：
 
@@ -79,7 +96,7 @@ silk.dispose();
 | 形状（球体） | `phase` null 或 0–1（月相）· `bump`（高程图）· `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
 | 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态帧）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
 
-每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方，以及常见问题排查，都在 [SKILL.md](SKILL.md#parameters)。
+每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方在 [references/parameters.md](references/parameters.md)，常见问题排查在 [references/troubleshooting.md](references/troubleshooting.md)。
 
 ## 原理
 
@@ -138,12 +155,13 @@ silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的
 | 闲置 10 秒画的帧数（碰后 35–45 秒） | 264（永不睡） | **0** |
 | 显存估算（373 px 卡片，像素比 2） | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × 至多 3 个，未被碰前为 0 |
 
-Lighthouse 不会和页面交互，所以最后三行是另外用无头 Chrome 通过 DevTools 协议量的。细节见 [SKILL.md](SKILL.md#performance-and-fallbacks)。
+Lighthouse 不会和页面交互，所以最后三行是另外用无头 Chrome 通过 DevTools 协议量的。细节见 [references/performance.md](references/performance.md)。
 
 ## 仓库结构
 
 ```
-SKILL.md            Agent Skill：何时使用、抠图 → 穹面 → 渲染、全部参数、常见问题
+SKILL.md            Agent Skill：取得代码（CDN 或拷贝）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
+references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节
 src/silk.js         入口：分档、Worker / 主线程 / 静态帧三级退路、转发指针
 src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
 src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
@@ -152,8 +170,12 @@ src/presets.js      material 与 feel 预设：纯参数片段
 src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
-scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图；控制台检查
-examples/           画廊与 Lab 调参页（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
+scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版；控制台检查
+scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt（--check 查漂移）
+examples/           画廊、Lab 调参页与 cdn.html（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
+integrations/       生成物：ChatGPT 自定义 GPT 的 instructions 与知识文件、Cursor rule、Copilot instructions
+AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引
+.claude-plugin/     插件 marketplace 清单（Skill 本体是根目录的 SKILL.md）
 ```
 
 ## 致谢
