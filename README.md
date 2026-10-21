@@ -173,7 +173,11 @@ src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, then the Lab), --posters, --gif (ffmpeg), --lab, --cdn; console check
 scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt (--check for drift)
+scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
+scripts/harness.mjs              the static server and the Playwright loader the check scripts share
 examples/           the gallery, the Lab and cdn.html (static; GitHub Pages), WebP pictures and posters, image credits
+examples/react, examples/next    the smallest Vite and Next.js projects with the React component
+test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
 integrations/       generated: a Cursor rule and a path-scoped Copilot instruction
 AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index
 .claude-plugin/     the plugin marketplace manifest (the skill is SKILL.md at the root)

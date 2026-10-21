@@ -173,7 +173,11 @@ src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
 scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版；控制台检查
 scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt（--check 查漂移）
+scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）
+scripts/harness.mjs              各检查脚本共用的静态服务器与 Playwright 加载
 examples/           画廊、Lab 调参页与 cdn.html（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
+examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程
+test/edge.html      曾经静默失败的情形：SVG、空图或缺图、加载中的调用
 integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions
 AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引
 .claude-plugin/     插件 marketplace 清单（Skill 本体是根目录的 SKILL.md）

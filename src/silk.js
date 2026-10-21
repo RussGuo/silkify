@@ -98,7 +98,8 @@ function resolveThree(explicit) {
  * URL is built with string operations here, so bundlers do not mistake it for an asset.
  */
 function spawnWorker() {
-  if (new URL(import.meta.url).origin !== location.origin) {
+  const here = new URL(import.meta.url);   // a bundler may make it a file: URL (Turbopack): that is not another origin
+  if (/^https?:$/.test(here.protocol) && here.origin !== location.origin) {
     const src = import.meta.url.replace(/[^/]*$/, 'worker.js');
     const url = URL.createObjectURL(new Blob([`import ${JSON.stringify(src)};`], { type: 'text/javascript' }));
     const worker = new Worker(url, { type: 'module' });

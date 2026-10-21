@@ -1,0 +1,10 @@
+# the React and Next.js examples: installed and copied files stay local (npm run silk copies src/ and two pictures)
+react/node_modules/
+react/dist/
+react/src/silk/
+react/public/
+next/node_modules/
+next/.next/
+next/lib/
+next/public/
+next/next-env.d.ts

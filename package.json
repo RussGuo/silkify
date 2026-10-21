@@ -17,7 +17,8 @@
     "gif": "node scripts/shoot.mjs --gif",
     "lab": "node scripts/shoot.mjs --lab",
     "build:integrations": "node scripts/build-integrations.mjs",
-    "cdn": "node scripts/shoot.mjs --cdn"
+    "cdn": "node scripts/shoot.mjs --cdn",
+    "frameworks": "node scripts/frameworks.mjs"
   },
   "peerDependencies": {
     "three": ">=0.152.2"

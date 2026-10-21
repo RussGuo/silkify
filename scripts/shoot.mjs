@@ -27,13 +27,13 @@
  * --cdn    examples/cdn.html with silk.js from jsDelivr at ref (default: the page's pinned tag): it must go live in
  *          its Web Worker across origins and ripple under a stroke. Needs the network.
  * Every mode exits non-zero on any console error, uncaught exception, or a card that did not mount as expected.
- * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
+ * No dependencies: a tiny static server (harness.mjs), Chrome's DevTools protocol over Node's built-in WebSocket.
  */
 import { spawn } from 'node:child_process';
-import { createServer } from 'node:http';
-import { mkdtemp, readFile, writeFile, mkdir, rm, stat } from 'node:fs/promises';
+import { mkdtemp, writeFile, mkdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serve } from './harness.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'shots');
@@ -47,21 +47,8 @@ const CHROME = process.env.CHROME || {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---- static server for the repo root ---- */
-const TYPES = { '.webp': 'image/webp', '.gif': 'image/gif', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.css': 'text/css', '.md': 'text/plain', '.svg': 'image/svg+xml' };
-const server = createServer(async (req, res) => {
-  let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  if (p.endsWith('/')) p += 'index.html';
-  const file = path.join(ROOT, p);
-  if (!file.startsWith(ROOT)) return res.writeHead(403).end();
-  try {
-    const body = await readFile(file);
-    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' }).end(body);
-  } catch {
-    res.writeHead(404).end();
-  }
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const base = `http://127.0.0.1:${server.address().port}`;
+const server = await serve(ROOT);
+const base = server.base;
 
 /* ---- Chrome ---- */
 const profile = await mkdtemp(path.join(tmpdir(), 'silkify-'));

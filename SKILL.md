@@ -141,28 +141,31 @@ The canvas sets the size: style it with CSS (for example `width: 100%; aspect-ra
 The import map is required: silk.js imports `three` by name and hands the worker the URL the map resolves to.
 <!-- /core -->
 
-**Bundlers.** Inside a worker there is no import map, so silk.js passes the worker `import.meta.resolve('three')`. If that is not an http(s) URL, as in some bundler setups, it renders on the main thread instead. To keep the worker, pass `threeUrl` (in Vite: `import threeUrl from 'three/build/three.module.js?url'`). `worker: false` forces the main thread.
+**Bundlers (Vite, webpack, Next.js).** Copy `src/` into the project (way b) and `npm i three`; do not import the CDN URL from bundled code. silk.js starts its worker as `new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })`, a form bundlers recognise, and the worker imports `three` itself, so both are bundled: no configuration, no `threeUrl`. `threeUrl` is only for a page without a bundler whose import map cannot be read (`worker: false` forces the main thread).
 
-**The canvas belongs to the renderer.** In a worker the canvas is transferred and cannot be transferred again. On a remount, or when a failed worker falls back, silkify swaps in a fresh clone with the same attributes. Read the current element from `handle.canvas`.
+**The canvas belongs to the renderer.** In a worker the canvas is transferred and cannot be transferred again. On a remount, or when a failed worker falls back, silkify swaps in a fresh clone with the same attributes. Read the current element from `handle.canvas`, and never let a framework render that canvas: create it yourself, as below.
 
 ### React (and Next.js)
 
 ```jsx
-'use client';                                           // Next.js app router
+'use client';                                           // Next.js app router; harmless elsewhere
 import { useEffect, useRef } from 'react';
-import { silkify } from '@/lib/silk/silk.js';           // src/ copied there, `npm i three`; or the CDN URL with an import map
+import { silkify } from './silk/silk.js';               // src/ copied there; `npm i three`
 
-export default function Silk({ src, options, className }) {
-  const ref = useRef(null);
+export default function Silk({ src, options, className, style }) {
+  const box = useRef(null);
   useEffect(() => {
-    const silk = silkify(ref.current, { image: src, ...options });
-    return () => silk.dispose();                        // StrictMode's mount → unmount → mount is safe
+    const canvas = document.createElement('canvas');    // made here, not by React: silkify may transfer or swap it
+    canvas.style.cssText = 'display:block;width:100%;height:100%';
+    box.current.append(canvas);
+    const silk = silkify(canvas, { image: src, ...options });
+    return () => { silk.dispose(); silk.canvas.remove(); };
   }, [src]);                                            // options are read once; use silk.setTheme() to change them live
-  return <canvas ref={ref} className={className} style={{ width: '100%', aspectRatio: '1' }} aria-hidden />;
+  return <div ref={box} className={className} style={{ aspectRatio: '1', touchAction: 'pan-y', ...style }} aria-hidden />;
 }
 ```
 
-To keep three.js out of pages that do not use it, load the component lazily (`next/dynamic` with `ssr: false`, or `React.lazy`). Import a static asset as a URL string (`import pear from './pear.png'`, then `src={pear.src ?? pear}`).
+A new `src` is a remount, and so are StrictMode's mount → unmount → mount and an unmount: React only owns the `<div>`, so it never removes a node it did not make. In Next.js a server component can render `<Silk>` directly: silk.js touches the DOM only inside the effect, so no `next/dynamic` is needed. Import a static asset as a URL string (`import pear from './pear.png'`, then `src={pear.src ?? pear}`). Checked with React 19.3, three 0.186.1, Vite 8.3 (dev and build) and Next.js 16.4 with Turbopack (dev and build): every mount is `'webgl'` on `'worker'`. The projects are `examples/react` and `examples/next`; `node scripts/frameworks.mjs` runs all four.
 
 ### The handle
 

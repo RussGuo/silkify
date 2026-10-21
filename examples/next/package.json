@@ -1,0 +1,18 @@
+{
+  "name": "silkify-next-example",
+  "private": true,
+  "scripts": {
+    "silk": "node -e \"const fs=require('fs');fs.cpSync('../../src','lib/silk',{recursive:true});fs.mkdirSync('public',{recursive:true});for(const f of ['pomegranate.webp','parrot.webp'])fs.copyFileSync('../images/'+f,'public/'+f)\"",
+    "predev": "npm run silk",
+    "prebuild": "npm run silk",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "three": "0.186.1"
+  }
+}
