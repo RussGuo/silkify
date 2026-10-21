@@ -68,6 +68,7 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `threeUrl` | — | Absolute URL of `three.module.js` for the worker (default: `import.meta.resolve('three')`) | needed with some bundlers |
 | `dpr` | per tier (2 / 1) | Device-pixel-ratio cap; the renderer lowers it further (2 → 1.5 → 1) if frames take > 28 ms | |
 | `reducedMotion` | `'auto'` | Follows `prefers-reduced-motion`, which selects the static tier; `true` or `false` to force | |
+| `stepPerFrame` | `false` | One solver step per drawn frame instead of 60 per second: for frame-exact recordings (`shoot.mjs --gif`), never for pages | |
 | `poster` | — | A still frame of this canvas, shown in the static tier (default: the picture, drawn flat) | render one with `scripts/shoot.mjs --posters` |
 | `onHover` | — | `(isOver) => {}` | for a cursor or caption change |
 

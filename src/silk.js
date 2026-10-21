@@ -51,6 +51,7 @@ const COMMON = {
   worker: 'auto',          // 'auto' renders in a Web Worker when the browser can; false keeps it on the main thread
   threeUrl: undefined,     // absolute URL of three.module.js for the worker (default: import.meta.resolve('three'))
   poster: undefined,       // a still frame shown in the static tier (default: the picture itself)
+  stepPerFrame: false,     // one solver step per drawn frame instead of 60 per second: frame-exact recordings only
   onHover: null,
 };
 
@@ -378,19 +379,36 @@ export function silkify(canvasIn, options = {}) {
     });
   }
 
+  /* ---- the pointer: only what happens over this canvas reaches the renderer, so a pointer moving or held anywhere
+   *      else on the page never wakes a sleeping object (a long page with a hero would otherwise draw 60 fps) ---- */
   function listen() {
-    const ndc = (e) => {
+    let over = false, pressed = false;
+    const at = (e) => {
       const r = canvas.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      send({ t: 'pointer', x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 });
+      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      return r.width && r.height && x >= 0 && x <= 1 && y >= 0 && y <= 1 ? { x: x * 2 - 1, y: 1 - y * 2 } : null;
     };
-    window.addEventListener('pointermove', ndc, on);
-    window.addEventListener('pointerdown', (e) => { ndc(e); send({ t: 'press', down: true }); }, on);
+    const leave = () => { if (over || pressed) send({ t: 'lift' }); over = pressed = false; };
+    window.addEventListener('pointermove', (e) => {
+      const p = at(e);
+      if (p) { over = true; send({ t: 'pointer', ...p }); }
+      else if (over) leave();
+    }, on);
+    window.addEventListener('pointerdown', (e) => {
+      const p = at(e);
+      if (!p) return;
+      over = pressed = true;
+      send({ t: 'pointer', ...p });
+      send({ t: 'press', down: true });
+    }, on);
     // a mouse that lets go is still there; a lifted finger or pen is not (else its last point "hovers" forever)
-    window.addEventListener('pointerup', (e) => send(e.pointerType === 'mouse' ? { t: 'press', down: false } : { t: 'lift' }), on);
-    window.addEventListener('pointercancel', () => send({ t: 'lift' }), on);   // a touch that turns into a scroll
-    document.documentElement.addEventListener('pointerleave', () => send({ t: 'lift' }), on);
-    window.addEventListener('blur', () => send({ t: 'lift' }), on);
+    window.addEventListener('pointerup', (e) => {
+      if (e.pointerType !== 'mouse') return leave();
+      if (pressed) { pressed = false; send({ t: 'press', down: false }); }
+    }, on);
+    window.addEventListener('pointercancel', leave, on);   // a touch that turns into a scroll
+    document.documentElement.addEventListener('pointerleave', leave, on);
+    window.addEventListener('blur', leave, on);
     document.addEventListener('visibilitychange', () => send({ t: 'visible', visible: visible() }), on);
     reduceMq?.addEventListener?.('change', () => send({ t: 'still', still: reduced() }), on);
   }

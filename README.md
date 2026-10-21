@@ -132,7 +132,8 @@ The tier is decided once, at mount; `tier` forces one.
   - 60 fps while touched and for 8 s after;
   - 12 fps for the ripple tail until 20 s;
   - then nothing.
-  - A lifted finger stops counting as hovering.
+  - A lifted finger stops counting as hovering, and a pointer anywhere else on the page never wakes the object.
+  - The wave solver runs at a fixed 60 steps a second, so ripples move at the same speed on a 30, 60 or 120 Hz display.
   - `breeze` and `autoplay` are off by default because they keep it awake: breeze draws 30 fps while visible, and autoplay wakes for every drop.
   - Off-screen and hidden tabs stop the loop.
   - The pixel ratio steps down 2 → 1.5 → 1 if the GPU falls behind.

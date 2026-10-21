@@ -19,8 +19,9 @@ WebGL2 is probed on the canvas itself, by the renderer (in the worker), before t
 Below the reference grid, the solver takes sub-steps with rescaled constants, so dents and waves keep their size and speed on the object. `handle.info` reports what was chosen.
 
 **The loop sleeps.**
-- **Active, 60 fps:** while the object is touched or held, for 8 s after the last touch, and while the pointer moved in the last 2.5 s or the fill light is still travelling. "Travelling" is judged by distance to its target, not by speed: the idle sweep never has zero speed.
+- **Active, every frame:** while the object is touched or held, for 8 s after the last touch, and while the pointer moved over the canvas in the last 2.5 s or the fill light is still travelling. A pointer that moves or is held anywhere else on the page is not passed to the renderer at all, so it never wakes a sleeping object (measured in the Lab: 0 frames in 3 s of moving and holding over the control panel). "Travelling" is judged by distance to its target, not by speed: the idle sweep never has zero speed.
 - **Tail, 12 fps, 8–20 s after the last touch:** the solver catches up the steps it skipped. Then the field is cleared.
+- **The solver's clock:** one wave step per 1/60 s of wall time, whatever the display draws: a 120 Hz screen steps every other frame, 30 fps steps twice per frame, and a frame slower than 4 steps simply lags. Measured in Firefox 157 with the refresh rate forced to 30, 60 and 120 Hz: 59.8, 60.7 and 59.7 solver steps a second after a `ripple()`. `handle.stats()` reports `steps`. (`stepPerFrame: true` takes one step per frame instead; `scripts/shoot.mjs --gif` uses it for frame-exact recordings.)
 - **Rest:** high tier, one idle light loop (≈ 28.6 s at 12 fps). After that, and always in the low tier, no frames at all.
 - **Stopped:** off-screen or in a hidden tab.
 

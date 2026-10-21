@@ -8,8 +8,9 @@
  * the uniforms and the loop. See silk.js for the overview and SKILL.md for every option.
  *
  * Sleeping (all times from the last touch of the object):
- *   active  touched, held, touched < 8 s ago, pointer moved < 2.5 s ago, or the fill light still travelling
- *           (judged by distance to its target, not speed: the idle sweep never has zero speed) → every frame
+ *   active  touched, held, touched < 8 s ago, pointer moved over the canvas < 2.5 s ago, or the fill light still
+ *           travelling (judged by distance to its target, not speed: the idle sweep never has zero speed) → every frame.
+ *           A pointer elsewhere on the page sends nothing here (silk.js filters it), so it never wakes the loop.
  *   tail    ripples left 8–20 s after the last touch → 12 fps, with the missed solver steps caught up, then cleared
  *   sweep   high tier only: the idle light sweep (and a sphere's spin) for one loop, ≈ 28.6 s, at 12 fps
  *   breeze  `breeze` > 0: the solver keeps stirring → 30 fps while visible (off by default)
@@ -40,6 +41,9 @@ const FIRST_DROP_MS = 800;          // autoplay: the first drop comes soon after
 const SWEEP_RATE = 0.22;            // rad/s → one loop ≈ 28.6 s
 const SWEEP_TURN = (2 * Math.PI) / SWEEP_RATE;
 const SLOW_FRAME_MS = 28;
+const SIM_HZ = 60;                  // the wave solver's fixed rate: ripples move at the same speed on any display
+const MAX_STEPS_ACTIVE = 4;         // at most this many 60 Hz steps per drawn frame while active (a slow frame lags)
+const MAX_CATCH_UP = 12;            // and in the 12 fps tail or the 30 fps breeze
 const SPHERE_Z = 4.25;
 const SPHERE_HALF_FOV = Math.PI / 12; // 30° vertical field of view
 
@@ -323,7 +327,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 
   function addTouch(uv, { depth = o.pressDepth, radius = o.pressRadius, hold = 120 } = {}) {
     if (touches.length >= TOUCH_MAX) touches.shift();
-    // the hold is counted in solver frames, not wall time, so a slow device presses as deep as a fast one
+    // the hold is counted in 60 Hz solver steps, not wall time, so a slow device presses as deep as a fast one
     touches.push({ uv, depth, radius: toUv(radius), left: Math.max(1, Math.round(hold / (1000 / 60))) });
   }
   /** One drop at a random point well inside the outline (a sphere: its visible face). */
@@ -344,6 +348,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   /* ---- loop ---- */
   let elapsed = 0, frameId = 0, timerId = 0, lastTick = 0, dead = false, drawn = false;
   let simDirty = false, frameMs = 1000 / 60, slowRun = 0, slowSum = 0, lastStir = -1e9, drawCount = 0;
+  let simClock = 0, solverSteps = 0;   // solver steps owed (in 60 Hz steps) and taken since mount
   const sweeping = () => tier.idleSweep && o.idleSweep && !still && sweepUsed < SWEEP_TURN;
   const chasing = () => tmp.copy(target).sub(fill).lengthSq() > 0.0016 || vel.lengthSq() > 0.02;
   function modeAt(now) {
@@ -438,11 +443,21 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       }
     }
 
-    // waves: one frame's worth of steps while active; in the tail, catch up the steps missed between 12 fps frames
+    // waves: a fixed 60 Hz solver, whatever the display draws — one step per 1/60 s of wall time, so a 120 Hz screen
+    // steps every other frame, 30 fps steps twice, and the 12 fps tail catches up five at a time. A quarter step of
+    // slack absorbs frame jitter, so a 60 Hz display steps exactly once per frame. `stepPerFrame` (frame-exact
+    // recordings) takes one step per frame instead.
     su.uTime.value = elapsed;
     if (hovering || touches.length || breeze || (simDirty && now - lastStir < TAIL_MS)) {
-      const frames = active ? 1 : Math.min(12, Math.max(1, Math.round((raw * 1000) / frameMs)));
-      stepSim(frames * STEPS);
+      let frames;
+      if (o.stepPerFrame) frames = active ? 1 : Math.min(MAX_CATCH_UP, Math.max(1, Math.round((raw * 1000) / frameMs)));
+      else {
+        simClock += raw * SIM_HZ;
+        frames = Math.min(active ? MAX_STEPS_ACTIVE : MAX_CATCH_UP, Math.floor(simClock + 0.25));
+        simClock = Math.min(1, simClock - frames);        // a stalled frame is not caught up later
+      }
+      if (frames > 0) stepSim(frames * STEPS);
+      solverSteps += frames;
       for (let i = touches.length - 1; i >= 0; i--) if ((touches[i].left -= frames) <= 0) touches.splice(i, 1);
     } else if (simDirty) {
       clearSim();
@@ -527,7 +542,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       if (uv) { addTouch(uv, opts); wake(); }
       return !!uv;
     },
-    stats: () => ({ frames: drawCount, mode: modeAt(performance.now()) }),
+    stats: () => ({ frames: drawCount, steps: solverSteps, mode: modeAt(performance.now()) }),
     wake,
     dispose() {
       dead = true;
@@ -541,7 +556,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 /* ============================================
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
  * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
- * stats, dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, mode },
+ * stats, dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode },
  * fail { reason, fatal, svg }. `fatal` means another thread would fail the same way (the picture cannot be
  * loaded or decoded, or nothing in it is opaque); `svg` means the picture is an SVG the page must rasterise.
  * ============================================ */

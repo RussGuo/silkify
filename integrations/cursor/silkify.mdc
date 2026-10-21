@@ -167,7 +167,7 @@ To keep three.js out of pages that do not use it, load the component lazily (`ne
 ## Performance rules
 
 - One live object per WebGL context, and browsers allow about 16. With more than three objects on a page, use the gallery's pattern: a WebP poster first, `silkify()` on the first `pointerenter`, `dispose()` when the card scrolls away, at most 3 live.
-- The loop sleeps by itself: 60 fps while touched and for 8 s after, a 12 fps tail, then no frames at all. Phones and small screens get the low tier; reduced motion, Save-Data and no WebGL2 get a still frame (pass a `poster`).
+- The loop sleeps by itself: 60 fps while touched and for 8 s after, a 12 fps tail, then no frames at all. Only the pointer over the canvas counts: moving or holding it elsewhere on the page draws nothing. The waves step at a fixed 60 Hz, so they move at the same speed on a 120 Hz display. Phones and small screens get the low tier; reduced motion, Save-Data and no WebGL2 get a still frame (pass a `poster`).
 - `breeze` and `autoplay` keep the loop awake (breeze draws 30 fps while visible). Use them on one hero object, never on a grid.
 
 Details and measurements: [references/performance.md](https://github.com/RussGuo/silkify/blob/v0.2.0/references/performance.md).

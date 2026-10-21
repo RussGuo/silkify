@@ -17,7 +17,7 @@
  *          Then test/edge.html: SVG pictures go live, an empty or missing picture fails with a reason and one
  *          console.warn, calls made while loading are kept, display: none and dispose() settle `ready`.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
- *          and frame-stepped: 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
+ *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
  * --posters  the rest frames the gallery shows before anyone touches a card: high tier, no fill-light motion,
  *          transparent background, 400 px and 800 px, WebP q92 with lossless alpha.
@@ -316,7 +316,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   for (const id of ids) {
     await load(1, '?tier=high');
     await mouse('mouseMoved', 2, 2);
-    const h = await activate(id, { worker: false });
+    const h = await activate(id, { worker: false, stepPerFrame: true });
     if (h.mode !== 'webgl') problems.push(`gif ${id}: mounted as ${h.mode}`);
     const r = await rectOf(id);
     const at = await strokeOver(r, await evaluate(`window.__gallery.stroke('${id}')`));
@@ -455,6 +455,16 @@ async function verifyLab() {
   const f1 = (await labStats()).frames;
   if (mode !== 'rest' || f1 !== f0) problems.push(`lab: ${f1 - f0} frames in 10 s at rest (mode ${mode})`);
   console.log('lab   ', `rest: ${f1 - f0} frames in 10 s`);
+  // a pointer moving or held anywhere off the canvas (the control panel) must not wake it: 0 frames in 3 s
+  const panel = await evaluate(`(() => { const b = document.querySelector('aside').getBoundingClientRect(); return { x: b.left + 40, y: b.top + 40, w: b.width - 80, h: b.height - 80 }; })()`);
+  const o0 = (await labStats()).frames;
+  for (let k = 0; k < 60; k++) { await mouse('mouseMoved', panel.x + (k % 12) * panel.w / 12, panel.y + (k % 7) * panel.h / 7); await sleep(25); }
+  await mouse('mousePressed', panel.x, panel.y + panel.h, { button: 'left', clickCount: 1 });
+  await sleep(1300);
+  await mouse('mouseReleased', panel.x, panel.y + panel.h, { button: 'left', clickCount: 1 });
+  const o1 = await labStats();
+  if (o1.frames !== o0 || o1.mode !== 'rest') problems.push(`lab: a pointer off the canvas drew ${o1.frames - o0} frames (mode ${o1.mode})`);
+  console.log('lab   ', `pointer moving and held off the canvas for 3 s: ${o1.frames - o0} frames`);
   // and breeze keeps it drawing
   await evaluate('window.__lab.handle.setTheme({ breeze: 0.6 })');
   await sleep(1000);
