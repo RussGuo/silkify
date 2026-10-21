@@ -1,0 +1,17 @@
+{
+  "name": "silkify",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Silkify anything: turn any image into a touchable silk surface on the web",
+  "type": "module",
+  "license": "MIT",
+  "author": "Guo Hao",
+  "repository": { "type": "git", "url": "https://github.com/RussGuo/silkify.git" },
+  "scripts": {
+    "preview": "npx serve . -l 4173",
+    "shots": "node scripts/shoot.mjs"
+  },
+  "peerDependencies": {
+    "three": ">=0.152.2"
+  }
+}

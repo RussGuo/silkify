@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify — everything can be silk</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
+<meta name="description" content="Turn any image into a touchable silk surface on the web. Matte at rest; touch it and it ripples.">
+<style>
+  :root {
+    --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #7a746a; --rule: #d9d2c4; --accent: #8a6d3b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 72px 28px 96px; }
+  header { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; margin-bottom: 64px; }
+  h1 {
+    margin: 0; font: 400 clamp(56px, 9vw, 112px)/0.92 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .lede { margin: 18px 0 0; max-width: 34em; font-size: 17px; color: var(--muted); }
+  .lede b { color: var(--ink); font-weight: 500; }
+  .meta { text-align: right; font-size: 13px; color: var(--muted); }
+  .meta a { color: inherit; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 56px 32px; }
+  figure { margin: 0; }
+  .stage {
+    position: relative; aspect-ratio: 1; border-radius: 18px; overflow: hidden;
+    background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 60%, var(--paper)), var(--stage));
+    touch-action: pan-y;
+  }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .stage .hint {
+    position: absolute; left: 16px; bottom: 12px; font-size: 12px; letter-spacing: 0.04em; color: var(--muted);
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .stage:hover .hint { opacity: 0.8; }
+  figcaption { padding: 16px 4px 0; }
+  figcaption h2 { margin: 0; font: 400 22px/1.2 ui-serif, "Iowan Old Style", Georgia, serif; }
+  figcaption p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  figcaption code {
+    display: block; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule);
+    font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); white-space: pre-wrap; word-break: break-word;
+  }
+  footer { margin-top: 96px; padding-top: 20px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  footer a { color: inherit; }
+  @media (max-width: 640px) {
+    .wrap { padding: 40px 16px 64px; }
+    header { grid-template-columns: 1fr; margin-bottom: 40px; }
+    .meta { text-align: left; }
+    .grid { grid-template-columns: 1fr; gap: 40px; }
+  }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>silk<em>ify</em></h1>
+      <p class="lede"><b>Everything can be silk.</b> Each object below is matte and still — until the pointer touches it.
+        Then it dents, ripples, and catches the light like satin.</p>
+    </div>
+    <div class="meta">万物皆可丝绸化<br><a href="https://github.com/RussGuo/silkify">github.com/RussGuo/silkify</a></div>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <span>MIT · three.js · one <code>&lt;canvas&gt;</code> per object</span>
+    <span>Images: public domain / CC0 — see <a href="CREDITS.md">CREDITS.md</a></span>
+  </footer>
+</div>
+
+<script type="module">
+  import { silkify } from '../src/silk.js';
+
+  /* Each card: what it is, where it came from, and the options that make it look right. */
+  const CARDS = [
+    {
+      id: 'ink-drop', title: 'A drop of ink', note: 'The FateTell mark, inflated. Tinted ink with a fine grain.',
+      options: { image: 'images/ink-drop.png', albedo: [0.15, 0.15, 0.165], grain: 1, light: [-0.66, 0.72, 0.2],
+                 exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14 },
+    },
+    {
+      id: 'moon', title: 'The Moon', note: 'NASA LRO colour and elevation maps, wrapped on a sphere. A waxing gibbous, slowly turning.',
+      options: { shape: 'sphere', image: 'images/moon.png', bump: 'images/moon-bump.png', phase: 0.38, floor: 0.6, exposure: 1.1, gamma: 0.92, bumpStrength: 7 },
+    },
+    {
+      id: 'pomegranate', title: 'Pomegranate', note: '“Wonderful”, watercolour by Amanda Almira Newton, 1920, for the USDA. A round fruit gets a full dome.',
+      options: { image: 'images/pomegranate.png', puff: 'dome' },
+    },
+    {
+      id: 'hare', title: 'Young Hare', note: 'Albrecht Dürer, 1502. Paper and cast shadow keyed out; the silhouette inflated.',
+      options: { image: 'images/hare.png', puff: 'cushion' },
+    },
+    {
+      id: 'teapot', title: 'Teapot', note: 'Tôle and wicker, England, c. 1800. Cooper Hewitt. Dark lacquer wants a broader, brighter sheen.',
+      options: { image: 'images/teapot.png', puff: 'cushion', sheen: 0.5, sheenPower: 14 },
+    },
+    {
+      id: 'mona-lisa', title: 'Mona Lisa, as a cushion', note: 'Leonardo da Vinci, c. 1503–1519. An opaque picture becomes a silk pillow.',
+      options: { image: 'images/mona-lisa.png', puff: 'cushion', floor: 0.6, sheen: 0.25 },
+    },
+    {
+      id: 'carriera', title: 'Portrait of a Man', note: 'Rosalba Carriera, c. 1710, miniature on ivory. The Met. A flat puff keeps the face true.',
+      options: { image: 'images/carriera.png', puff: 'flat', floor: 0.6 },
+    },
+    {
+      id: 'parrot', title: 'Enamel parrot', note: 'Gold, enamel and gems, possibly 18th century. Cooper Hewitt. Shadows under the branch keyed out.',
+      options: { image: 'images/parrot.png', puff: 'cushion', sheen: 0.5, sheenPower: 14 }, stroke: '0.42,0.22,0.56,0.50',
+    },
+  ];
+
+  const grid = document.getElementById('grid');
+  const touch = matchMedia('(hover: none)').matches;
+  const show = (o) => Object.entries(o).filter(([k]) => k !== 'image' && k !== 'bump')
+    .map(([k, v]) => `${k}: ${JSON.stringify(v).replace(/,/g, ', ')}`).join(', ');
+
+  const handles = CARDS.map((c) => {
+    const fig = document.createElement('figure');
+    fig.dataset.id = c.id;
+    fig.innerHTML = `<div class="stage"><canvas aria-label="${c.title}"></canvas><span class="hint">${touch ? 'touch' : 'hover'} · hold to press deeper</span></div>
+      <figcaption><h2>${c.title}</h2><p>${c.note}</p><code>${show(c.options) || 'defaults'}</code></figcaption>`;
+    grid.append(fig);
+    const canvas = fig.querySelector('canvas');
+    if (c.stroke) canvas.dataset.stroke = c.stroke;   // where scripts/shoot.mjs drags the pointer
+    return silkify(canvas, c.options);
+  });
+
+  // for scripts/shoot.mjs: resolves once every object is mounted
+  window.__silk = handles;
+  window.__silkReady = Promise.allSettled(handles.map((h) => h.ready))
+    .then(() => handles.map((h, i) => ({ id: CARDS[i].id, mode: h.mode })));
+</script>
+</body>
+</html>
