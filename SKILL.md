@@ -16,11 +16,12 @@ Files in this skill:
 | File | What it is |
 |---|---|
 | `src/silk.js` | The entry point. `silkify(canvas, options)` returns a handle. It picks a tier, then renders in a Web Worker, on the main thread, or as a still frame. |
-| `src/core.js` | The renderer itself (no DOM). It runs in the worker, or on the main thread as a fallback. |
+| `src/core.js` | The renderer itself (no DOM): render targets, uniforms and the sleeping loop. It runs in the worker, or on the main thread as a fallback. |
+| `src/shaders.js` | The GLSL: the wave solver and the object shader, one source for both shapes. |
 | `src/worker.js` | The Web Worker entry. |
 | `src/tier.js` | Device tiers and grid sizing. |
 | `src/shape.js` | Silhouette → dome geometry, using only plain arrays and a 2D canvas. |
-| | Copy the whole `src/` folder; the five files import each other. The peer dependency is `three` (tested with 0.152.2). |
+| | Copy the whole `src/` folder; the files import each other. The peer dependency is `three` (tested with 0.152.2). |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
 | `scripts/shoot.mjs` | Headless Chrome. The default run checks that every object goes live in its worker and ripples, and saves rest JPEGs. `--posters` renders the still frames; `--gif` records ripple GIFs (needs ffmpeg). It fails on any console error. |
 | `examples/index.html` | A working gallery of eight objects, each with the options that make it look right. It also shows the many-objects pattern: poster first, go live on touch, at most 3 live. Start from the closest card. |

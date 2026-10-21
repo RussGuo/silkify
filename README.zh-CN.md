@@ -137,6 +137,7 @@ Lighthouse 不会和页面交互，所以最后三行是另外用无头 Chrome �
 SKILL.md            Agent Skill：何时使用、抠图 → 穹面 → 渲染、全部参数、常见问题
 src/silk.js         入口：分档、Worker / 主线程 / 静态帧三级退路、转发指针
 src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
+src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
 src/worker.js       Web Worker 入口
 src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js

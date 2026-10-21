@@ -137,6 +137,7 @@ Lighthouse never touches the page, so the last three rows were measured separate
 SKILL.md            the Agent Skill: when to use it, cut-out → dome → render, every parameter, troubleshooting
 src/silk.js         the entry point: tiers, Worker / main-thread / still-frame fallback, pointer forwarding
 src/core.js         the renderer, DOM-free (peer dependency: three ≥ 0.152.2)
+src/shaders.js      the GLSL: wave solver and object shader (one source, two shapes)
 src/worker.js       the Web Worker entry
 src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
