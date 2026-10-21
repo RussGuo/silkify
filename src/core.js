@@ -213,7 +213,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     uDisplace: { value: o.displace },
     uLightColor: { value: new THREE.Vector3(1, 1, 1) }, uSheenColor: { value: new THREE.Vector3() }, uRimColor: { value: new THREE.Vector3() },
     uAnisoDir: { value: new THREE.Vector2(1, 0) }, uAnisotropy: { value: 0 }, uRim: { value: 0 }, uRimPower: { value: 3 }, uRimSelf: { value: 0 },
-    uIridescence: { value: 0 }, uSilkRest: { value: 0 }, uSilkSpread: { value: 1 },
+    uIridescence: { value: 0 }, uSilkRest: { value: 0 }, uSilkSpread: { value: 1 }, uThreads: { value: 0 }, uMetallic: { value: 0 },
     uBump: { value: bumpTex || flat }, uAngle: { value: o.angle || 0 }, uBumpTexel: { value: bumpTexel }, uBumpStrength: { value: 0 },
   };
   const objMat = own(new THREE.RawShaderMaterial({
@@ -251,12 +251,12 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     U.uDisplace.value = o.displace;
     U.uTintMix.value = o.albedo ? 1 : 0;
     if (o.albedo) U.uTint.value.fromArray(o.albedo);
-    U.uGrainAmt.value = o.grain > 0 ? Math.min(1, o.grain) : 0;
+    U.uGrainAmt.value = o.grain > 0 ? Math.min(2, o.grain) : 0;        // above 1 the specks only gain contrast
     if (o.grain > 0 && !grainTex) {
       grainTex = own(grainTexture(THREE, tier.grain));
       U.uGrain.value = grainTex;
-      U.uGrainSize.value = tier.grain;
     }
+    if (grainTex) U.uGrainSize.value = tier.grain * Math.max(1, o.grainScale);   // grainScale device px per speck
     U.uLightColor.value.fromArray(o.lightColor);
     U.uSheenColor.value.fromArray(o.sheenColor);
     U.uSatinDir.value.copy(vec3(o.satinLight));
@@ -269,6 +269,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     U.uIridescence.value = o.iridescence;
     U.uSilkRest.value = o.silkRest;
     U.uSilkSpread.value = o.silkSpread;
+    U.uThreads.value = o.threads;
+    U.uMetallic.value = o.metallic;
     U.uBumpStrength.value = bumpTex ? o.bumpStrength : 0;
     const su = simMat.uniforms;
     su.uWaveSpeed.value = o.waveSpeed * (ratio / STEPS) ** 2;

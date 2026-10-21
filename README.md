@@ -72,7 +72,7 @@ Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`
 |---|---|
 | Presets | `material` (`'silk'`) · `feel` (`'silk'`) |
 | Ripple | `pressDepth` 0.30 · `pressDepthHold` 0.60 · `pressRadius` 0.075 · `waveSpeed` 1.6 · `damping` 0.996 · `displace` 0.32 · `ripple` 62 |
-| Material | `sheen` 0.18 sphere / 0.3 image · `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]` · `satin` 0.9 · `albedo` null or `[r,g,b]` · `grain` 0 · `gamma` 1 · `exposure` 1 · `anisotropy` 0 · `anisotropyAngle` 0 · `rim` 0 · `rimPower` 3 · `rimColor` `[1,1,1]` or null · `iridescence` 0 · `silkRest` 0 · `silkSpread` 1 |
+| Material | `sheen` 0.18 sphere / 0.3 image · `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]` · `satin` 0.9 · `albedo` null or `[r,g,b]` · `grain` 0 · `grainScale` 1 · `gamma` 1 · `exposure` 1 · `metallic` 0 · `anisotropy` 0 · `anisotropyAngle` 0 · `threads` 0 · `rim` 0 · `rimPower` 3 · `rimColor` `[1,1,1]` or null · `iridescence` 0 · `silkRest` 0 · `silkSpread` 1 |
 | Light | `light` (view-space key light) · `lightColor` `[1,1,1]` · `satinLight` `[0.5,0.6,0.45]` · `floor` 0.05 / 0.55 · `volume` 0.28 · `fillLight` true · `idleSweep` true |
 | Motion | `autoplay` false or `{ interval, depth, radius }` · `breeze` 0 · `handle.ripple(x, y)` |
 | Shape (image) | `puff` `'dome'` / `'cushion'` / `'flat'` / a number · `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |

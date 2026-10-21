@@ -8,7 +8,11 @@
  *                         (ripple(), autoplay) and the breeze's drifting noise mixed in
  *   OBJ_VERT / OBJ_FRAG   the object: height field → displacement and normals → albedo × Lommel–Seeliger ×
  *                         light colour → fill-light gradient → satin and sheen gated by ripple energy (or
- *                         silkRest), the sheen optionally anisotropic and iridescent → Fresnel rim
+ *                         silkRest), the sheen optionally anisotropic, iridescent, metallic (tinted by the body)
+ *                         and streaked by a fixed thread relief (threads) → Fresnel rim
+ *
+ * The thread relief and the metallic tint only touch the silk layer (the sheen sees a perturbed normal Ns; the
+ * matte photograph and the satin overlay keep N), so a material can read as foil at rest without the picture itself going noisy.
  *
  * Every uniform here is set by core.js (`apply()` for options, `tick()` for per-frame state). Each optional term
  * sits behind `if (uniform > 0.0)`, so with the defaults the output is bit-for-bit the classic look.
@@ -99,7 +103,7 @@ export const OBJ_FRAG = /* glsl */ `
   uniform vec3 uSatinDir, uSunDir, uVolDir, uTint, uLightColor, uSheenColor, uRimColor;
   uniform vec2 uAnisoDir;          // (cos, sin) of the thread direction in the tangent plane
   uniform float uRipple, uSlope, uSatin, uFloor, uExposure, uGamma, uVolume, uSheen, uSheenPow, uTintMix, uGrainAmt, uGrainSize;
-  uniform float uAnisotropy, uRim, uRimPower, uRimSelf, uIridescence, uSilkRest, uSilkSpread;
+  uniform float uAnisotropy, uRim, uRimPower, uRimSelf, uIridescence, uSilkRest, uSilkSpread, uThreads, uMetallic;
 #ifdef SPHERE
   uniform sampler2D uBump;
   uniform float uAngle, uBumpTexel, uBumpStrength;
@@ -109,6 +113,12 @@ export const OBJ_FRAG = /* glsl */ `
   float blendOverlay(float b, float s) { return b < 0.5 ? (2.0 * b * s) : (1.0 - 2.0 * (1.0 - b) * (1.0 - s)); }
   vec3 blendOverlay(vec3 b, vec3 s) { return vec3(blendOverlay(b.r, s.r), blendOverlay(b.g, s.g), blendOverlay(b.b, s.b)); }
   vec3 hue(float h) { return clamp(abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0); }
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + 1.0), f.x), f.y);
+  }
 
   void main() {
   #ifdef SPHERE
@@ -164,25 +174,43 @@ export const OBJ_FRAG = /* glsl */ `
     float silkLit = silk * dayT;
     float satin = mix(0.5, max(dot(N, uSatinDir), 0.0), 0.45);
     col = mix(col, blendOverlay(col, vec3(satin)), silkLit * uSatin);
-    float spec = pow(max(dot(viewDir, reflect(-uSatinDir, N)), 0.0), uSheenPow);
+    // the thread direction in view space. Image: the tangent plane is xy. Sphere: the texture's u direction,
+    // (n.z, 0, −n.x) for a sphere about the view-space y axis
+  #ifdef SPHERE
+    vec3 tu = normalize(vec3(geoN.z, 0.0, -geoN.x) + vec3(1e-4, 0.0, 0.0));
+    vec3 t0 = tu * uAnisoDir.x + cross(geoN, tu) * uAnisoDir.y;
+    vec2 tuv = vec2(auv.x * 2.0, auv.y);                 // the map is 2:1, so its threads are square on the sphere
+  #else
+    vec3 t0 = vec3(uAnisoDir, 0.0);
+    vec2 tuv = vUv;
+  #endif
+    // the normal the silk layer sees; threads give it a fixed relief of fine striations running along the
+    // thread direction, so the highlight breaks into streaks along them even where nothing ripples (brushed foil)
+    vec3 Ns = N;
+    if (uThreads > 0.0) {
+      vec2 st = vec2(dot(tuv, vec2(-uAnisoDir.y, uAnisoDir.x)) * 300.0, dot(tuv, uAnisoDir) * 10.0);
+      float n0 = vnoise(st) + 0.5 * vnoise(st * vec2(2.7, 1.9) + 17.0);
+      float n1 = vnoise(st + vec2(0.35, 0.0)) + 0.5 * vnoise((st + vec2(0.35, 0.0)) * vec2(2.7, 1.9) + 17.0);
+      Ns = normalize(N + cross(geoN, t0) * (n1 - n0) * 1.8 * uThreads);
+    }
+    float spec = pow(max(dot(viewDir, reflect(-uSatinDir, Ns)), 0.0), uSheenPow);
     if (uAnisotropy > 0.0) {
-      // Kajiya–Kay: the highlight stretches across the threads. Image: the tangent plane is xy.
-      // Sphere: the texture's u direction, (n.z, 0, −n.x) for a sphere about the view-space y axis
-    #ifdef SPHERE
-      vec3 tu = normalize(vec3(geoN.z, 0.0, -geoN.x) + vec3(1e-4, 0.0, 0.0));
-      vec3 t0 = tu * uAnisoDir.x + cross(geoN, tu) * uAnisoDir.y;
-    #else
-      vec3 t0 = vec3(uAnisoDir, 0.0);
-    #endif
-      vec3 T = normalize(t0 - N * dot(N, t0) + vec3(0.0, 0.0, 1e-5));
+      // Kajiya–Kay: the highlight stretches across the threads
+      vec3 T = normalize(t0 - Ns * dot(Ns, t0) + vec3(0.0, 0.0, 1e-5));
       float th = dot(T, normalize(uSatinDir + viewDir));
       spec = mix(spec, pow(sqrt(max(1.0 - th * th, 0.0)), uSheenPow), uAnisotropy);
     }
     vec3 sheenColor = uSheenColor;
     if (uIridescence > 0.0) {
       // the highlight's hue turns with the viewing angle and the ripple height, like shot silk
-      float nv = max(dot(N, viewDir), 0.0);
+      float nv = max(dot(Ns, viewDir), 0.0);
       sheenColor = mix(sheenColor, 0.35 + 0.65 * hue(0.55 + 1.3 * (1.0 - nv) + 2.5 * data.r), uIridescence);
+    }
+    if (uMetallic > 0.0) {
+      // metal: the highlight takes the body's own hue, and the silk part of the body gives up its diffuse light
+      vec3 own = albedo / max(max(albedo.r, max(albedo.g, albedo.b)), 0.04);
+      sheenColor = mix(sheenColor, sheenColor * own, uMetallic);
+      col *= 1.0 - 0.55 * uMetallic * silkLit;
     }
     col += uSheen * spec * silkLit * sheenColor;
     if (uRim > 0.0) {

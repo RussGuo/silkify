@@ -152,12 +152,15 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `sheenPower` | 22 / 16 | Highlight exponent; lower is broader | 12–24 |
 | `satin` | 0.9 | Overlay of the satin term at full ripple energy | |
 | `albedo` | `null` | `null` uses the picture's colours; `[r, g, b]` (0–1) paints a flat colour, which suits one-colour logos | |
-| `grain` | 0 | Procedural fine grain, one texel per device pixel (0–1) | 1 for ink or paper logos |
+| `grain` | 0 | Procedural fine grain (0–1; up to 2 only adds contrast) | 1 for ink or paper logos |
+| `grainScale` | 1 | Device pixels per grain speck | 2 for paper tooth |
 | `gamma` | 1 | `albedo = pow(albedo, gamma)`; below 1 lifts mid-tones | 0.85–1.15 |
 | `exposure` | 1 | Overall brightness of the lit face | |
 | `sheenColor` | `[0.9, 0.95, 1]` | Colour of the highlight | warm `[1, 0.85, 0.6]` for gold |
+| `metallic` | 0 | Metal: the highlight takes the body's own hue and the silk part of the body loses its diffuse light | 0.85 foil |
 | `anisotropy` | 0 | Highlight stretched across the threads (Kajiya–Kay): 0 round, 1 fully anisotropic | 0.6 satin, 0.8 foil |
 | `anisotropyAngle` | 0 | Thread direction in radians (image: in the picture's plane; sphere: along the map's u) | |
+| `threads` | 0 | A fixed relief of fine striations along `anisotropyAngle`, seen only by the highlight: it breaks into streaks along the threads even at rest | 0.6 foil; 0.2–0.4 woven satin |
 | `rim` | 0 | Fresnel edge light, strongest where the surface turns away | 0.2 wet, 0.5 velvet |
 | `rimPower` | 3 | Rim falloff; lower is wider | 2–4 |
 | `rimColor` | `[1, 1, 1]` | Rim colour; `null` takes the picture's own colour, lifted (velvet pile) | |
@@ -204,17 +207,17 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | Painting or poster | `puff: 'cushion'`, `floor: 0.6`, `sheen: 0.25` (opaque PNG ⇒ rectangle) |
 | The moon on a light page | `shape: 'sphere', bump, phase: 0.38, floor: 0.6, bumpStrength: 7` |
 
-**Presets.** `material` and `feel` set many options at once; anything you also write explicitly wins. Pictures of each are in `docs/shots/lab/`.
+**Presets.** `material` and `feel` set many options at once; anything you also write explicitly wins. Pictures of each are in `docs/shots/lab/`; `material-rest-strip.jpg` shows all seven untouched. A material must read as itself before anyone touches it.
 
 | `material` | Sets | Reads as |
 |---|---|---|
 | `'silk'` | nothing | the classic look: matte photograph, silk where touched |
-| `'satin'` | `sheen: 0.55, sheenPower: 9, anisotropy: 0.6` | broad pale highlights drawn out along the threads |
-| `'velvet'` | `floor: 0.3, sheen: 0.04, rim: 0.5, rimPower: 2.2, rimColor: null, silkRest: 0.15` | deep body, edges glowing in their own colour, almost no shine |
+| `'satin'` | `sheen: 0.7, sheenPower: 9, anisotropy: 0.6, silkRest: 0.6` | a broad pale band of sheen even at rest, drawn out across the threads |
+| `'velvet'` | `exposure: 0.55, floor: 0.15, volume: 0.4, sheen: 0.04, rim: 1.1, rimPower: 1.9, rimColor: null, silkRest: 0.15` | a dark body whose edges glow in its own colour, no shine |
 | `'wet'` | `sheen: 1.1, sheenPower: 40, rim: 0.2, silkSpread: 1.6, silkRest: 0.35` | a gloss even at rest; touched, sharp white glints |
-| `'foil'` | `silkRest: 1, anisotropy: 0.8, iridescence: 0.5, grain: 0.3` | metallic all over, the highlight streaked and shifting hue |
-| `'paper'` | `sheen: 0.06, satin: 0.35, grain: 0.9, displace: 0.14, floor: 0.7, volume: 0.15` | flat, grainy, dents without shine |
-| `'ink'` | the ink-drop card without `albedo` and with `exposure: 1.35` | raking light, grain, hard shadow |
+| `'foil'` | `silkRest: 1, metallic: 0.85, threads: 0.6, anisotropy: 1, sheen: 1.2, sheenPower: 18, iridescence: 0.25, grain: 0.3` | metal at rest: a body-coloured highlight band made of streaks along the threads |
+| `'paper'` | `sheen: 0, satin: 0.35, grain: 1.3, grainScale: 2, displace: 0.14, floor: 0.95, volume: 0.05, light: [-0.2, 0.3, 0.93], lightColor: [1, 0.97, 0.9], gamma: 0.8, exposure: 1.1` | flat, warm and toothy, no gloss anywhere; dents without shine |
+| `'ink'` | the ink-drop card's light and grain, `exposure: 1.35, floor: 0.2, volume: 0.5`, no `albedo` | raking light, grain, the far side in hard shadow |
 
 | `feel` | Sets | Moves like |
 |---|---|---|

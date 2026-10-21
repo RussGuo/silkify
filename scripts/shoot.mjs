@@ -18,8 +18,9 @@
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
  * --posters  the rest frames the gallery shows before anyone touches a card: high tier, no fill-light motion,
  *          transparent background, 400 px and 800 px, WebP q92 with lossless alpha.
- * --lab    one picture per preset on the pomegranate: material-<name>.jpg (at rest | just touched) and
- *          feel-<name>.jpg (0.15 s | 0.9 s after a stroke and a press), plus lab.jpg, the page itself.
+ * --lab    one picture per preset on the pomegranate: material-<name>.jpg (at rest | just touched),
+ *          material-rest-strip.jpg (every material untouched, side by side) and feel-<name>.jpg (0.15 s | 0.9 s
+ *          after a stroke and a press), plus lab.jpg, the page itself.
  * Every mode exits non-zero on any console error, uncaught exception, or a card that did not mount as expected.
  * No dependencies: a tiny static server, Chrome's DevTools protocol over Node's built-in WebSocket.
  */
@@ -234,6 +235,7 @@ for x, t in ((12, sys.argv[3]), (500, sys.argv[4])): d.text((x, 456), t, fill=(1
 s.save(sys.argv[5], quality=86)`, fa, fb, ...labels, path.join(dir, file)]);
     console.log('lab   ', `docs/shots/lab/${file}`);
   };
+  const rests = [];
   for (const m of Object.keys(MATERIALS)) {
     await openLab('', state(m, 'silk'));
     await sleep(800);
@@ -242,7 +244,19 @@ s.save(sys.argv[5], quality=86)`, fa, fb, ...labels, path.join(dir, file)]);
     await touchStroke(r);
     await sleep(250);
     await pair(rest, await grab(r), [`material: '${m}' - at rest`, 'just touched'], `material-${m}.jpg`);
+    const f = path.join(profile, `rest-${m}.png`);
+    await writeFile(f, Buffer.from(rest, 'base64'));
+    rests.push(m, f);
   }
+  // every material untouched, side by side: the rest state alone has to tell them apart
+  await run('python3', ['-c', `import sys
+from PIL import Image, ImageDraw
+args = sys.argv[2:]; names, files = args[0::2], args[1::2]; S = 300
+s = Image.new("RGB", (S * len(files), S + 26), (235, 230, 220)); d = ImageDraw.Draw(s)
+for i, (n, f) in enumerate(zip(names, files)):
+  s.paste(Image.open(f).convert("RGB").resize((S, S), Image.LANCZOS), (i * S, 0)); d.text((i * S + 10, S + 7), n, fill=(122, 116, 106))
+s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...rests]);
+  console.log('lab   ', 'docs/shots/lab/material-rest-strip.jpg');
   for (const f of Object.keys(FEELS)) {
     await openLab('', state('silk', f));
     await sleep(800);

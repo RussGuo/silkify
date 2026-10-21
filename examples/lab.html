@@ -161,8 +161,8 @@
     ]],
     ['Material', [
       ['sheen', 'n', 0, 1.5, 0.01], ['sheenPower', 'n', 2, 80, 1], ['sheenColor', 'c'], ['satin', 'n', 0, 1.5, 0.01],
-      ['albedo', 'c', true], ['grain', 'n', 0, 1, 0.01], ['gamma', 'n', 0.5, 1.6, 0.01], ['exposure', 'n', 0.2, 3, 0.01],
-      ['anisotropy', 'n', 0, 1, 0.01], ['anisotropyAngle', 'n', -3.1416, 3.1416, 0.01],
+      ['albedo', 'c', true], ['grain', 'n', 0, 2, 0.01], ['grainScale', 'n', 1, 4, 0.1], ['gamma', 'n', 0.5, 1.6, 0.01], ['exposure', 'n', 0.2, 3, 0.01],
+      ['metallic', 'n', 0, 1, 0.01], ['anisotropy', 'n', 0, 1, 0.01], ['anisotropyAngle', 'n', -3.1416, 3.1416, 0.01], ['threads', 'n', 0, 1.5, 0.01],
       ['rim', 'n', 0, 1, 0.01], ['rimPower', 'n', 0.5, 8, 0.1], ['rimColor', 'c', true],
       ['iridescence', 'n', 0, 1, 0.01], ['silkRest', 'n', 0, 1, 0.01], ['silkSpread', 'n', 0.2, 4, 0.05],
     ]],
@@ -178,7 +178,7 @@
     ]],
     ['Runtime', [['interactive', 'b'], ['tier', 's', ['auto', 'high', 'low', 'static']], ['worker', 's', ['auto', false]]]],
   ];
-  const IMAGE_ONLY = new Set(['puff', 'matte', 'corner', 'threshold', 'fit', 'albedo', 'grain']);
+  const IMAGE_ONLY = new Set(['puff', 'matte', 'corner', 'threshold', 'fit', 'albedo', 'grain', 'grainScale']);
   const SPHERE_ONLY = new Set(['phase', 'bumpStrength', 'spin', 'spinSpeed', 'angle']);
   const REBUILD = new Set(['shape', 'puff', 'matte', 'corner', 'threshold', 'fit', 'angle', 'tier', 'worker']);
   const MATERIAL_KEYS = keysOf(MATERIALS), FEEL_KEYS = keysOf(FEELS);

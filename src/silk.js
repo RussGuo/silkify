@@ -36,6 +36,7 @@ const COMMON = {
   // material dimensions: every default leaves the classic look untouched
   lightColor: [1, 1, 1], sheenColor: [0.9, 0.95, 1], satinLight: [0.5, 0.6, 0.45],
   anisotropy: 0, anisotropyAngle: 0, rim: 0, rimPower: 3, rimColor: [1, 1, 1], iridescence: 0, silkRest: 0, silkSpread: 1,
+  threads: 0, metallic: 0, grainScale: 1,
   // motion that does not wait for a pointer: off by default, because both keep the loop awake
   autoplay: false,         // true | { interval: 2500, depth: 0.3, radius } — a drop at a random point every interval ms
   breeze: 0,               // 0–1: a slow noise field keeps the surface faintly alive (30 fps while visible)

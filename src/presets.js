@@ -10,19 +10,28 @@
  * every value was tuned there against the gallery's pictures until each preset reads differently at a glance
  * (`node scripts/shoot.mjs --lab` renders one picture per preset into docs/shots/lab/).
  *
- * Two departures from a literal recipe: velvet's rim takes the picture's own colour (rimColor: null), because a
- * white rim reads as fog on a coloured object; ink keeps the ink-drop card's raking light and grain but not its
- * exposure 2.2, which only suits a near-black albedo (the card itself is `material: 'ink'` + albedo + exposure).
+ * The test for a material is its rest state: untouched, it must already read as what it is.
+ *   satin   most of it is silk at rest (silkRest 0.6): a broad pale band of sheen drawn out across the threads
+ *   foil    silk everywhere (silkRest 1), the highlight tinted by the body (metallic) and broken into streaks by a
+ *           fixed thread relief (threads), stretched across the threads (anisotropy)
+ *   velvet  a dark body (low exposure and floor) whose edges glow in its own colour (rim, rimColor: null), because
+ *           a white rim reads as fog on a coloured object
+ *   paper   no sheen at all, flat frontal light in a warm tone, coarse grain (grain above 1, grainScale 2)
+ *   ink     the ink-drop card's raking light and grain, with a deeper floor so the far side falls into hard shadow;
+ *           not its exposure 2.2, which only suits a near-black albedo (that card sets albedo and exposure itself)
  */
 
 export const MATERIALS = {
   silk: {},
-  satin: { sheen: 0.55, sheenPower: 9, anisotropy: 0.6 },
-  velvet: { floor: 0.3, sheen: 0.04, rim: 0.5, rimPower: 2.2, rimColor: null, silkRest: 0.15 },
+  satin: { sheen: 0.7, sheenPower: 9, anisotropy: 0.6, silkRest: 0.6 },
+  velvet: { exposure: 0.55, floor: 0.15, volume: 0.4, sheen: 0.04, rim: 1.1, rimPower: 1.9, rimColor: null, silkRest: 0.15 },
   wet: { sheen: 1.1, sheenPower: 40, rim: 0.2, silkSpread: 1.6, silkRest: 0.35 },
-  foil: { silkRest: 1, anisotropy: 0.8, iridescence: 0.5, grain: 0.3 },
-  paper: { sheen: 0.06, satin: 0.35, grain: 0.9, displace: 0.14, floor: 0.7, volume: 0.15 },
-  ink: { grain: 1, light: [-0.66, 0.72, 0.2], exposure: 1.35, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14 },
+  foil: { silkRest: 1, metallic: 0.85, threads: 0.6, anisotropy: 1, sheen: 1.2, sheenPower: 18, iridescence: 0.25, grain: 0.3 },
+  paper: {
+    sheen: 0, satin: 0.35, grain: 1.3, grainScale: 2, displace: 0.14, floor: 0.95, volume: 0.05,
+    light: [-0.2, 0.3, 0.93], lightColor: [1, 0.97, 0.9], gamma: 0.8, exposure: 1.1,
+  },
+  ink: { grain: 1, light: [-0.66, 0.72, 0.2], exposure: 1.35, floor: 0.2, volume: 0.5, sheen: 0.5, sheenPower: 14 },
 };
 
 export const FEELS = {
