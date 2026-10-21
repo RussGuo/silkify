@@ -1,0 +1,76 @@
+# verify — every push to main and every pull request runs what a release needs:
+#   integrations  the generated agent files match SKILL.md, and one version is used everywhere
+#   chrome        scripts/shoot.mjs (gallery, Lab, edge cases; SwiftShader), then --cdn at this very commit on jsDelivr
+#   browsers      scripts/shoot.mjs --browsers: WebKit and Firefox through Playwright, also at this commit on jsDelivr
+#   frameworks    scripts/frameworks.mjs: the React component in Vite and Next.js, dev and build
+# Playwright is installed here only (npm i --no-save); the repository itself has no dependencies.
+name: verify
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/build-integrations.mjs --check
+
+  chrome:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow numpy
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: shoot.mjs (verify)
+        run: node scripts/shoot.mjs
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+      - name: shoot.mjs --cdn (this commit, from jsDelivr)
+        run: node scripts/shoot.mjs --cdn ${{ github.sha }}
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+
+  browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save --no-audit --no-fund playwright@1.64.1 && npx playwright install --with-deps webkit firefox
+      - run: node scripts/shoot.mjs --browsers webkit,firefox --ref ${{ github.sha }}
+
+  frameworks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - run: npm i --no-save --no-audit --no-fund playwright@1.64.1
+      - run: node scripts/frameworks.mjs
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}

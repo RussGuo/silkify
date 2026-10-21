@@ -18,7 +18,8 @@
     "lab": "node scripts/shoot.mjs --lab",
     "build:integrations": "node scripts/build-integrations.mjs",
     "cdn": "node scripts/shoot.mjs --cdn",
-    "frameworks": "node scripts/frameworks.mjs"
+    "frameworks": "node scripts/frameworks.mjs",
+    "browsers": "node scripts/shoot.mjs --browsers"
   },
   "peerDependencies": {
     "three": ">=0.152.2"

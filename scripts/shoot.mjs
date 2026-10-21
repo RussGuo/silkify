@@ -7,11 +7,14 @@
  *   node scripts/shoot.mjs --posters       # examples/posters/<id>.webp and @2x (needs python3 + Pillow)
  *   node scripts/shoot.mjs --lab           # docs/shots/lab/: every material and feel preset, from examples/lab.html
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
+ *   node scripts/shoot.mjs --browsers      # WebKit and Firefox (browsers.mjs; needs Playwright, see harness.mjs)
+ *   node scripts/shoot.mjs --shots         # verify, and also rewrite docs/shots/<id>-rest.jpg
  *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, --only edge)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
- * verify   the gallery as a visitor gets it (auto tier): a JPEG of each poster at rest, then each card is
- *          activated, must mount with WebGL in its Web Worker, and must change under a pointer stroke.
+ * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
+ *          mount with WebGL in its Web Worker, and must change under a pointer stroke; one card again in the high tier
+ *          (forced: the software GPU would pick low). Writes nothing into the repository unless --shots is given.
  *          Then the Lab (low tier): presets switch, a dragged slider changes the frame through setTheme, the link
  *          restores every control in a fresh page, and at rest the renderer draws 0 frames in 10 s.
  *          Then test/edge.html: SVG pictures go live, an empty or missing picture fails with a reason and one
@@ -38,6 +41,10 @@ import { serve } from './harness.mjs';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'shots');
 const args = process.argv.slice(2);
+if (args.includes('--browsers')) {   // WebKit and Firefox through Playwright: a script of its own
+  await import('./browsers.mjs');
+  process.exit(0);
+}
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const CHROME = process.env.CHROME || {
   darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -54,7 +61,7 @@ const base = server.base;
 const profile = await mkdtemp(path.join(tmpdir(), 'silkify-'));
 const chrome = spawn(CHROME, [
   '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--hide-scrollbars',
-  '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', 'about:blank',
+  '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...(process.env.CI ? ['--no-sandbox'] : []), 'about:blank',
 ], { stdio: ['ignore', 'ignore', 'pipe'] });
 const wsUrl = await new Promise((resolve, reject) => {
   let buf = '';
@@ -331,7 +338,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   }
 } else {
   /* ---- verify: posters at rest (JPEG), then each card live in its Worker, and it must ripple ---- */
-  await mkdir(OUT, { recursive: true });
+  if (args.includes('--shots')) await mkdir(OUT, { recursive: true });
   ids = (await load(2)).filter((id) => !only || id === only);
   await mouse('mouseMoved', 2, 2);
   for (const id of ids) {
@@ -339,8 +346,10 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
     await evaluate(`(() => { const i = document.querySelector('figure[data-id="${id}"] .poster'); i.loading = 'eager'; return i.decode(); })()`);
     await sleep(200);
     const { data } = await send('Page.captureScreenshot', { format: 'jpeg', quality: 86, clip: clipOf(r, 0.8) });
-    await writeFile(path.join(OUT, `${id}-rest.jpg`), Buffer.from(data, 'base64'));
-    console.log('rest  ', `docs/shots/${id}-rest.jpg`);
+    // the committed pictures change only when asked (--shots); otherwise the check writes into its own temp folder
+    const dir = args.includes('--shots') ? OUT : profile;
+    await writeFile(path.join(dir, `${id}-rest.jpg`), Buffer.from(data, 'base64'));
+    console.log('rest  ', args.includes('--shots') ? `docs/shots/${id}-rest.jpg` : `${id}: poster decoded`);
   }
   for (const id of ids) {
     let r = await rectOf(id);
@@ -365,6 +374,22 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
     if (!ok) problems.push(`card ${id}: no visible ripple (mean diff ${diff?.toFixed(2)}, std ${std?.toFixed(1)})`);
     console.log('live  ', id, `${h.tier}/${h.thread}`, `sim ${h.info?.sim}×${h.info?.steps} mesh ${h.info?.mesh}`, h.info?.software ? 'software' : '',
       `Δ ${diff.toFixed(2)} std ${std.toFixed(1)}`, ok ? 'ripples' : 'NO RIPPLE');
+    await mouse('mouseMoved', 2, 2);
+  }
+  // the production path on a desktop GPU: the high tier in a worker (a software GPU picks low unless it is forced)
+  if (!only || only === ids[0]) {
+    const id = ids.includes('pomegranate') ? 'pomegranate' : ids[0];
+    await evaluate(`window.__gallery.release('${id}')`);
+    const h = await activate(id, { tier: 'high' });
+    const r = await rectOf(id);
+    await sleep(1200);
+    const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+    const at = await strokeOver(r, await evaluate(`window.__gallery.stroke('${id}')`));
+    for (let f = 0; f <= 22; f++) { const { x, y } = at(f, 22, [0, 22]); await mouse('mouseMoved', x, y); await sleep(30); }
+    await sleep(300);
+    const [diff] = await diffOf(before, (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data);
+    if (h.mode !== 'webgl' || h.thread !== 'worker' || h.tier !== 'high' || !(diff > 0.3)) problems.push(`high tier: ${h.mode} ${h.tier}/${h.thread}, Δ ${diff.toFixed(2)}`);
+    console.log('high  ', id, `${h.tier}/${h.thread}`, `sim ${h.info?.sim}×${h.info?.steps} mesh ${h.info?.mesh}`, `Δ ${diff.toFixed(2)}`, diff > 0.3 ? 'ripples' : 'NO RIPPLE');
     await mouse('mouseMoved', 2, 2);
   }
   const alive = await evaluate('window.__gallery.live.size');

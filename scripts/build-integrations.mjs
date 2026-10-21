@@ -16,8 +16,9 @@
  *
  * Links are made absolute and pinned to the release tag (v + package.json's version), because a derived file is
  * read far from this repository. It also checks SKILL.md against the Agent Skills spec (agentskills.io/specification):
- * frontmatter fields and lengths, a name that matches the folder, a body under 500 lines, and every CDN URL on
- * the same tag as package.json. No dependencies.
+ * frontmatter fields and lengths, a name that matches the folder, a body under 500 lines; and one version
+ * everywhere: package.json, SKILL.md's metadata, the plugin marketplace entry, and every CDN URL (the Lab's
+ * Download HTML included) on the tag v + that version. No dependencies.
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -75,10 +76,13 @@ if (!meta.description || meta.description.length > 1024) errors.push(`SKILL.md: 
 if (meta.compatibility && meta.compatibility.length > 500) errors.push(`SKILL.md: compatibility is over 500 characters (${meta.compatibility.length})`);
 if (meta.metadata && Object.values(meta.metadata).some((v) => typeof v !== 'string')) errors.push('SKILL.md: metadata values must be strings');
 if (meta.metadata?.version !== pkg.version) errors.push(`SKILL.md: metadata.version ${meta.metadata?.version} ≠ package.json ${pkg.version}`);
+for (const plugin of JSON.parse(await read('.claude-plugin/marketplace.json')).plugins || []) {
+  if (plugin.version !== pkg.version) errors.push(`.claude-plugin/marketplace.json: ${plugin.name} ${plugin.version} ≠ package.json ${pkg.version}`);
+}
 const lines = skill.split('\n').length;
 if (lines > 500) errors.push(`SKILL.md: ${lines} lines (the spec asks for under 500; move detail to references/)`);
-for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README.zh-CN.md', 'examples/cdn.html']) {
-  for (const [, ref] of (await read(f)).matchAll(/RussGuo\/silkify@([\w.-]+)/g)) {
+for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README.zh-CN.md', 'examples/cdn.html', 'examples/lab.html', 'CHANGELOG.md']) {
+  for (const [, ref] of (await read(f).catch(() => '')).matchAll(/RussGuo\/silkify@([\w.-]+)/g)) {
     if (ref !== TAG && ref !== 'main' && !/^\$\{/.test(ref)) errors.push(`${f}: CDN pinned to @${ref}, but the release is ${TAG}`);
   }
 }
@@ -135,7 +139,7 @@ This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its step
 ## Working on this repository
 
 - \`SKILL.md\` and \`references/\` are the only hand-written agent docs. \`AGENTS.md\`, \`llms.txt\` and everything in \`integrations/\` are generated: edit the sources, then run \`npm run build:integrations\` (\`-- --check\` fails on drift).
-- \`node scripts/shoot.mjs\` must pass before every commit (headless Chrome, Python with Pillow; about two minutes). It rewrites \`docs/shots/*-rest.jpg\`; restore them with \`git checkout -- docs/shots/*-rest.jpg\` unless the look changed.
+- \`node scripts/shoot.mjs\` must pass before every commit (headless Chrome, Python with Pillow; about two minutes); it writes nothing into the repository (\`--shots\` rewrites \`docs/shots/*-rest.jpg\` when the look changed). CI also runs \`--browsers\` (WebKit and Firefox) and \`scripts/frameworks.mjs\` (React in Vite and Next.js); both need Playwright, which is never a dependency.
 - The default look is pixel-for-pixel fixed: every new option defaults to off, and the gallery posters in \`examples/posters/\` are not re-rendered unless their card changed.
 - No build step and no runtime dependencies besides three.js; every source file stays under 800 lines and opens with a comment that says what it is and why.
 `;

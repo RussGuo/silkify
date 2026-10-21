@@ -1,0 +1,47 @@
+name: Something looks or behaves wrong
+description: A blank or still canvas, no ripple, a worker that falls back, a console warning, a page that breaks.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The fastest way to a fix is what silkify itself reports. In the browser console, run this on the handle that
+        `silkify()` returned (in the Lab: `__lab.handle`) and paste the result below:
+
+        ```js
+        ({ mode: h.mode, thread: h.thread, tier: h.tier, reason: h.reason, info: h.info })
+        ```
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version, operating system, device
+      placeholder: Safari 26.5 on macOS 26.5, MacBook Pro M3 / Chrome 156 on Android 16, Pixel 9
+    validations:
+      required: true
+  - type: textarea
+    id: handle
+    attributes:
+      label: mode, thread, tier, reason, info
+      description: The object printed by the snippet above.
+      render: js
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Everything the console shows while the page loads and when you touch the object, warnings included (a failure is one line starting with "silkify:").
+      render: text
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did, what you expected, what happened
+      description: The silkify() call with its options (or a Lab link), the picture if you can share it, and how you serve the page (CDN, copied src/, a bundler and its version).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: silkify version
+      description: The tag or commit in your CDN URL, or the version in SKILL.md's metadata.
+      placeholder: v0.2.1

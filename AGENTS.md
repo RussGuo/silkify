@@ -11,6 +11,6 @@ This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its step
 ## Working on this repository
 
 - `SKILL.md` and `references/` are the only hand-written agent docs. `AGENTS.md`, `llms.txt` and everything in `integrations/` are generated: edit the sources, then run `npm run build:integrations` (`-- --check` fails on drift).
-- `node scripts/shoot.mjs` must pass before every commit (headless Chrome, Python with Pillow; about two minutes). It rewrites `docs/shots/*-rest.jpg`; restore them with `git checkout -- docs/shots/*-rest.jpg` unless the look changed.
+- `node scripts/shoot.mjs` must pass before every commit (headless Chrome, Python with Pillow; about two minutes); it writes nothing into the repository (`--shots` rewrites `docs/shots/*-rest.jpg` when the look changed). CI also runs `--browsers` (WebKit and Firefox) and `scripts/frameworks.mjs` (React in Vite and Next.js); both need Playwright, which is never a dependency.
 - The default look is pixel-for-pixel fixed: every new option defaults to off, and the gallery posters in `examples/posters/` are not re-rendered unless their card changed.
 - No build step and no runtime dependencies besides three.js; every source file stays under 800 lines and opens with a comment that says what it is and why.

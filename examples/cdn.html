@@ -7,7 +7,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
 <!--
   cdn.html — the smallest page that uses silkify without copying anything: silk.js comes from jsDelivr, pinned to a
-  release tag, and three.js from its own CDN through the import map. ?ref=<tag|branch|commit> loads another build;
+  release tag, and three.js from its own CDN through the import map. ?ref=<tag|branch|commit> loads another build,
+  ?silk=<url> any silk.js at all (scripts/browsers.mjs serves the repository on a second origin as a stand-in CDN);
   scripts/shoot.mjs --cdn opens this page and checks the renderer starts in its Web Worker (silk.js on another
   origin starts a same-origin blob: worker that imports the CDN one).
 -->
@@ -22,8 +23,9 @@
 <body>
 <canvas id="pear" aria-hidden="true"></canvas>
 <script type="module">
-  const ref = new URLSearchParams(location.search).get('ref') || 'v0.2.0';
-  const { silkify } = await import(`https://cdn.jsdelivr.net/gh/RussGuo/silkify@${ref}/src/silk.js`);
+  const qs = new URLSearchParams(location.search);
+  const ref = qs.get('ref') || 'v0.2.0';
+  const { silkify } = await import(qs.get('silk') || `https://cdn.jsdelivr.net/gh/RussGuo/silkify@${ref}/src/silk.js`);
   window.__cdn = silkify(document.getElementById('pear'), { image: 'images/pomegranate.webp', material: 'satin' });
 </script>
 </body>

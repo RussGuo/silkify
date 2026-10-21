@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try it in the Lab first
+    url: https://russguo.github.io/silkify/examples/lab.html
+    about: Drop your picture in, and the readout says which tier and thread it runs on and why it fails if it does.

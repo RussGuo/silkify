@@ -40,7 +40,7 @@ The helper scripts are in the same repository: `https://cdn.jsdelivr.net/gh/Russ
 | `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js`, `src/tier.js`, `src/shape.js` | The worker entry, device tiers, and silhouette → dome geometry. |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples and that the Lab works; renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), and checks the CDN build (`--cdn`). Fails on any console error. |
+| `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, and the edge cases in `test/edge.html`; renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
 | `examples/index.html` | A working gallery of ten objects with the options that make each look right, and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
 | `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture, Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it needs the network for the two CDN files and renders on the main thread from `file://`). |
 | `examples/cdn.html` | The smallest page that uses the CDN build. |
