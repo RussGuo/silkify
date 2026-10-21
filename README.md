@@ -25,6 +25,10 @@ Every frame below is a real headless-Chrome render of [`examples/index.html`](ex
 
 The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
+**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, drop in your own picture, then copy the options or share the link (the whole state is in the URL). One picture per preset is in [docs/shots/lab](docs/shots/lab).
+
+<img src="docs/shots/lab/lab.jpg" width="640" alt="the silkify Lab: a teapot in foil, with every option beside it">
+
 To run the gallery yourself, serve the repository root and open `/examples/`:
 
 ```bash
@@ -62,11 +66,15 @@ silk.dispose();
 
 ## Parameters at a glance
 
+Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`, `'foil'`, `'paper'`, `'ink'`) sets what the surface is made of, and `feel` (`'silk'`, `'water'`, `'gel'`, `'jelly'`) sets how it answers a touch, as in `silkify(canvas, { image, material: 'foil', feel: 'water' })`. Explicit options always win over both. To find your own values, use the [Lab](https://russguo.github.io/silkify/examples/lab.html).
+
 | Group | Options (defaults) |
 |---|---|
+| Presets | `material` (`'silk'`) · `feel` (`'silk'`) |
 | Ripple | `pressDepth` 0.30 · `pressDepthHold` 0.60 · `pressRadius` 0.075 · `waveSpeed` 1.6 · `damping` 0.996 · `displace` 0.32 · `ripple` 62 |
-| Material | `sheen` 0.18 sphere / 0.3 image · `sheenPower` 22 / 16 · `satin` 0.9 · `albedo` null or `[r,g,b]` · `grain` 0 · `gamma` 1 · `exposure` 1 |
-| Light | `light` (view-space key light) · `floor` 0.05 / 0.55 · `volume` 0.28 · `fillLight` true · `idleSweep` true |
+| Material | `sheen` 0.18 sphere / 0.3 image · `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]` · `satin` 0.9 · `albedo` null or `[r,g,b]` · `grain` 0 · `gamma` 1 · `exposure` 1 · `anisotropy` 0 · `anisotropyAngle` 0 · `rim` 0 · `rimPower` 3 · `rimColor` `[1,1,1]` or null · `iridescence` 0 · `silkRest` 0 · `silkSpread` 1 |
+| Light | `light` (view-space key light) · `lightColor` `[1,1,1]` · `satinLight` `[0.5,0.6,0.45]` · `floor` 0.05 / 0.55 · `volume` 0.28 · `fillLight` true · `idleSweep` true |
+| Motion | `autoplay` false or `{ interval, depth, radius }` · `breeze` 0 · `handle.ripple(x, y)` |
 | Shape (image) | `puff` `'dome'` / `'cushion'` / `'flat'` / a number · `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | Shape (sphere) | `phase` null or 0–1 · `bump` (elevation map) · `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
 | Runtime | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'` · `worker` `'auto'` / false · `threeUrl` · `poster` · `dpr` (per tier) · `reducedMotion` `'auto'` · `onHover` |
@@ -108,6 +116,7 @@ The tier is decided once, at mount; `tier` forces one.
   - 12 fps for the ripple tail until 20 s;
   - then nothing.
   - A lifted finger stops counting as hovering.
+  - `breeze` and `autoplay` are off by default because they keep it awake: breeze draws 30 fps while visible, and autoplay wakes for every drop.
   - Off-screen and hidden tabs stop the loop.
   - The pixel ratio steps down 2 → 1.5 → 1 if the GPU falls behind.
 
@@ -139,11 +148,12 @@ src/silk.js         the entry point: tiers, Worker / main-thread / still-frame f
 src/core.js         the renderer, DOM-free (peer dependency: three ≥ 0.152.2)
 src/shaders.js      the GLSL: wave solver and object shader (one source, two shapes)
 src/worker.js       the Web Worker entry
+src/presets.js      material and feel presets: plain option fragments
 src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
-scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples), --posters, --gif (ffmpeg); console check
-examples/           the gallery (static; GitHub Pages), WebP pictures and posters, image credits
+scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, then the Lab), --posters, --gif (ffmpeg), --lab; console check
+examples/           the gallery and the Lab (static; GitHub Pages), WebP pictures and posters, image credits
 ```
 
 ## Credits

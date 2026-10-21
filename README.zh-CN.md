@@ -25,6 +25,10 @@
 
 示例图片均为公有领域或 CC0，来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
 
+**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数排在一页：拖动滑杆，物体实时变化；选一个 `material` 和一个 `feel`；拖入自己的图片；再一键复制参数，或者分享链接（完整状态都在网址里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
+
+<img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
+
 在本地运行画廊：在仓库根目录起一个静态服务器，再打开 `/examples/`。
 
 ```bash
@@ -62,11 +66,15 @@ silk.dispose();
 
 ## 参数速查
 
+多数质感两个词就够：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
+
 | 分组 | 参数（默认值） |
 |---|---|
+| 预设 | `material`（`'silk'`）· `feel`（`'silk'`） |
 | 涟漪 | `pressDepth` 0.30（凹坑深度）· `pressDepthHold` 0.60（按住时）· `pressRadius` 0.075（半径）· `waveSpeed` 1.6（波速）· `damping` 0.996（阻尼）· `displace` 0.32（位移）· `ripple` 62（涟漪对法线的扰动） |
-| 材质 | `sheen` 球体 0.18 / 图片 0.3（高光）· `sheenPower` 22 / 16 · `satin` 0.9（缎面）· `albedo` null 或 `[r,g,b]`（反照率）· `grain` 0（颗粒）· `gamma` 1 · `exposure` 1（曝光） |
-| 光 | `light`（视空间主光方向）· `floor` 0.05 / 0.55（背光处亮度地板）· `volume` 0.28（体积感梯度）· `fillLight` true（补光跟随指针）· `idleSweep` true（闲置扫光） |
+| 材质 | `sheen` 球体 0.18 / 图片 0.3（高光）· `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]`（高光颜色）· `satin` 0.9（缎面）· `albedo` null 或 `[r,g,b]`（反照率）· `grain` 0（颗粒）· `gamma` 1 · `exposure` 1（曝光）· `anisotropy` 0（各向异性）· `anisotropyAngle` 0（丝线方向）· `rim` 0（轮廓光）· `rimPower` 3 · `rimColor` `[1,1,1]` 或 null（取图片本色）· `iridescence` 0（虹彩）· `silkRest` 0（静止时的丝绸程度）· `silkSpread` 1（丝绸扩散范围） |
+| 光 | `light`（视空间主光方向）· `lightColor` `[1,1,1]`（主光颜色）· `satinLight` `[0.5,0.6,0.45]`（缎面与高光的光向）· `floor` 0.05 / 0.55（背光处亮度地板）· `volume` 0.28（体积感梯度）· `fillLight` true（补光跟随指针）· `idleSweep` true（闲置扫光） |
+| 动作 | `autoplay` false 或 `{ interval, depth, radius }`（定时自动落一滴）· `breeze` 0（微风）· `handle.ripple(x, y)`（程序化触碰一次） |
 | 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（体量档位）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | 形状（球体） | `phase` null 或 0–1（月相）· `bump`（高程图）· `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
 | 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态帧）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
@@ -108,6 +116,7 @@ silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的
   - 之后 12 fps 补算余波，到 20 秒清零；
   - 再之后一帧不画。
   - 手指抬起即不再算悬停。
+  - `breeze` 与 `autoplay` 默认关闭，因为它们会让循环醒着：微风在可见时持续 30 fps，自动落滴每一滴都会唤醒。
   - 离开视口或标签页隐藏时停下。
   - GPU 跟不上时像素比自动 2 → 1.5 → 1。
 
@@ -139,11 +148,12 @@ src/silk.js         入口：分档、Worker / 主线程 / 静态帧三级退路
 src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
 src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
 src/worker.js       Web Worker 入口
+src/presets.js      material 与 feel 预设：纯参数片段
 src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
-scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪）、--posters 静态帧、--gif 涟漪动图（ffmpeg）；控制台检查
-examples/           画廊（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
+scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图；控制台检查
+examples/           画廊与 Lab 调参页（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
 ```
 
 ## 致谢

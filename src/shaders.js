@@ -4,11 +4,14 @@
  * for the moon-style sphere and without it for an inflated picture.
  *
  *   SIM_VERT / SIM_FRAG   the wave solver: a full-screen quad over two half-float targets in ping-pong
- *                         (r = height, g = velocity), with the pointer's dent mixed in
- *   OBJ_VERT / OBJ_FRAG   the object: height field → displacement and normals → albedo × Lommel–Seeliger →
- *                         satin and sheen gated by ripple energy → fill-light gradient
+ *                         (r = height, g = velocity), with the pointer's dent, up to four programmatic touches
+ *                         (ripple(), autoplay) and the breeze's drifting noise mixed in
+ *   OBJ_VERT / OBJ_FRAG   the object: height field → displacement and normals → albedo × Lommel–Seeliger ×
+ *                         light colour → fill-light gradient → satin and sheen gated by ripple energy (or
+ *                         silkRest), the sheen optionally anisotropic and iridescent → Fresnel rim
  *
- * Every uniform here is set by core.js (`apply()` for options, `tick()` for per-frame state).
+ * Every uniform here is set by core.js (`apply()` for options, `tick()` for per-frame state). Each optional term
+ * sits behind `if (uniform > 0.0)`, so with the defaults the output is bit-for-bit the classic look.
  */
 
 export const SIM_VERT = /* glsl */ `

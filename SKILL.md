@@ -1,6 +1,6 @@
 ---
 name: silkify
-description: Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Covers cutting the subject out, inflating its silhouette into a dome, and embedding the three.js renderer in plain HTML or React.
+description: Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Covers cutting the subject out, inflating its silhouette into a dome, choosing a material and feel (satin, velvet, wet, foil, paper, ink; water, gel, jelly), tuning it live in the Lab, and embedding the three.js renderer in plain HTML or React.
 ---
 
 # silkify
@@ -18,13 +18,15 @@ Files in this skill:
 | `src/silk.js` | The entry point. `silkify(canvas, options)` returns a handle. It picks a tier, then renders in a Web Worker, on the main thread, or as a still frame. |
 | `src/core.js` | The renderer itself (no DOM): render targets, uniforms and the sleeping loop. It runs in the worker, or on the main thread as a fallback. |
 | `src/shaders.js` | The GLSL: the wave solver and the object shader, one source for both shapes. |
+| `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js` | The Web Worker entry. |
 | `src/tier.js` | Device tiers and grid sizing. |
 | `src/shape.js` | Silhouette → dome geometry, using only plain arrays and a 2D canvas. |
 | | Copy the whole `src/` folder; the files import each other. The peer dependency is `three` (tested with 0.152.2). |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Headless Chrome. The default run checks that every object goes live in its worker and ripples, and saves rest JPEGs. `--posters` renders the still frames; `--gif` records ripple GIFs (needs ffmpeg). It fails on any console error. |
-| `examples/index.html` | A working gallery of eight objects, each with the options that make it look right. It also shows the many-objects pattern: poster first, go live on touch, at most 3 live. Start from the closest card. |
+| `scripts/shoot.mjs` | Headless Chrome. The default run checks that every object goes live in its worker and ripples, then that the Lab switches presets, changes the frame on a slider, restores itself from its link and draws 0 frames at rest; it saves rest JPEGs. `--posters` renders the still frames; `--gif` records ripple GIFs (needs ffmpeg); `--lab` renders one picture per preset into `docs/shots/lab/`. It fails on any console error. |
+| `examples/index.html` | A working gallery of ten objects, each with the options that make it look right (the last two use presets). It also shows the many-objects pattern: poster first, go live on touch, at most 3 live. Start from the closest card. |
+| `examples/lab.html` | The Lab: every option as a live control, presets, your own picture by drop / paste / URL, the options printed ready to copy, and the whole state in the URL hash. Tune here, then paste. |
 
 ## Step 1: Get the silhouette right
 
@@ -118,19 +120,24 @@ To keep three.js out of pages that do not use it, load the component lazily (`ne
 | `ready` | A promise that resolves to the handle once the first frame is on screen, live or static. It never rejects; check `mode`. |
 | `mode` | `'loading'`, `'webgl'`, `'static'` or `'failed'` (nothing could be drawn, for example because the image did not load). |
 | `tier`, `thread`, `info` | The tier actually used (`'high'`, `'low'` or `'static'`), `'worker'` or `'main'`, and `{ sim, steps, mesh, texture, software }`. |
-| `setTheme({ exposure, floor, volume, sheen, albedo, light, … })` | Changes any lighting option live, for example on a light/dark theme switch. |
+| `setTheme({ exposure, floor, volume, sheen, albedo, light, … })` | Changes any material, light, ripple or motion option live, for example on a light/dark theme switch. `setTheme({ material: 'wet' })` swaps a preset: every key the group can set goes to the new preset's value or the default first. Scene options (`image`, `shape`, `puff`, `matte`, `corner`, `threshold`, `fit`, `angle`, `tier`, `worker`) need a new `silkify()`. |
+| `ripple(x, y, { depth, radius, hold })` | A programmatic touch at canvas coordinates (0–1, top-left origin): a press (`hold` 120 ms of solver frames, `depth` = `pressDepth`, `radius` = `pressRadius`), then the ripples run. It never counts as hovering and never takes the pointer's place; up to 4 at once. Ignored on a miss or with reduced motion. |
+| `stats()` | A promise of `{ frames, mode }`: frames drawn since mount and the loop's mode (`'active'`, `'breeze'`, `'tail'`, `'sweep'`, `'rest'`). For measuring sleep; the Lab shows it as fps. |
 | `setPhase(f)` | Sphere only: lunar phase from 0 to 1 (0.5 is full, `null` is lit from the front). |
 | `wake()` | Restarts a sleeping render loop, for example after you move the canvas yourself. |
 | `dispose()` | Removes listeners, observers and GPU resources. Call it on unmount. |
 
 ## Parameters
 
-All parameters are optional except `image`. Defaults marked *sphere / image* differ by shape.
+All parameters are optional except `image`. Defaults marked *sphere / image* differ by shape. The fastest way to find values is the Lab (`examples/lab.html`): every option below is a live control there, and it prints the options to copy.
 
 | Option | Default | What it does | Tuning |
 |---|---|---|---|
 | `image` | (required) | URL, `<img>`, `ImageBitmap` or canvas | PNG with alpha; ≤ 1024 px |
 | `shape` | `'image'` | `'image'` inflates the silhouette; `'sphere'` wraps an equirectangular map | |
+| **Presets** | | Merged as defaults < `material` < `feel` < your explicit options | |
+| `material` | `'silk'` | What the surface is: `'silk'` (the classic look), `'satin'`, `'velvet'`, `'wet'`, `'foil'`, `'paper'`, `'ink'` | see Recipes |
+| `feel` | `'silk'` | How it answers a touch: `'silk'`, `'water'`, `'gel'`, `'jelly'` | |
 | **Ripple** | | | |
 | `pressDepth` | 0.30 | Dent depth under a hovering pointer | 0.15 is a light touch, 0.45 is squishy |
 | `pressDepthHold` | 0.60 | Dent depth while the button or finger is down | |
@@ -139,6 +146,7 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `damping` | 0.996 | Energy kept per frame | 0.99 calms quickly; 0.998 rings longer |
 | `displace` | 0.32 | How far the height field moves the surface | 0.2 is subtle; 0.45 is dramatic |
 | `ripple` | 62 | Ripple slope → normal perturbation (satin contrast) | 40–80 |
+| `silkSpread` | 1 | How far silk spreads from a touch (× the ripple energy that turns matte into silk) | 1.6 for wet; 0.5 keeps silk tight |
 | **Material** | | | |
 | `sheen` | 0.18 *sphere* / 0.3 *image* | Highlight strength on ripples | dark objects need 0.4–0.6 |
 | `sheenPower` | 22 / 16 | Highlight exponent; lower is broader | 12–24 |
@@ -147,12 +155,25 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `grain` | 0 | Procedural fine grain, one texel per device pixel (0–1) | 1 for ink or paper logos |
 | `gamma` | 1 | `albedo = pow(albedo, gamma)`; below 1 lifts mid-tones | 0.85–1.15 |
 | `exposure` | 1 | Overall brightness of the lit face | |
+| `sheenColor` | `[0.9, 0.95, 1]` | Colour of the highlight | warm `[1, 0.85, 0.6]` for gold |
+| `anisotropy` | 0 | Highlight stretched across the threads (Kajiya–Kay): 0 round, 1 fully anisotropic | 0.6 satin, 0.8 foil |
+| `anisotropyAngle` | 0 | Thread direction in radians (image: in the picture's plane; sphere: along the map's u) | |
+| `rim` | 0 | Fresnel edge light, strongest where the surface turns away | 0.2 wet, 0.5 velvet |
+| `rimPower` | 3 | Rim falloff; lower is wider | 2–4 |
+| `rimColor` | `[1, 1, 1]` | Rim colour; `null` takes the picture's own colour, lifted (velvet pile) | |
+| `iridescence` | 0 | The highlight's hue turns with view angle and ripple height (shot silk) | 0.3–0.6 |
+| `silkRest` | 0 | How much of the object is silk untouched: 0 only where touched, 1 everywhere | 0.15 velvet, 1 foil |
 | **Light** | | | |
 | `light` | `[0,0,1]` *sphere* / `[-0.35,0.45,0.82]` *image* | Key light direction in view space (x right, y up, z towards the viewer) | small z means grazing light and strong shading |
+| `lightColor` | `[1, 1, 1]` | Key light colour (multiplies the matte term) | `[1, 0.92, 0.82]` for warm light |
+| `satinLight` | `[0.5, 0.6, 0.45]` | Direction of the light the satin and the highlight use | |
 | `floor` | 0.05 / 0.55 | Brightness on the side facing away from the light (lunar "earthshine") | raise it on light pages so the dark side is not a hole |
 | `volume` | 0.28 | Fill-light gradient across the object (0 = none) | |
 | `fillLight` | `true` | The fill light follows the pointer, springs home and sweeps slowly when idle | |
 | `idleSweep` | `true` | High tier: after the pointer leaves, the fill light (and a sphere's spin) makes one slow loop (≈ 28.6 s at 12 fps), then nothing is drawn. The low tier never sweeps. | `false` makes the loop stop as soon as the ripples have died away |
+| **Motion** | | | |
+| `autoplay` | `false` | `true` or `{ interval: 2500, depth: 0.3, radius }`: a drop at a random point inside the outline (a sphere: its visible face) every `interval` ms while visible, skipped while someone touches it | costs frames, see Performance |
+| `breeze` | 0 | A slow drifting noise field keeps the whole surface faintly alive (0–1) | 0.3 is a breath, 1 is wind; costs 30 fps, see Performance |
 | **Shape (image)** | | | |
 | `puff` | `'dome'` | `'dome'`, `'cushion'`, `'flat'` or a number (see step 2) | |
 | `matte` | `'auto'` | `'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one | |
@@ -183,6 +204,32 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | Painting or poster | `puff: 'cushion'`, `floor: 0.6`, `sheen: 0.25` (opaque PNG ⇒ rectangle) |
 | The moon on a light page | `shape: 'sphere', bump, phase: 0.38, floor: 0.6, bumpStrength: 7` |
 
+**Presets.** `material` and `feel` set many options at once; anything you also write explicitly wins. Pictures of each are in `docs/shots/lab/`.
+
+| `material` | Sets | Reads as |
+|---|---|---|
+| `'silk'` | nothing | the classic look: matte photograph, silk where touched |
+| `'satin'` | `sheen: 0.55, sheenPower: 9, anisotropy: 0.6` | broad pale highlights drawn out along the threads |
+| `'velvet'` | `floor: 0.3, sheen: 0.04, rim: 0.5, rimPower: 2.2, rimColor: null, silkRest: 0.15` | deep body, edges glowing in their own colour, almost no shine |
+| `'wet'` | `sheen: 1.1, sheenPower: 40, rim: 0.2, silkSpread: 1.6, silkRest: 0.35` | a gloss even at rest; touched, sharp white glints |
+| `'foil'` | `silkRest: 1, anisotropy: 0.8, iridescence: 0.5, grain: 0.3` | metallic all over, the highlight streaked and shifting hue |
+| `'paper'` | `sheen: 0.06, satin: 0.35, grain: 0.9, displace: 0.14, floor: 0.7, volume: 0.15` | flat, grainy, dents without shine |
+| `'ink'` | the ink-drop card without `albedo` and with `exposure: 1.35` | raking light, grain, hard shadow |
+
+| `feel` | Sets | Moves like |
+|---|---|---|
+| `'silk'` | nothing | the classic: medium waves that ring for a few seconds |
+| `'water'` | `waveSpeed: 1.9, damping: 0.998, displace: 0.22, ripple: 80, pressRadius: 0.05` | small fast rings that run a long time |
+| `'gel'` | `waveSpeed: 1.0, damping: 0.985, displace: 0.45, pressDepth: 0.45` | a deep, slow dent that settles at once |
+| `'jelly'` | `waveSpeed: 1.3, damping: 0.993, displace: 0.5, pressDepthHold: 0.8` | big wobbles; holding pushes far in |
+
+```js
+silkify(canvas, { image: 'pear.png', material: 'velvet' });
+silkify(canvas, { image: 'teapot.png', puff: 'cushion', material: 'wet', feel: 'water' });
+silkify(canvas, { image: 'logo.png', material: 'ink', albedo: [0.15, 0.15, 0.165], exposure: 2.2 });   // the ink-drop card
+silkify(canvas, { image: 'pear.png', material: 'satin', autoplay: true });                           // a hero that moves by itself
+```
+
 ## Performance and fallbacks
 
 **Three tiers, decided once at mount.** `tier: 'auto'` reads the device; pass `'high'`, `'low'` or `'static'` to force one.
@@ -204,6 +251,12 @@ Below the reference grid, the solver takes sub-steps with rescaled constants, so
 - **Tail, 12 fps, 8–20 s after the last touch:** the solver catches up the steps it skipped. Then the field is cleared.
 - **Rest:** high tier, one idle light loop (≈ 28.6 s at 12 fps). After that, and always in the low tier, no frames at all.
 - **Stopped:** off-screen or in a hidden tab.
+
+`breeze` and `autoplay` are off by default because they give up the rest state. Turn them on only where a moving object is worth it, and still only one or two per page:
+- **`breeze` > 0:** the loop never rests while visible: instead of sleeping it draws 30 fps, the solver catching up the skipped steps so the motion keeps its speed. On the low tier that is still 30 frames a second of GPU work.
+- **`autoplay`:** each drop is a touch, so the usual rules follow it: 60 fps for 8 s, then the tail. With the default 2.5 s interval the loop never leaves the 60 fps state while visible; at `interval` ≥ 20 000 ms it reaches rest between drops, and waits on a single timer instead of drawing.
+- `ripple()` is one touch: the same 8 s + tail as a pointer, then rest.
+- Off-screen, a hidden tab or reduced motion stops all three. `handle.stats()` reports what the loop is doing.
 
 A lifted finger, a cancelled touch, or a pointer leaving the window ends "hovering", so a phone does not keep rendering its last touch point. If full-speed frames average more than 28 ms, the pixel ratio steps down 2 → 1.5 → 1.
 
