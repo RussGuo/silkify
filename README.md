@@ -23,7 +23,7 @@ Every frame below is a real headless-Chrome render of [`examples/index.html`](ex
 | **Portrait of a Man**: Rosalba Carriera, c. 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="miniature portrait at rest"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="miniature portrait rippling"> |
 | **Enamel parrot**: gold and enamel, 18th century | <img src="docs/shots/parrot-rest.jpg" width="300" alt="parrot at rest"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="parrot rippling"> |
 
-The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The recordings use SwiftShader, a software GPU, and are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
+The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
 To run the gallery yourself, serve the repository root and open `/examples/`:
 

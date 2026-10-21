@@ -23,7 +23,7 @@
 | **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
 | **珐琅鹦鹉**：黄金与珐琅，18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鹦鹉"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鹦鹉"> |
 
-示例图片均为公有领域或 CC0，来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。录制用的是软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
+示例图片均为公有领域或 CC0，来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
 
 在本地运行画廊：在仓库根目录起一个静态服务器，再打开 `/examples/`。
 
