@@ -124,6 +124,15 @@
         id: 'parrot', title: 'Enamel parrot', note: 'Gold, enamel and gems, possibly 18th century. Cooper Hewitt. Shadows under the branch keyed out.',
         options: { image: 'images/parrot.webp', puff: 'cushion', sheen: 0.5, sheenPower: 14 }, stroke: '0.47,0.24,0.60,0.66',
       },
+      /* presets (src/presets.js): one word for a material, one for how it moves; tune them in lab.html */
+      {
+        id: 'pomegranate-foil', title: 'Pomegranate, foil', note: 'The same fruit, material: foil. Silk all over at rest, the highlight drawn out along the threads and shifting hue.',
+        options: { image: 'images/pomegranate.webp', material: 'foil' },
+      },
+      {
+        id: 'teapot-wet', title: 'Teapot, wet + water', note: 'material: wet, feel: water. A gloss at rest; touched, small fast rings that run a long time.',
+        options: { image: 'images/teapot.webp', puff: 'cushion', material: 'wet', feel: 'water' },
+      },
     ];
   
     (() => {
