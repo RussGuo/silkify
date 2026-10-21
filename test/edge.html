@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify edge cases</title>
+<link rel="icon" href="data:,">
+<!--
+  edge.html — the cases that once failed silently, run by scripts/shoot.mjs (Chrome) and --browsers (WebKit,
+  Firefox). Each case records what the handle reported; window.__edge is set once every case has settled, and the
+  canvases stay on the page so the script can photograph them. ?silk=<url> loads another build of silk.js.
+  console.warn is captured here (silkify's one console output, for a picture that fails), so an expected warning
+  is checked instead of failing the run.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
+  .grid { display: grid; grid-template-columns: repeat(4, 180px); gap: 12px; }
+  canvas { width: 180px; aspect-ratio: 1; display: block; background: #ebe6dc; }
+  #hidden { display: none; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid">
+  <canvas id="svg"></canvas><canvas id="svgblob"></canvas><canvas id="empty"></canvas><canvas id="missing"></canvas>
+  <canvas id="plain"></canvas><canvas id="early"></canvas><canvas id="dim"></canvas><canvas id="twice"></canvas>
+  <canvas id="base"></canvas>
+</div>
+<canvas id="hidden"></canvas>
+<script type="module">
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...a) => { if (String(a[0]).startsWith('silkify:')) warned.push(String(a[0])); else warn(...a); };
+
+  const silkUrl = new URLSearchParams(location.search).get('silk') || '../src/silk.js';
+  const { silkify } = await import(silkUrl);
+  const $ = (id) => document.getElementById(id);
+  const tier = new URLSearchParams(location.search).get('tier') || 'low';
+  const PEAR = '../examples/images/pomegranate.webp';
+  const timeout = (p, ms, value) => Promise.race([p, new Promise((r) => setTimeout(() => r(value), ms))]);
+  const brief = (h) => ({ mode: h.mode, thread: h.thread, tier: h.tier, reason: h.reason });
+  const out = {};
+
+  // 1. the first argument must be a canvas, and the error says so
+  try { silkify(document.getElementById('nope'), { image: PEAR }); out.notCanvas = 'no error'; }
+  catch (e) { out.notCanvas = e.message; }
+
+  // 2–4. SVG (by URL and as a Blob), a fully transparent PNG, a picture that is not there
+  const svg = silkify($('svg'), { image: 'logo.svg', tier });
+  const svgText = await (await fetch('logo.svg')).text();
+  const svgBlob = silkify($('svgblob'), { image: new Blob([svgText], { type: 'image/svg+xml' }), tier });
+  const empty = silkify($('empty'), { image: 'empty.png', tier });
+  const missing = silkify($('missing'), { image: 'not-here.png', tier });
+
+  // 5. setTheme and ripple() called while the renderer is still starting must not be lost
+  const plain = silkify($('plain'), { image: PEAR, tier, exposure: 0.2 });   // the look asked for from the start
+  const early = silkify($('early'), { image: PEAR, tier });
+  early.ripple(0.5, 0.5);
+  const dim = silkify($('dim'), { image: PEAR, tier });
+  const base = silkify($('base'), { image: PEAR, tier });                    // the default look, for contrast
+  setTimeout(() => dim.setTheme({ exposure: 0.2 }), 30);                     // the same look, asked for 30 ms later
+
+  // 6. the same canvas twice: the newer call wins and the older handle is disposed
+  const first = silkify($('twice'), { image: PEAR, tier });
+  const second = silkify($('twice'), { image: PEAR, tier, material: 'velvet' });
+
+  // 7. display: none — ready waits for a size; dispose() ends the wait, and stats() after it answers at once
+  const hidden = silkify($('hidden'), { image: PEAR, tier });
+  const hiddenEarly = await timeout(hidden.ready.then(() => 'resolved'), 1500, 'pending');
+
+  for (const [k, h] of Object.entries({ svg, svgBlob, empty, missing, plain, early, dim, base, second })) {
+    out[k] = brief(await timeout(h.ready, 30000, h));
+  }
+  out.earlyLoop = (await early.stats()).mode;
+  out.first = brief(first);
+  hidden.dispose();
+  out.hidden = { before: hiddenEarly, afterDispose: await timeout(hidden.ready.then((h) => h.mode), 1000, 'pending'),
+                 stats: await timeout(hidden.stats().then((s) => s.mode), 1000, 'pending') };
+  out.warned = warned;
+
+  // what each case must report (the harness also photographs #plain, #dim and #base: the first two must match, the third must not)
+  const problems = [];
+  const expect = (ok, what) => { if (!ok) problems.push(what); };
+  expect(/must be a <canvas>/.test(out.notCanvas), `a non-canvas argument: ${out.notCanvas}`);
+  for (const k of ['svg', 'svgBlob', 'plain', 'early', 'dim', 'base', 'second']) expect(out[k].mode === 'webgl', `${k}: ${out[k].mode} (${out[k].reason})`);
+  expect(out.empty.mode === 'failed' && /nothing opaque/.test(out.empty.reason), `empty picture: ${out.empty.mode} (${out.empty.reason})`);
+  expect(out.missing.mode === 'failed' && /404/.test(out.missing.reason), `missing picture: ${out.missing.mode} (${out.missing.reason})`);
+  expect(warned.length === 2 && warned.some((w) => /404/.test(w)) && warned.some((w) => /nothing opaque/.test(w)), `console.warn: ${JSON.stringify(warned)}`);
+  expect(out.earlyLoop === 'active', `ripple() before ready was lost (loop ${out.earlyLoop})`);
+  expect(out.first.mode === 'disposed', `the first handle on a reused canvas: ${out.first.mode}`);
+  expect(out.hidden.before === 'pending' && out.hidden.afterDispose === 'disposed' && out.hidden.stats === 'disposed', `display: none: ${JSON.stringify(out.hidden)}`);
+  out.problems = problems;
+  window.__edge = { out, handles: { svg, svgBlob, empty, missing, plain, early, dim, base, second } };
+</script>
+</body>
+</html>

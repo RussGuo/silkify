@@ -527,32 +527,46 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
  * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
  * stats, dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, mode },
- * fail { reason }.
+ * fail { reason, fatal, svg }. `fatal` means another thread would fail the same way (the picture cannot be
+ * loaded or decoded, or nothing in it is opaque); `svg` means the picture is an SVG the page must rasterise.
  * ============================================ */
 export function serve(post, loadThree) {
   let silk = null, dead = false;
-  const latest = {};   // messages that arrive before the scene exists: keep the newest of each
+  // messages that arrive before the scene exists: the newest view / visibility / stillness, every option patch
+  // merged in order, and every programmatic touch, replayed once the scene is up
+  const latest = { options: {}, touches: [] };
 
   async function init(m) {
     Object.assign(latest, { view: m.view, visible: m.visible, still: m.still });
+    latest.touches.unshift(...(m.touches || []));
     const THREE = await loadThree(m.threeUrl);
     const opened = openRenderer(THREE, m.canvas);
-    if (!opened) return post({ t: 'fail', reason: 'webgl2' });
+    if (!opened) return post({ t: 'fail', reason: 'no WebGL2 with renderable half floats' });
     // a software rasteriser cannot afford the high tier, unless the caller forced it
     const tier = opened.software && m.tier.tier === 'high' && !m.forced ? m.lowTier : m.tier;
     const sphere = m.options.shape === 'sphere';
-    const [picture, bump] = await Promise.all([
-      loadBitmap(m.picture, { flipY: sphere }),
-      sphere && m.bump ? loadBitmap(m.bump, { flipY: true }).catch(() => null) : null,
-    ]);
+    let picture, bump;
+    try {
+      [picture, bump] = await Promise.all([
+        loadBitmap(m.picture, { flipY: sphere }),
+        sphere && m.bump ? loadBitmap(m.bump, { flipY: true }).catch(() => null) : null,
+      ]);
+    } catch (e) {
+      opened.renderer.dispose();
+      return post({ t: 'fail', reason: e.svg ? 'svg' : `could not load the picture (${e?.message || e})`, fatal: !e.svg, svg: !!e.svg });
+    }
     if (dead) return opened.renderer.dispose();
-    silk = createSilk(THREE, opened, { picture, bump }, m.options, tier, {
+    silk = createSilk(THREE, opened, { picture, bump }, { ...m.options, ...latest.options }, tier, {
       view: latest.view, visible: latest.visible, still: latest.still,
       onHover: (on) => post({ t: 'hover', on }),
     });
     picture.close?.();
     bump?.close?.();
-    if (!silk) return post({ t: 'fail', reason: 'shape' });
+    if (!silk) {
+      opened.renderer.dispose();
+      return post({ t: 'fail', reason: `the picture has nothing opaque in it (no pixel above threshold ${m.options.threshold}): use a PNG whose subject is visible`, fatal: true });
+    }
+    for (const t of latest.touches.splice(0)) silk.touch(t.x, t.y, t);
     post({ t: 'ready', tier: tier.tier, software: opened.software, ...silk.info });   // the first frame is already drawn
   }
 
@@ -562,12 +576,12 @@ export function serve(post, loadThree) {
       case 'pointer': silk?.pointer(m.x, m.y); break;
       case 'press': silk?.press(m.down); break;
       case 'lift': silk?.lift(); break;
-      case 'touch': silk?.touch(m.x, m.y, m); break;
+      case 'touch': if (silk) silk.touch(m.x, m.y, m); else latest.touches.push(m); break;
       case 'stats': post({ t: 'stats', id: m.id, ...(silk ? silk.stats() : { frames: 0, mode: 'loading' }) }); break;
       case 'view': latest.view = m.view; silk?.resize(m.view); break;
       case 'visible': latest.visible = m.visible; silk?.setVisible(m.visible); break;
       case 'still': latest.still = m.still; silk?.setStill(m.still); break;
-      case 'options': silk?.setOptions(m.patch); break;
+      case 'options': if (silk) silk.setOptions(m.patch); else Object.assign(latest.options, m.patch); break;
       case 'wake': silk?.wake(); break;
       case 'dispose': dead = true; silk?.dispose(); silk = null; break;
     }

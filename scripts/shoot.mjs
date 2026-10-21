@@ -7,13 +7,15 @@
  *   node scripts/shoot.mjs --posters       # examples/posters/<id>.webp and @2x (needs python3 + Pillow)
  *   node scripts/shoot.mjs --lab           # docs/shots/lab/: every material and feel preset, from examples/lab.html
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
- *   node scripts/shoot.mjs --only moon     # any mode, one card
+ *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, --only edge)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): a JPEG of each poster at rest, then each card is
  *          activated, must mount with WebGL in its Web Worker, and must change under a pointer stroke.
  *          Then the Lab (low tier): presets switch, a dragged slider changes the frame through setTheme, the link
  *          restores every control in a fresh page, and at rest the renderer draws 0 frames in 10 s.
+ *          Then test/edge.html: SVG pictures go live, an empty or missing picture fails with a reason and one
+ *          console.warn, calls made while loading are kept, display: none and dispose() settle `ready`.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped: 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -45,7 +47,7 @@ const CHROME = process.env.CHROME || {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---- static server for the repo root ---- */
-const TYPES = { '.webp': 'image/webp', '.gif': 'image/gif', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.css': 'text/css', '.md': 'text/plain' };
+const TYPES = { '.webp': 'image/webp', '.gif': 'image/gif', '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.css': 'text/css', '.md': 'text/plain', '.svg': 'image/svg+xml' };
 const server = createServer(async (req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p.endsWith('/')) p += 'index.html';
@@ -111,7 +113,8 @@ on('Runtime.exceptionThrown', (p) => problems.push(`exception: ${p.exceptionDeta
 on('Runtime.consoleAPICalled', (p) => {
   if (p.type === 'error' || p.type === 'warning') problems.push(`console.${p.type}: ${p.args.map((a) => a.value ?? a.description).join(' ')}`);
 });
-on('Log.entryAdded', (p) => { if (p.entry.level === 'error') problems.push(`log: ${p.entry.text} ${p.entry.url || ''}`); });
+const EXPECTED_404 = /\/test\/not-here\.png$/;   // test/edge.html asks for a missing picture on purpose
+on('Log.entryAdded', (p) => { if (p.entry.level === 'error' && !EXPECTED_404.test(p.entry.url || '')) problems.push(`log: ${p.entry.text} ${p.entry.url || ''}`); });
 
 await send('Runtime.enable');
 await send('Log.enable');
@@ -380,7 +383,8 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   const alive = await evaluate('window.__gallery.live.size');
   console.log('live renderers at the end:', alive);
   if (alive > 3) problems.push(`${alive} live renderers (cap is 3)`);
-  if (!only) await verifyLab();
+  if (!only || only === 'lab') await verifyLab();
+  if (!only || only === 'edge') await verifyEdge();
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */
@@ -459,6 +463,24 @@ async function verifyLab() {
   const g1 = await labStats();
   if (g1.mode !== 'breeze' || g1.frames - g0.frames < 10) problems.push(`lab: breeze drew ${g1.frames - g0.frames} frames in 2 s (mode ${g1.mode})`);
   console.log('lab   ', `breeze 0.6: ${((g1.frames - g0.frames) / 2).toFixed(0)} fps, mode ${g1.mode}`);
+}
+
+/* ---- verify, part 3: test/edge.html, the cases that once failed silently (it checks itself; see the page) ---- */
+async function verifyEdge() {
+  await send('Emulation.setDeviceMetricsOverride', { width: 800, height: 640, deviceScaleFactor: 1, mobile: false });
+  await navigate('about:blank');
+  await navigate(`${base}/test/edge.html`);
+  const out = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__edge && (clearInterval(t), r(window.__edge.out)), 100); })`);
+  for (const p of out.problems) problems.push(`edge: ${p}`);
+  await sleep(1000);
+  const shotOf = async (id) => (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(await evaluate(`(() => {
+    const b = document.getElementById('${id}').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, sx: 0, sy: 0 }; })()`), 1) })).data;
+  const dim = await shotOf('dim');
+  const [[same], [unlike]] = [await diffOf(await shotOf('plain'), dim), await diffOf(await shotOf('base'), dim)];
+  // setTheme 30 ms after silkify() must land: #dim looks like #plain (asked from the start), not like #base (never asked)
+  if (!(same < 1) || !(unlike > 5)) problems.push(`edge: setTheme while loading was lost (Δ plain ${same.toFixed(2)}, Δ base ${unlike.toFixed(2)})`);
+  console.log('edge  ', `svg ${out.svg.mode}/${out.svg.thread}`, `empty ${out.empty.mode}`, `404 ${out.missing.mode}`, `early ripple ${out.earlyLoop}`,
+    `setTheme while loading Δ ${same.toFixed(2)} (vs default ${unlike.toFixed(2)})`, `display:none → ${out.hidden.afterDispose}`, `${out.problems.length} problem(s)`);
 }
 
 ws.close();

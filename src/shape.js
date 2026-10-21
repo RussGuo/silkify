@@ -32,13 +32,18 @@ export const PUFF = { flat: 0.35, cushion: 0.6, dome: 1 };
 /**
  * Decode a picture into an ImageBitmap. `src` is a URL (fetched with CORS) or anything createImageBitmap
  * accepts (<img>, canvas, ImageBitmap, Blob). `flipY` is for textures sampled with v up (the sphere's map).
+ * A URL that turns out to be an SVG throws with `svg: true`: createImageBitmap cannot decode SVG, so silk.js
+ * rasterises it on the page and sends the bitmap instead.
  */
 export async function loadBitmap(src, { flipY = false } = {}) {
   const opts = { imageOrientation: flipY ? 'flipY' : 'from-image', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
   if (typeof src === 'string') {
     const res = await fetch(src, { mode: 'cors' });
-    if (!res.ok) throw new Error(`silkify: ${src} → HTTP ${res.status}`);
-    return createImageBitmap(await res.blob(), opts);
+    if (!res.ok) throw new Error(`${src} → HTTP ${res.status}`);
+    const blob = await res.blob();
+    // createImageBitmap cannot decode SVG (in a worker there is no <img> either): the page rasterises it
+    if (/svg/i.test(blob.type)) throw Object.assign(new Error(`${src} is an SVG`), { svg: true });
+    return createImageBitmap(blob, opts);
   }
   if (typeof HTMLImageElement !== 'undefined' && src instanceof HTMLImageElement && !src.complete) await src.decode();
   return createImageBitmap(src, opts);

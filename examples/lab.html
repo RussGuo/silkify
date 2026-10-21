@@ -45,7 +45,8 @@
   h1 { margin: 0; font: 400 30px/1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; letter-spacing: -0.01em; }
   h1 em { color: var(--accent); }
   h1 a { color: inherit; text-decoration: none; }
-  .read { font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); text-align: right; }
+  .read { font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); text-align: right; max-width: 46em; }
+  .read.bad { color: var(--accent); }
   .drop-hint { position: absolute; left: 22px; bottom: 16px; font-size: 12px; color: var(--muted); pointer-events: none; }
   .acts { position: absolute; z-index: 1; right: 18px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .acts button { background: color-mix(in srgb, var(--paper) 78%, transparent); backdrop-filter: blur(6px); }
@@ -214,7 +215,7 @@
   const fresh = (obj = 'pomegranate') => ({ obj, url: null, material: 'silk', feel: 'silk', bg: 'stage',
     set: { ...structuredClone(OBJECTS[obj]?.options || {}), ...(qs.get('tier') ? { tier: qs.get('tier') } : {}) } });
   let state = readHash() || fresh();
-  let custom = null;                       // a dropped or pasted picture (ImageBitmap); never uploaded, never in the link
+  let custom = null;                       // a dropped or pasted picture (a File or Blob); never uploaded, never in the link
 
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const call = () => ({ material: state.material, feel: state.feel, ...state.set });
@@ -486,10 +487,8 @@
   /* ============================================
    * Pictures of your own: drop, paste, file or URL. Decoded in the page (createImageBitmap); nothing is uploaded.
    * ============================================ */
-  async function useBlob(blob) {
-    try {
-      custom = await createImageBitmap(blob);
-    } catch { return; }
+  function useBlob(blob) {
+    custom = blob;                                      // silkify decodes it (an SVG is rasterised); a bad file shows as 'failed'
     state = { ...fresh('custom'), set: {}, obj: 'custom', url: null, material: state.material, feel: state.feel, bg: state.bg };
     commit({ remount: true });
   }
@@ -575,7 +574,8 @@
     const i = h.info || {};
     read.textContent = h.mode === 'webgl'
       ? `${h.tier} · ${h.thread} · sim ${i.sim}×${i.steps} · mesh ${i.mesh} · ${fps.toFixed(0)} fps · ${s.mode}`
-      : h.mode;
+      : h.reason ? `${h.mode}: ${h.reason}` : h.mode;
+    read.classList.toggle('bad', h.mode === 'failed');
   }, 1000);
 
   /* ---- start ---- */

@@ -55,6 +55,7 @@ npx serve .            # 或：python3 -m http.server
 
 ```html
 <canvas id="pear" style="width: 420px; aspect-ratio: 1"></canvas>
+<canvas id="moon" style="width: 420px; aspect-ratio: 1"></canvas>
 
 <script type="importmap">
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
@@ -75,7 +76,7 @@ npx serve .            # 或：python3 -m http.server
 
 ```js
 const silk = silkify(canvas, options);
-await silk.ready;                         // 挂载完成（'webgl'），没有 WebGL2 时只画一帧静态图（'static'）
+await silk.ready;                         // 实时渲染为 'webgl'，只画一帧为 'static'，失败为 'failed'（原因见 silk.reason）
 silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```

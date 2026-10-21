@@ -52,6 +52,8 @@ The input decides the result more than any parameter does. Check the picture bef
 
 **Best input:** a PNG with a transparent background, the subject whole (not cropped by the frame), long side 512–1024 px. If the user gives you one of these, skip to step 2.
 
+**An SVG logo** works as it is: silkify rasterises it to 1024 px on its long side before inflating it (`image: 'logo.svg'`, a `data:image/svg+xml` URL, or an SVG `Blob`).
+
 **Plain background** (studio white, paper, black velvet, a flat colour): key it out with `scripts/cutout.py`.
 
 ```bash
@@ -152,14 +154,15 @@ To keep three.js out of pages that do not use it, load the component lazily (`ne
 
 | Member | Purpose |
 |---|---|
-| `ready` | Resolves to the handle once the first frame is on screen, live or static. It never rejects; check `mode`. |
-| `mode` | `'loading'`, `'webgl'`, `'static'` or `'failed'` (nothing could be drawn, for example the image did not load). |
-| `tier`, `thread`, `info` | The tier used (`'high'`, `'low'`, `'static'`), `'worker'` or `'main'`, and `{ sim, steps, mesh, texture, software }`. |
-| `setTheme(patch)` | Changes any material, light, ripple or motion option live (for example on a light/dark switch). `setTheme({ material: 'wet' })` swaps a preset. Scene options (`image`, `shape`, `puff`, `matte`, `corner`, `threshold`, `fit`, `angle`, `tier`, `worker`) need a new `silkify()`. |
-| `ripple(x, y, { depth, radius, hold })` | A programmatic touch at canvas coordinates (0–1, top-left origin): a short press, then the ripples run. Never counts as hovering; up to 4 at once. |
-| `stats()` | A promise of `{ frames, mode }`, for measuring sleep. |
+| `ready` | Resolves to the handle once the first frame is on screen (live or static) or the mount has failed. It never rejects; check `mode`. It waits for the canvas to have a size: a canvas in `display: none` (a closed tab, a collapsed panel) resolves once it is shown, or at `dispose()`. |
+| `mode` | `'loading'`, `'webgl'`, `'static'` (drawn once), `'failed'` (nothing could be drawn: the picture did not load or decode, or nothing in it is opaque) or `'disposed'`. |
+| `reason` | Why it is `'static'` or `'failed'`, in words (`null` while live). A failure also logs one `console.warn` starting with `silkify:`, the library's only console output. |
+| `tier`, `thread`, `info` | The tier used (`'high'`, `'low'`, or `'static'`, also after a fallback to a still frame), `'worker'` or `'main'`, and `{ sim, steps, mesh, texture, software }`. |
+| `setTheme(patch)` | Changes any material, light, ripple or motion option live (for example on a light/dark switch). `setTheme({ material: 'wet' })` swaps a preset. Scene options (`image`, `shape`, `puff`, `matte`, `corner`, `threshold`, `fit`, `angle`, `tier`, `worker`) need a new `silkify()`. Calls made before `ready` are kept and applied when the renderer starts. |
+| `ripple(x, y, { depth, radius, hold })` | A programmatic touch at canvas coordinates (0–1, top-left origin): a short press, then the ripples run. Never counts as hovering; up to 4 at once; calls before `ready` are kept. |
+| `stats()` | A promise of `{ frames, mode, steps }` (frames drawn, the loop's state, solver steps), for measuring sleep. Resolves at once when not live. |
 | `setPhase(f)` | Sphere only: lunar phase 0–1 (0.5 full, `null` lit from the front). |
-| `wake()`, `dispose()` | Restart a sleeping loop; remove listeners, observers and GPU resources (call it on unmount). |
+| `wake()`, `dispose()` | Restart a sleeping loop; remove listeners, observers and GPU resources (call it on unmount). After `dispose()`, `ready` and `stats()` settle with `mode: 'disposed'`. A second `silkify()` on the same canvas disposes the first. |
 
 ## Performance rules
 
@@ -172,7 +175,7 @@ Details and measurements: [references/performance.md](https://github.com/RussGuo
 ## Verify before you hand it over
 
 1. Serve the page (`npx serve .`) and move the pointer across every object. Each should look like its material before it is touched, and ripple only where it is touched.
-2. Check `handle.mode` is `'webgl'` and `handle.thread` is `'worker'` in the console; the console must have no errors.
+2. Check `handle.mode` is `'webgl'` and `handle.thread` is `'worker'` in the console (if not, `handle.reason` says why); the console must have no errors or warnings.
 3. Test a narrow viewport (375 px, low tier) and `prefers-reduced-motion` (still frame).
 4. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.0/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
 

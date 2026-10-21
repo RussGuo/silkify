@@ -55,6 +55,7 @@ npx serve .            # or: python3 -m http.server
 
 ```html
 <canvas id="pear" style="width: 420px; aspect-ratio: 1"></canvas>
+<canvas id="moon" style="width: 420px; aspect-ratio: 1"></canvas>
 
 <script type="importmap">
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
@@ -75,7 +76,7 @@ npx serve .            # or: python3 -m http.server
 
 ```js
 const silk = silkify(canvas, options);
-await silk.ready;                         // mounted ('webgl'), or drawn once ('static') when WebGL2 is missing
+await silk.ready;                         // 'webgl' when live, 'static' when drawn once, 'failed' (see silk.reason)
 silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```

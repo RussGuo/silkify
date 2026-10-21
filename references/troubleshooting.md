@@ -15,4 +15,6 @@
 | Live on desktop, but a still image on a phone | The static tier: reduced motion, Save-Data, or no WebGL2 in workers or on the page | Expected. Ship a `poster`. Force `tier: 'low'` only if the user really wants motion there. |
 | Works, but `handle.thread` is `'main'` | The worker could not load three.js (bundler, CSP) | Pass `threeUrl`, or accept the main thread |
 | Nothing loads from the CDN | A Content-Security-Policy without `cdn.jsdelivr.net` in `script-src` (and `worker-src blob:` for the worker), or no import map for `three` | Allow both, or copy `src/` into the project |
+| Nothing at all, `mode: 'failed'` and a `silkify:` warning | The picture did not load (404, CORS), could not be decoded, or has nothing opaque in it (a fully transparent PNG, or `threshold` above every alpha) | Read `handle.reason`: fix the URL or the CORS headers, re-export the picture, or lower `threshold` |
+| `ready` never resolves | The canvas has no size yet (`display: none`, a closed tab or panel, a zero-height parent) | Expected: it starts once the canvas is shown. Give the canvas a CSS size; call `dispose()` if it will never be shown |
 | Black square or nothing at all | Page opened as `file://`, image CORS, or an unsized canvas | Serve over http, check CORS headers, and give the canvas a CSS size |
