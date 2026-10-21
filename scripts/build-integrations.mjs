@@ -171,6 +171,7 @@ ${REFERENCES.map(([f, name, what]) => `- [${name}](${RAW}${f}): ${what}`).join('
 
 - [README](${RAW}README.md): overview, gallery, how it works, performance
 - [README (简体中文)](${RAW}README.zh-CN.md)
+- [Changelog](${RAW}CHANGELOG.md): what changed in each release, and what a version tag promises
 - [Image credits](${RAW}examples/CREDITS.md)
 `;
 

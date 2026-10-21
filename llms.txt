@@ -2,29 +2,30 @@
 
 > Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Covers cutting the subject out, inflating its silhouette into a dome, choosing a material and feel (satin, velvet, wet, foil, paper, ink; water, gel, jelly), tuning it live in the Lab, and embedding the three.js renderer in plain HTML or React.
 
-silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Import it with no install from https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js (pinned to v0.2.0) and an import map for three.js 0.152.2.
+silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Import it with no install from https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js (pinned to v0.2.1) and an import map for three.js 0.152.2.
 
 ## Skill
 
-- [SKILL.md](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/SKILL.md): the steps an agent follows: get the code, cut out the subject, choose puff, material and feel, render in HTML or React, verify
-- [Parameters](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/references/parameters.md): every option with its default and tuning range, the material and feel presets, recipes from the gallery
-- [Performance](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/references/performance.md): device tiers, when the loop sleeps, many objects on one page, what breeze and autoplay cost, measurements
-- [Troubleshooting](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/references/troubleshooting.md): symptom, cause and fix: halos, creases, black squares, no ripple, the worker falling back
+- [SKILL.md](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/SKILL.md): the steps an agent follows: get the code, cut out the subject, choose puff, material and feel, render in HTML or React, verify
+- [Parameters](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/references/parameters.md): every option with its default and tuning range, the material and feel presets, recipes from the gallery
+- [Performance](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/references/performance.md): device tiers, when the loop sleeps, many objects on one page, what breeze and autoplay cost, measurements
+- [Troubleshooting](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/references/troubleshooting.md): symptom, cause and fix: halos, creases, black squares, no ripple, the worker falling back
 
 ## Use
 
-- [silk.js on jsDelivr](https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js): the entry point, pinned to the release tag; the rest of src/ loads from beside it
-- [Minimal CDN page](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/examples/cdn.html): the smallest page that uses the CDN build
+- [silk.js on jsDelivr](https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js): the entry point, pinned to the release tag; the rest of src/ loads from beside it
+- [Minimal CDN page](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/examples/cdn.html): the smallest page that uses the CDN build
 - [Lab](https://russguo.github.io/silkify/examples/lab.html): every option as a live control; prints the options to copy
 - [Gallery](https://russguo.github.io/silkify/examples/): ten objects with the options that make each look right
 
 ## Integrations
 
-- [Cursor rule](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/integrations/cursor/silkify.mdc): for .cursor/rules/
-- [Copilot instructions](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/integrations/copilot/silkify.instructions.md): for .github/instructions/ (applies to page and component files only)
+- [Cursor rule](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/integrations/cursor/silkify.mdc): for .cursor/rules/
+- [Copilot instructions](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/integrations/copilot/silkify.instructions.md): for .github/instructions/ (applies to page and component files only)
 
 ## Optional
 
-- [README](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/README.md): overview, gallery, how it works, performance
-- [README (简体中文)](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/README.zh-CN.md)
-- [Image credits](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.0/examples/CREDITS.md)
+- [README](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/README.md): overview, gallery, how it works, performance
+- [README (简体中文)](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/README.zh-CN.md)
+- [Changelog](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/CHANGELOG.md): what changed in each release, and what a version tag promises
+- [Image credits](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/examples/CREDITS.md)

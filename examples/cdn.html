@@ -24,7 +24,7 @@
 <canvas id="pear" aria-hidden="true"></canvas>
 <script type="module">
   const qs = new URLSearchParams(location.search);
-  const ref = qs.get('ref') || 'v0.2.0';
+  const ref = qs.get('ref') || 'v0.2.1';
   const { silkify } = await import(qs.get('silk') || `https://cdn.jsdelivr.net/gh/RussGuo/silkify@${ref}/src/silk.js`);
   window.__cdn = silkify(document.getElementById('pear'), { image: 'images/pomegranate.webp', material: 'satin' });
 </script>

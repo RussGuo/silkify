@@ -178,7 +178,7 @@
     teapot: { title: 'Teapot', image: 'images/teapot.webp', options: { puff: 'cushion', sheen: 0.5, sheenPower: 14 } },
     'mona-lisa': { title: 'Mona Lisa', image: 'images/mona-lisa.webp', options: { puff: 'cushion', floor: 0.6, sheen: 0.25 } },
     carriera: { title: 'Portrait of a Man', image: 'images/carriera.webp', options: { puff: 'flat', floor: 0.6 } },
-    parrot: { title: 'Enamel parrot', image: 'images/parrot.webp', options: { puff: 'cushion', sheen: 0.5, sheenPower: 14 } },
+    parrot: { title: 'Bird figure', image: 'images/parrot.webp', options: { puff: 'cushion', sheen: 0.5, sheenPower: 14 } },
   };
 
   /* ============================================
@@ -509,7 +509,7 @@
    * The picture is inside it as a data: URL; silk.js and three.js come from jsDelivr, pinned to the release, so
    * the file needs the network but no server. Nothing leaves the browser: the file is made here.
    * ============================================ */
-  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js';
+  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';
   const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
   const BACKGROUND = { stage: '#ebe6dc', paper: '#f3efe7', white: '#ffffff', black: '#000000', checker: '#f3efe7' };
   const dataUrl = (blob) => new Promise((resolve, reject) => {

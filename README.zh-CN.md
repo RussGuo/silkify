@@ -8,6 +8,15 @@
 
 它由两部分组成：一个小巧的 WebGL 库（基于 [three.js](https://threejs.org) 的一个 ES module），和一个 [Agent Skill](SKILL.md)。后者教任何编码 Agent 抠图、把轮廓吹成穹面，再嵌进任意页面。
 
+## 它不是什么
+
+- **不是视频或 GIF 生成器。** 它是网页上实时运行的 WebGL；下面的 GIF 是本仓库的脚本录下来的屏幕录像。
+- **不是 3D 模型。** 轮廓被吹鼓成一块从正面看的浮雕，更像软垫而不是雕塑，不能转到侧面去看（月球是唯一真正的球）。
+- **该静的时候是静的。** 没有 WebGL2、系统要求减少动态效果、开了省流量或设备很弱时，访客只看到一帧静态图。
+- **手机上是点按和横向划动**，并且走轻量档；竖向划动会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
+- **体积不小。** CDN 方式在第一个物体活起来时要下载整个 three.js（1.2 MB，压缩后约 240 KB）。
+- **不是抠图工具。** 背景杂乱的照片要先自己准备好抠好的 PNG；[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
+
 ## 从你的 Agent 使用
 
 silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKILL.md)，任何编码 Agent 都能照着做完从抠图到成品页面的全过程。项目里不用拷贝任何文件，Skill 直接从 CDN 引入 silk.js。
@@ -22,7 +31,7 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKIL
 | OpenCode、Amp 等支持 Skill 的 Agent | 同一条 clone，或 `npx skills add RussGuo/silkify` |
 | 其他 | 把 [SKILL.md](SKILL.md) 原文贴进对话，或让 Agent 读 [llms.txt](llms.txt) |
 
-然后对它说「把这张图丝绸化」。想固定版本，clone 时加 `--branch v0.2.0`。Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都由 `npm run build:integrations` 从 SKILL.md 生成，各宿主读到的是同一份说明。
+然后对它说「把这张图丝绸化」。想固定版本，clone 时加 `--branch v0.2.1`（各版本的变化见 [CHANGELOG.md](CHANGELOG.md)）。Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都由 `npm run build:integrations` 从 SKILL.md 生成，各宿主读到的是同一份说明。
 
 ## 画廊
 
@@ -37,7 +46,7 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKIL
 | **茶壶**：铁皮与藤编，英格兰，约 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="静止的茶壶"> | <img src="docs/shots/teapot-ripple.gif" width="300" alt="起涟漪的茶壶"> |
 | **蒙娜丽莎**：做成丝绸软垫 | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="静止的蒙娜丽莎"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="起涟漪的蒙娜丽莎"> |
 | **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
-| **珐琅鹦鹉**：黄金与珐琅，18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鹦鹉"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鹦鹉"> |
+| **鸟形摆件**：黄金、珐琅与宝石，印度，可能为 18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鸟形摆件"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鸟形摆件"> |
 
 示例图片均为公有领域或 CC0，来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
 
@@ -61,7 +70,7 @@ npx serve .            # 或：python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js';   // 或拷贝 src/ 后 import './src/silk.js'
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';   // 或拷贝 src/ 后 import './src/silk.js'
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // 任意透明底 PNG
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // 等距圆柱投影贴图
@@ -143,26 +152,26 @@ silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的
 - 第一次被碰到时才挂载实时渲染，滚出视口就释放。
 - 同时最多 3 个实时渲染。
 
-画廊实测数据：Lighthouse 12.8.2，移动预设（CPU 4 倍降速），3 次取中位数，无头 Chrome。
+画廊实测（不触碰任何卡片，每张卡在被碰到之前都只是一张静态帧）：Lighthouse 12.8.2，移动预设（模拟 CPU 4 倍降速），3 次取中位数，Chrome 156，Apple M1 Pro。「真 GPU」指有界面的 Chrome 走 Metal；SwiftShader 是无头 Chrome 与 CI 用的软件 GPU。
 
-| | 改前（8 个画布都在主线程实时渲染） | 改后 |
+| | v0.2.0 | v0.2.1 |
 |---|---|---|
-| 性能分 | 73 | **100** |
-| TBT（总阻塞时间） | 964 ms | **18 ms** |
-| 主线程总工作 | 5.14 s | **0.25 s** |
-| 传输字节 | 8.0 MB | **0.49 MB** |
-| CLS（累计布局偏移） | 0.086 | **0** |
-| 挂载一个物体时主线程的长任务 | — | 主线程渲染时 94 ms；Worker 里**没有** |
-| 闲置 10 秒画的帧数（碰后 35–45 秒） | 264（永不睡） | **0** |
-| 显存估算（373 px 卡片，像素比 2） | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × 至多 3 个，未被碰前为 0 |
+| 性能分，真 GPU / SwiftShader | 100 / 69 | **100 / 99** |
+| TBT（总阻塞时间），真 GPU / SwiftShader | 14 ms / 9,744 ms | **0 ms / 0 ms** |
+| 主线程总工作，真 GPU / SwiftShader | 0.25 s / 10.2 s | **0.18 s / 0.16 s** |
+| 传输字节 | 0.48 MB | 0.49 MB |
+| CLS（累计布局偏移） | 0 | 0 |
+| 挂载一张卡时主线程的长任务（真 GPU） | Worker 里没有；主线程渲染时 57 ms | 同左 |
+| 静止 10 秒画的帧数 | 0 | 0，指针在页面别处移动时也是 0 |
 
-Lighthouse 不会和页面交互，所以最后三行是另外用无头 Chrome 通过 DevTools 协议量的。细节见 [references/performance.md](references/performance.md)。
+v0.2.0 在加载时于主线程建一个一次性的 WebGL 上下文来探测 WebGL2，软件 GPU 上要付出数秒；v0.2.1 改在 Worker 里探测画布自己的上下文。最后两行由脚本与有界面的 Chrome 量出，因为 Lighthouse 不会和页面交互。细节见 [references/performance.md](references/performance.md)。
 
 ## 仓库结构
 
 ```
 SKILL.md            Agent Skill：取得代码（CDN 或拷贝）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
 references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节
+CHANGELOG.md        每个版本改了什么，以及版本 tag 承诺什么（看重完整性时钉 commit）
 src/silk.js         入口：分档、Worker / 主线程 / 静态帧三级退路、转发指针
 src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
 src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）

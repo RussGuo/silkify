@@ -41,17 +41,22 @@ A lifted finger, a cancelled touch, or a pointer leaving the window ends "hoveri
 - `dispose()` it when the card leaves the viewport.
 - Keep at most 3 live, releasing the least recently touched.
 
-**Measured on the gallery** (eight objects; Lighthouse 12.8.2, mobile preset with 4× CPU slowdown, median of 3; headless Chrome):
+**Measured on the gallery** (`examples/`, ten cards, nothing touched: every card is a poster until someone reaches for it). Lighthouse 12.8.2, mobile preset (simulated 4× CPU slowdown), median of 3 runs, Chrome 156 on an Apple M1 Pro, macOS 26.5. Two GPUs: the real one (headed Chrome, Metal), and SwiftShader, the software GPU of headless Chrome and CI, where creating a WebGL context is slow.
 
-| | Before (all eight live on the main thread) | After |
+| | v0.2.0 | v0.2.1 |
 |---|---|---|
-| Performance score | 73 | **100** |
-| Total Blocking Time | 964 ms | **18 ms** |
-| Main-thread work | 5.14 s | **0.25 s** |
-| Bytes transferred | 8.0 MB | **0.49 MB** |
-| CLS | 0.086 | **0** |
-| Long task while an object mounts | — | 94 ms on the main thread, **none** in the worker |
-| Frames in 10 s of idle (35–45 s after a touch) | 264, never sleeps | **0** |
-| GPU buffers (estimate, 373 px card at ratio 2) | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × ≤ 3 live, 0 until touched |
+| Performance score, real GPU | 100 | **100** |
+| Total Blocking Time, real GPU | 14 ms | **0 ms** |
+| Main-thread work, real GPU | 0.25 s | **0.18 s** |
+| Performance score, SwiftShader | 69 | **99** |
+| Total Blocking Time, SwiftShader | 9,744 ms | **0 ms** |
+| Main-thread work, SwiftShader | 10.2 s | **0.16 s** |
+| Bytes transferred | 0.48 MB | 0.49 MB |
+| Cumulative Layout Shift | 0 | 0 |
 
-Lighthouse does not touch the page, so the interactive rows were measured separately in headless Chrome.
+v0.2.0 probed WebGL2 by creating a throwaway context on the main thread at load: 15–240 ms on a real GPU, 2.5 s per probe on SwiftShader. v0.2.1 probes the canvas's own context inside the worker.
+
+Measured separately, because Lighthouse never touches the page:
+- **Main-thread long tasks while one card mounts** (headed Chrome, real GPU, 3 runs): none in a worker; 57–59 ms with `worker: false`.
+- **Frames drawn at rest:** 0 in 10 s (`scripts/shoot.mjs`, the Lab in the low tier), and 0 in 3 s with the pointer moving and held elsewhere on the page.
+- **GPU buffers** (estimate, 373 px card at ratio 2): ≈ 5 MB per live object, at most 3 live, 0 until touched.

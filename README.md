@@ -8,6 +8,15 @@ English | [简体中文](README.zh-CN.md)
 
 silkify is a small WebGL library (one ES module on top of [three.js](https://threejs.org)) and an [Agent Skill](SKILL.md) that teaches any coding agent how to cut out a picture, inflate it and embed it in any page.
 
+## What it is not
+
+- **Not a video or GIF maker.** It is live WebGL on a web page; the GIFs below are screen recordings made by a script in this repository.
+- **Not a 3D model.** The outline is inflated into a relief seen from the front, a cushion rather than a statue: it cannot be turned around (the moon is the one real sphere).
+- **Still where motion is unwelcome.** Without WebGL2, with reduced motion asked for, with Save-Data or on a very small device, the visitor sees one still frame.
+- **On a phone, a tap or a sideways stroke**, in the low tier; a vertical swipe scrolls the page (see `touch-action` in [SKILL.md](SKILL.md#step-4-render-it)).
+- **Not small on the wire.** The CDN way downloads all of three.js (1.2 MB, about 240 KB compressed) the first time an object goes live.
+- **Not a background remover.** A photo of a subject on a busy background needs a cut-out PNG first; [cutout.py](scripts/cutout.py) only keys out plain backdrops.
+
 ## Use it from your agent
 
 silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) that any coding agent can follow, from cutting out the picture to the finished page. Nothing has to be copied into your project, because the skill imports silk.js from the CDN.
@@ -22,7 +31,7 @@ silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) th
 | OpenCode, Amp and other skill-aware agents | the same clone, or `npx skills add RussGuo/silkify` |
 | Anything else | paste [SKILL.md](SKILL.md) into the chat, or point the agent at [llms.txt](llms.txt) |
 
-Then ask it to "silkify" a picture. Add `--branch v0.2.0` to the clone to pin a release. The files for Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
+Then ask it to "silkify" a picture. Add `--branch v0.2.1` to the clone to pin a release ([CHANGELOG.md](CHANGELOG.md) says what changes between releases). The files for Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
 
 ## Gallery
 
@@ -37,7 +46,7 @@ Every frame below is a real headless-Chrome render of [`examples/index.html`](ex
 | **Teapot**: tôle and wicker, England, c. 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="teapot at rest"> | <img src="docs/shots/teapot-ripple.gif" width="300" alt="teapot rippling"> |
 | **Mona Lisa**: as a silk cushion | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="Mona Lisa at rest"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="Mona Lisa rippling"> |
 | **Portrait of a Man**: Rosalba Carriera, c. 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="miniature portrait at rest"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="miniature portrait rippling"> |
-| **Enamel parrot**: gold and enamel, 18th century | <img src="docs/shots/parrot-rest.jpg" width="300" alt="parrot at rest"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="parrot rippling"> |
+| **Bird figure**: gold, enamel and gemstones, India, possibly 18th century | <img src="docs/shots/parrot-rest.jpg" width="300" alt="bird figure at rest"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="bird figure rippling"> |
 
 The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
@@ -61,7 +70,7 @@ npx serve .            # or: python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js';   // or copy src/ and import './src/silk.js'
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';   // or copy src/ and import './src/silk.js'
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // any PNG with a transparent background
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // an equirectangular map
@@ -143,26 +152,26 @@ The gallery shows the pattern for many objects on a page:
 - The live renderer mounts on the first touch and is released when the card scrolls away.
 - At most 3 are live at once.
 
-Measured on the gallery: Lighthouse 12.8.2, mobile preset (4× CPU slowdown), median of 3 runs, headless Chrome.
+Measured on the gallery with nothing touched (every card is a poster until someone reaches for it): Lighthouse 12.8.2, mobile preset (simulated 4× CPU slowdown), median of 3 runs, Chrome 156 on an Apple M1 Pro. "Real GPU" is headed Chrome on Metal; SwiftShader is the software GPU of headless Chrome and CI.
 
-| | Before (8 live canvases on the main thread) | After |
+| | v0.2.0 | v0.2.1 |
 |---|---|---|
-| Performance score | 73 | **100** |
-| Total Blocking Time | 964 ms | **18 ms** |
-| Main-thread work | 5.14 s | **0.25 s** |
-| Bytes transferred | 8.0 MB | **0.49 MB** |
-| Cumulative Layout Shift | 0.086 | **0** |
-| Main-thread long task when an object mounts | — | 94 ms on the main thread; **none** in the worker |
-| Frames drawn in 10 s of idle (35–45 s after a touch) | 264 (never sleeps) | **0** |
-| GPU buffers, estimated (373 px card, ratio 2) | ≈ 29 MB × 8 ≈ 230 MB | ≈ 5 MB × at most 3, and 0 until touched |
+| Performance score, real GPU / SwiftShader | 100 / 69 | **100 / 99** |
+| Total Blocking Time, real GPU / SwiftShader | 14 ms / 9,744 ms | **0 ms / 0 ms** |
+| Main-thread work, real GPU / SwiftShader | 0.25 s / 10.2 s | **0.18 s / 0.16 s** |
+| Bytes transferred | 0.48 MB | 0.49 MB |
+| Cumulative Layout Shift | 0 | 0 |
+| Main-thread long tasks while a card mounts (real GPU) | none in the worker; 57 ms on the main thread | same |
+| Frames drawn in 10 s at rest | 0 | 0, also while the pointer moves elsewhere on the page |
 
-Lighthouse never touches the page, so the last three rows were measured separately with headless Chrome over the DevTools protocol. Details are in [references/performance.md](references/performance.md).
+v0.2.0 probed WebGL2 with a throwaway context on the main thread at load, which a software GPU pays for in seconds; v0.2.1 probes the canvas's own context in the worker. The last two rows come from scripts and headed Chrome, since Lighthouse never touches the page. Details are in [references/performance.md](references/performance.md).
 
 ## Repository
 
 ```
 SKILL.md            the Agent Skill: get the code (CDN or copy), cut-out → puff → material and feel → render → verify
 references/         parameters, performance, troubleshooting: the detail SKILL.md points to
+CHANGELOG.md        what changed in each release, and what a version tag promises (pin a commit when integrity matters)
 src/silk.js         the entry point: tiers, Worker / main-thread / still-frame fallback, pointer forwarding
 src/core.js         the renderer, DOM-free (peer dependency: three ≥ 0.152.2)
 src/shaders.js      the GLSL: wave solver and object shader (one source, two shapes)

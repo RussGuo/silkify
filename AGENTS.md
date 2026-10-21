@@ -6,7 +6,7 @@ Turn a picture into a touchable silk object on a web page. At rest it is matte a
 
 ## Using silkify in another project
 
-This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.0/src/silk.js`.
+This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js`.
 
 ## Working on this repository
 
