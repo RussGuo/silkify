@@ -1,8 +1,17 @@
 [English](README.md) | 简体中文
 
+<img src="docs/hero.webp" width="100%" alt="暖纸色台面上一只石榴，指尖按下去的地方，哑光的果皮拢成了红色缎面">
+
 # silkify
 
-**[打开在线画廊 →](https://russguo.github.io/silkify/examples/)**
+<p>
+  <a href="https://russguo.github.io/silkify/examples/"><b>在线画廊 →</b></a> &nbsp;·&nbsp;
+  <a href="https://russguo.github.io/silkify/examples/lab.html">Lab 调参页</a> &nbsp;·&nbsp;
+  <a href="#一句话安装">装进你的 Agent</a> &nbsp;·&nbsp;
+  <a href="SKILL.md">SKILL.md</a> &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">v0.2.3</a> &nbsp;·&nbsp;
+  <a href="LICENSE">MIT</a>
+</p>
 
 **万物皆可丝绸化。** silkify 把任意一张图片变成网页上可以触碰的丝绸物体：静止时是哑光的实物照片，指针碰到的地方被压出凹坑，涟漪荡开，泛起缎面的光泽。
 

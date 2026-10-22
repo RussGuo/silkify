@@ -1,6 +1,6 @@
 # Image credits
 
-Every image in `examples/images/`, `examples/posters/` and `docs/shots/` is public domain or CC0, except the ink drop, which is the FateTell mark: © FateTell, all rights reserved, included here only as a demonstration subject (see the exception at the end of [LICENSE](../LICENSE)). Forks and redistributions must remove it. Each license below was checked against the source's own machine-readable metadata (the Wikimedia Commons `extmetadata` and page wikitext, the Met collection API's `isPublicDomain`, and the Smithsonian Open Access API's `metadata_usage.access`).
+Every image in `examples/images/`, `examples/posters/` and `docs/shots/` is public domain or CC0, except the ink drop, which is the FateTell mark: © FateTell, all rights reserved, included here only as a demonstration subject (see the exception at the end of [LICENSE](../LICENSE)). Forks and redistributions must remove it. `docs/hero.webp`, the picture at the top of the README, is not a photograph: it was generated with OpenAI's image model through Codex (2026-10-22) from a written brief, then widened on the left with a mirrored strip of its own background; it carries no third-party rights and is covered by this repository's MIT license. Each license below was checked against the source's own machine-readable metadata (the Wikimedia Commons `extmetadata` and page wikitext, the Met collection API's `isPublicDomain`, and the Smithsonian Open Access API's `metadata_usage.access`).
 
 Processing for every image except the ink drop:
 - Downscaled to ≤ 1024 px (Pillow, Lanczos).

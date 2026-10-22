@@ -5,3 +5,4 @@ __pycache__/
 # raw downloads and scratch work stay out of the repo; only processed images are committed
 raw/
 tmp/
+docs/hero/

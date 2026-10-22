@@ -1,8 +1,17 @@
 English | [简体中文](README.zh-CN.md)
 
+<img src="docs/hero.webp" width="100%" alt="A fingertip presses a ripe pomegranate on warm paper; where it touches, the matte skin gathers into red satin">
+
 # silkify
 
-**[Open the live gallery →](https://russguo.github.io/silkify/examples/)**
+<p>
+  <a href="https://russguo.github.io/silkify/examples/"><b>Live gallery →</b></a> &nbsp;·&nbsp;
+  <a href="https://russguo.github.io/silkify/examples/lab.html">Lab</a> &nbsp;·&nbsp;
+  <a href="#one-line-install">Install in your agent</a> &nbsp;·&nbsp;
+  <a href="SKILL.md">SKILL.md</a> &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">v0.2.3</a> &nbsp;·&nbsp;
+  <a href="LICENSE">MIT</a>
+</p>
 
 **Silkify anything.** silkify turns any image into a touchable silk surface on the web. At rest the object is matte and photographic. Where your pointer touches it, the surface dents, ripples and catches the light like satin.
 
