@@ -14,7 +14,7 @@ silkify is a small WebGL library (one ES module on top of [three.js](https://thr
 - **Not a 3D model.** The outline is inflated into a relief seen from the front, a cushion rather than a statue: it cannot be turned around (the moon is the one real sphere).
 - **Still where motion is unwelcome.** Without WebGL2, with reduced motion asked for, with Save-Data or on a very small device, the visitor sees one still frame.
 - **On a phone, a tap or a sideways stroke**, in the low tier; a vertical swipe scrolls the page (see `touch-action` in [SKILL.md](SKILL.md#step-4-render-it)).
-- **Not small on the wire.** The CDN way downloads all of three.js (1.2 MB, about 240 KB compressed) the first time an object goes live.
+- **Not small on the wire.** The first object to go live loads all of three.js (1.2 MB, about 240 KB compressed), from your own server or bundle, or from the CDN if you chose that way.
 - **Not a background remover.** A photo of a subject on a busy background needs a cut-out PNG first; [cutout.py](scripts/cutout.py) only keys out plain backdrops.
 
 ## One-line install
@@ -23,10 +23,10 @@ Copy this sentence into your coding agent (Claude Code, Codex, Cursor, Copilot, 
 
 <!-- install: written by scripts/build-integrations.mjs; change it there -->
 ```text
-Install the silkify agent skill: git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+Install the silkify agent skill: git clone --depth 1 --branch v0.2.3 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
 ```
 
-Then ask it to "silkify" a picture. Nothing has to be copied into your project, because the skill imports silk.js from the CDN. An agent that cannot install skills can still use it: paste [SKILL.md](SKILL.md) into the chat, or point it at [llms.txt](llms.txt).
+Then ask it to "silkify" a picture. The skill copies `src/` into your project, so the page depends on no outside service; where there is nowhere to put files, it can import silk.js from the CDN instead. An agent that cannot install skills can still use it: paste [SKILL.md](SKILL.md) into the chat, or point it at [llms.txt](llms.txt).
 
 <details>
 <summary>Where each agent looks for skills</summary>
@@ -66,7 +66,7 @@ Every frame below is a real headless-Chrome render of [`examples/index.html`](ex
 
 The images are public domain or CC0, except the FateTell mark, which is © FateTell and must be removed from forks; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
-**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture, then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it. One picture per preset is in [docs/shots/lab](docs/shots/lab).
+**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture, then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it (that file loads silk.js and three.js from jsDelivr). One picture per preset is in [docs/shots/lab](docs/shots/lab).
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="the silkify Lab: a teapot in foil, with every option beside it">
 
@@ -78,20 +78,24 @@ npx serve .            # or: python3 -m http.server
 
 ## 30-second start
 
+Copy `src/` into your project as `silk/` and run `npm i three`, then:
+
 ```html
 <canvas id="pear" style="width: 420px; aspect-ratio: 1"></canvas>
 <canvas id="moon" style="width: 420px; aspect-ratio: 1"></canvas>
 
 <script type="importmap">
-  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+  { "imports": { "three": "./node_modules/three/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';   // or copy src/ and import './src/silk.js'
+  import { silkify } from './silk/silk.js';
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // any PNG with a transparent background
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // an equirectangular map
 </script>
 ```
+
+Nowhere to put files (a CodePen, one HTML file)? Import `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.3/src/silk.js` instead and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`; the page then depends on jsDelivr ([SKILL.md](SKILL.md#get-the-code) has the details).
 
 - **No transparent background?** Run `python3 scripts/cutout.py photo.jpg out.png` to key out a plain backdrop, or keep the rectangle and let silkify make a cushion.
 - **React?** See the component in [SKILL.md](SKILL.md#react-and-nextjs).
@@ -185,7 +189,7 @@ v0.2.0 probed WebGL2 with a throwaway context on the main thread at load, which 
 ## Repository
 
 ```
-SKILL.md            the Agent Skill: get the code (CDN or copy), cut-out → puff → material and feel → render → verify
+SKILL.md            the Agent Skill: get the code (copy src/, or the CDN), cut-out → puff → material and feel → render → verify
 references/         parameters, performance, troubleshooting: the detail SKILL.md points to
 CHANGELOG.md        what changed in each release, and what a version tag promises (pin a commit when integrity matters)
 src/silk.js         the entry point: tiers, Worker / main-thread / still-frame fallback, pointer forwarding
@@ -201,7 +205,7 @@ scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS
 scripts/browsers.mjs             shoot.mjs --browsers: WebKit and Firefox, same origin and cross-origin (Playwright)
 scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
 scripts/harness.mjs              the static server and the Playwright loader the check scripts share
-examples/           the gallery, the Lab and cdn.html (static; GitHub Pages), WebP pictures and posters, image credits
+examples/           the gallery, the Lab, and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
 examples/react, examples/next    the smallest Vite and Next.js projects with the React component
 test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
 integrations/       generated: a Cursor rule and a path-scoped Copilot instruction

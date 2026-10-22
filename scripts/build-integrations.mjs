@@ -24,8 +24,11 @@
  * Links are made absolute and pinned to the release tag (v + package.json's version), because a derived file is
  * read far from this repository. It also checks SKILL.md against the Agent Skills spec (agentskills.io/specification):
  * frontmatter fields and lengths, a name that matches the folder, a body under 500 lines; and one version
- * everywhere: package.json, SKILL.md's metadata, the plugin marketplace entry, and every CDN URL (the Lab's
- * Download HTML included) on the tag v + that version. No dependencies.
+ * everywhere: package.json, SKILL.md's metadata, the plugin marketplace entry, every CDN URL (the Lab's Download
+ * HTML included), cdn.html's default ref and every `--branch` in a clone line, all on the tag v + that version.
+ *
+ * The derived files keep SKILL.md's order: copying src/ into the project is the way, the CDN the alternative for
+ * a page with nowhere to put files. No dependencies.
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -105,6 +108,8 @@ for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README
     if (ref !== TAG && ref !== 'main' && !/^\$\{/.test(ref)) errors.push(`${f}: CDN pinned to @${ref}, but the release is ${TAG}`);
   }
 }
+const cdnRef = (await read('examples/cdn.html')).match(/qs\.get\('ref'\) \|\| '([^']+)'/)?.[1];
+if (cdnRef !== TAG) errors.push(`examples/cdn.html: default ref ${cdnRef}, but the release is ${TAG}`);
 if (/\bClaude\b/.test(body)) errors.push('SKILL.md: the body names a host ("Claude"); say "the agent"');
 for (const [lang, text] of Object.entries(INSTALL)) if (/["&<>\n]/.test(text)) errors.push(`INSTALL.${lang}: one line, without quotes, & or angle brackets`);
 const pages = {};
@@ -112,6 +117,10 @@ for (const [f, lang, slot] of SLOTS) {
   pages[f] ??= await read(f);
   if (!slot.test(pages[f])) errors.push(`${f}: no slot for the install sentence (${slot.source.slice(1, 24)}…)`);
   else pages[f] = pages[f].replace(slot, (_, a, __, b) => a + INSTALL[lang] + b);
+}
+// after the install sentence is filled in, so a release bump only needs package.json
+for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README.zh-CN.md']) {
+  for (const [, ref] of (pages[f] ?? await read(f)).matchAll(/--branch (v[\w.-]+)/g)) if (ref !== TAG) errors.push(`${f}: clones --branch ${ref}, but the release is ${TAG}`);
 }
 
 /* ============================================
@@ -148,7 +157,7 @@ ${GENERATED}
 
 # silkify
 
-When the user asks to "silkify" a picture, or wants a silk, satin or fabric ripple-on-hover effect, or an interactive WebGL object made from a PNG, follow the skill below. The library is ${REPO}; import it from the CDN URL below or copy its \`src/\` folder into the project.
+When the user asks to "silkify" a picture, or wants a silk, satin or fabric ripple-on-hover effect, or an interactive WebGL object made from a PNG, follow the skill below. The library is the \`src/\` folder of ${REPO}: copy it into the project and serve it with the page. Import it from the CDN only when the page has nowhere to put files.
 
 ${portable(body).replace(/^# silkify\n+/, '')}`;
 
@@ -160,7 +169,7 @@ ${oneLine}
 
 ## Using silkify in another project
 
-This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from \`${CDN}src/silk.js\`.
+This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. The library is [src/](src/): copy that folder into the project and serve it with the page, so the page depends on no outside service. Only a page with nowhere to put files imports it from the CDN instead (\`${CDN}src/silk.js\`).
 
 To install it as a skill, do what this sentence says (it is the one the README gives people to paste):
 
@@ -180,7 +189,7 @@ files['llms.txt'] = `# silkify
 
 > ${oneLine}
 
-silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Import it with no install from ${CDN}src/silk.js (pinned to ${TAG}) and an import map for three.js 0.152.2.
+silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. To use it, copy its src/ folder into the project, install three.js there, and import silk.js by its path (an import map names three for a plain page; a bundler needs nothing). The CDN is the alternative for a page with nowhere to put files.
 
 An agent installs the skill by following this instruction: ${INSTALL.en}
 
@@ -191,10 +200,14 @@ ${REFERENCES.map(([f, name, what]) => `- [${name}](${RAW}${f}): ${what}`).join('
 
 ## Use
 
-- [silk.js on jsDelivr](${CDN}src/silk.js): the entry point, pinned to the release tag; the rest of src/ loads from beside it
-- [Minimal CDN page](${RAW}examples/cdn.html): the smallest page that uses the CDN build
+- [src/](${REPO}/tree/${TAG}/src): the library, the folder to copy into the project (silk.js is the entry point)
 - [Lab](${SITE}examples/lab.html): every option as a live control; prints the options to copy
 - [Gallery](${SITE}examples/): ten objects with the options that make each look right
+
+## Alternative: the CDN, for a page with nowhere to put files
+
+- [silk.js on jsDelivr](${CDN}src/silk.js): the entry point, pinned to the release tag; the rest of src/ loads from beside it, and the page then depends on jsDelivr
+- [Minimal CDN page](${RAW}examples/cdn.html): the smallest page that uses the CDN way
 
 ## Integrations
 

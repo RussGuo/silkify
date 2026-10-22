@@ -130,7 +130,7 @@
 <div class="lab">
   <section class="stage" id="stage">
     <div class="top">
-      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
+      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.2.3 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
       <div class="read" id="read">loading…</div>
     </div>
     <span class="drop-hint">drop or paste an image or a URL · hold to press deeper · hold B to compare</span>
@@ -148,7 +148,7 @@
     <div class="out">
       <pre><code id="code"></code></pre>
       <div class="bar">
-        <button id="copy">Copy options</button><button id="link">Copy link</button><button id="download" title="this object and these options as one HTML file that opens with a double-click">Download HTML</button><button id="reset">Reset</button>
+        <button id="copy">Copy options</button><button id="link">Copy link</button><button id="download" title="this object and these options as one HTML file that opens with a double-click. The file loads silk.js and three.js from jsDelivr, so it depends on that CDN; for a page you publish, copy src/ into your project as SKILL.md says">Download HTML</button><button id="reset">Reset</button>
         <a href="./" style="margin-left:auto;align-self:center;color:var(--muted)">← Gallery</a>
       </div>
     </div>
@@ -162,7 +162,7 @@
    * remount it. The page runs exactly the call it prints, and the whole state lives in the URL hash, so a link
    * reproduces a look. resolveOptions() (silk.js) and the preset tables (presets.js) are the same ones silkify
    * uses; scripts/shoot.mjs drives this page through window.__lab (verify, and --lab for docs/shots/lab/).
-   * Download HTML writes the same call into a page of its own, with the picture inside it. When the system asks for
+   * Download HTML writes the same call into a page of its own, with the picture inside it (and silk.js from the CDN). When the system asks for
    * reduced motion, the stage says so and offers to play anyway, for this page only.
    */
   import { silkify, resolveOptions, PUFF } from '../src/silk.js';
@@ -512,9 +512,11 @@
   /* ============================================
    * Download HTML: this object and these options as one file that opens with a double-click (file:// is fine).
    * The picture is inside it as a data: URL; silk.js and three.js come from jsDelivr, pinned to the release, so
-   * the file needs the network but no server. Nothing leaves the browser: the file is made here.
+   * the file needs the network but no server. This is the one place the Lab uses the CDN way (one file, nowhere
+   * to put src/), and the file and the button say so: a real page copies src/ (SKILL.md). Nothing leaves the
+   * browser: the file is made here.
    * ============================================ */
-  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';
+  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.3/src/silk.js';
   const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
   const BACKGROUND = { stage: '#ebe6dc', paper: '#f3efe7', white: '#ffffff', black: '#000000', checker: '#f3efe7' };
   const dataUrl = (blob) => new Promise((resolve, reject) => {
@@ -538,7 +540,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title.replace(/</g, '&lt;')}, silkified</title>
 <\!-- Made in the silkify Lab (https://russguo.github.io/silkify/examples/lab.html). Open it with a double-click:
-     the picture is inside this file; silk.js and three.js load from jsDelivr, so it needs the network. -->${state.obj === 'ink-drop' ? '\n<\!-- The picture is the FateTell mark, © FateTell, all rights reserved: for your own experiments only. -->' : ''}
+     the picture is inside this file. It depends on jsDelivr: silk.js and three.js load from there, so it needs the
+     network. For a page you publish, copy src/ from https://github.com/RussGuo/silkify into your project and serve
+     it yourself, as its SKILL.md says. -->${state.obj === 'ink-drop' ? '\n<\!-- The picture is the FateTell mark, © FateTell, all rights reserved: for your own experiments only. -->' : ''}
 <style>
   html, body { margin: 0; height: 100%; background: ${BACKGROUND[state.bg] || BACKGROUND.paper}; }
   canvas { display: block; width: min(92vw, 92vh); aspect-ratio: 1; margin: 4vh auto; touch-action: pan-y; }

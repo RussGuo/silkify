@@ -2,32 +2,36 @@
 
 > Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Covers cutting the subject out, inflating its silhouette into a dome, choosing a material and feel (satin, velvet, wet, foil, paper, ink; water, gel, jelly), tuning it live in the Lab, and embedding the three.js renderer in plain HTML or React.
 
-silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Import it with no install from https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js (pinned to v0.2.2) and an import map for three.js 0.152.2.
+silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. To use it, copy its src/ folder into the project, install three.js there, and import silk.js by its path (an import map names three for a plain page; a bundler needs nothing). The CDN is the alternative for a page with nowhere to put files.
 
-An agent installs the skill by following this instruction: Install the silkify agent skill: git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+An agent installs the skill by following this instruction: Install the silkify agent skill: git clone --depth 1 --branch v0.2.3 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
 
 ## Skill
 
-- [SKILL.md](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/SKILL.md): the steps an agent follows: get the code, cut out the subject, choose puff, material and feel, render in HTML or React, verify
-- [Parameters](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/references/parameters.md): every option with its default and tuning range, the material and feel presets, recipes from the gallery
-- [Performance](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/references/performance.md): device tiers, when the loop sleeps, many objects on one page, what breeze and autoplay cost, measurements
-- [Troubleshooting](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/references/troubleshooting.md): symptom, cause and fix: halos, creases, black squares, no ripple, the worker falling back
+- [SKILL.md](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/SKILL.md): the steps an agent follows: get the code, cut out the subject, choose puff, material and feel, render in HTML or React, verify
+- [Parameters](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/references/parameters.md): every option with its default and tuning range, the material and feel presets, recipes from the gallery
+- [Performance](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/references/performance.md): device tiers, when the loop sleeps, many objects on one page, what breeze and autoplay cost, measurements
+- [Troubleshooting](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/references/troubleshooting.md): symptom, cause and fix: halos, creases, black squares, no ripple, the worker falling back
 
 ## Use
 
-- [silk.js on jsDelivr](https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js): the entry point, pinned to the release tag; the rest of src/ loads from beside it
-- [Minimal CDN page](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/examples/cdn.html): the smallest page that uses the CDN build
+- [src/](https://github.com/RussGuo/silkify/tree/v0.2.3/src): the library, the folder to copy into the project (silk.js is the entry point)
 - [Lab](https://russguo.github.io/silkify/examples/lab.html): every option as a live control; prints the options to copy
 - [Gallery](https://russguo.github.io/silkify/examples/): ten objects with the options that make each look right
 
+## Alternative: the CDN, for a page with nowhere to put files
+
+- [silk.js on jsDelivr](https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.3/src/silk.js): the entry point, pinned to the release tag; the rest of src/ loads from beside it, and the page then depends on jsDelivr
+- [Minimal CDN page](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/examples/cdn.html): the smallest page that uses the CDN way
+
 ## Integrations
 
-- [Cursor rule](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/integrations/cursor/silkify.mdc): for .cursor/rules/
-- [Copilot instructions](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/integrations/copilot/silkify.instructions.md): for .github/instructions/ (applies to page and component files only)
+- [Cursor rule](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/integrations/cursor/silkify.mdc): for .cursor/rules/
+- [Copilot instructions](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/integrations/copilot/silkify.instructions.md): for .github/instructions/ (applies to page and component files only)
 
 ## Optional
 
-- [README](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/README.md): overview, gallery, how it works, performance
-- [README (简体中文)](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/README.zh-CN.md)
-- [Changelog](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/CHANGELOG.md): what changed in each release, and what a version tag promises
-- [Image credits](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.2/examples/CREDITS.md)
+- [README](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/README.md): overview, gallery, how it works, performance
+- [README (简体中文)](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/README.zh-CN.md)
+- [Changelog](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/CHANGELOG.md): what changed in each release, and what a version tag promises
+- [Image credits](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.3/examples/CREDITS.md)

@@ -36,12 +36,12 @@ body:
     id: steps
     attributes:
       label: What you did, what you expected, what happened
-      description: The silkify() call with its options (or a Lab link), the picture if you can share it, and how you serve the page (CDN, copied src/, a bundler and its version).
+      description: The silkify() call with its options (or a Lab link), the picture if you can share it, and how you serve the page (copied src/, a bundler and its version, or the CDN).
     validations:
       required: true
   - type: input
     id: version
     attributes:
       label: silkify version
-      description: The tag or commit in your CDN URL, or the version in SKILL.md's metadata.
-      placeholder: v0.2.2
+      description: The version in SKILL.md's metadata (or the tag you copied src/ from), or the tag or commit in your CDN URL.
+      placeholder: v0.2.3

@@ -17,21 +17,31 @@ Work through the steps in order: get the code, get the silhouette right, pick th
 
 ## Get the code
 
-There are two ways. Pick one before writing any markup.
+The library is the `src/` folder beside this SKILL.md. Copy it into the project and serve it with the page. The page then depends on no outside service: it works offline and under a strict Content-Security-Policy ([references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md) has the line), and it changes only when someone copies a new version in.
 
-**(a) From the CDN, nothing to copy.** Import the entry point straight from jsDelivr, pinned to a release tag:
+1. **Copy `src/` into the project**, the whole folder (the files import each other), under any name. This skill calls it `silk/`:
+
+   ```bash
+   cp -R <the folder this SKILL.md is in>/src <project>/silk
+   ```
+
+   If you were given only this file, not its folder, get the folder first: `git clone --depth 1 --branch v0.2.3 https://github.com/RussGuo/silkify`.
+
+2. **Give the project three.js**, the one peer dependency (tested with 0.152.2 and 0.186.1): `npm i three`.
+   - With a bundler (Vite, webpack, Next.js) that is all; see "Bundlers" in step 4.
+   - A plain HTML page names it in an import map, by a path relative to the page: `"three": "./node_modules/three/build/three.module.js"`. If `node_modules` is not deployed with the site, copy `three.module.js` next to the page instead (with `three.core.js`, which three 0.171 and later import from it) and point the map there.
+
+3. **Import the entry point by its path:** `import { silkify } from './silk/silk.js'`.
+
+**Only when there is nowhere to put files** (a CodePen, a single HTML file, the Lab's Download HTML), import silk.js from jsDelivr instead, pinned to a release tag, and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`:
 
 ```
-https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js
+https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.3/src/silk.js
 ```
 
-Pin a release tag (`@v0.2.2`), never `@main`, which follows the repository and changes under you. jsDelivr keeps a tag's files once served; where integrity matters, pin a commit instead (`@<40-character SHA>`), or copy `src/` (see [CHANGELOG.md](https://github.com/RussGuo/silkify/blob/v0.2.2/CHANGELOG.md) on versions). The rest of `src/` loads from the same place automatically.
+The page then depends on jsDelivr. Pin a release tag (`@v0.2.3`), never `@main`, which follows the repository and changes under you; where integrity matters, pin a commit (`@<40-character SHA>`; see [CHANGELOG.md](https://github.com/RussGuo/silkify/blob/v0.2.3/CHANGELOG.md) on versions). The rest of `src/` loads from the same place, and the renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, the CDN way needs the CDN and `blob:` allowed (the line is in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md)).
 
-The renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, allow the CDN in `script-src` and both `blob:` and the CDN in `worker-src` (the full line is in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/troubleshooting.md)).
-
-**(b) Copy `src/` into the project.** Use this with a bundler, offline, or under a Content-Security-Policy that blocks the CDN. Copy the whole folder; the files import each other. The peer dependency is `three` (tested with 0.152.2 from an import map and 0.186.1 from npm).
-
-The helper scripts are in the same repository: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/scripts/cutout.py` (download it with `curl -O` when you need it).
+The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it from there. What else is in the folder:
 
 | File | What it is |
 |---|---|
@@ -42,15 +52,15 @@ The helper scripts are in the same repository: `https://cdn.jsdelivr.net/gh/Russ
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
 | `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, and the edge cases in `test/edge.html`; renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
 | `examples/index.html` | A working gallery of ten objects with the options that make each look right, and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
-| `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture, Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it needs the network for the two CDN files and renders on the main thread from `file://`). |
-| `examples/cdn.html` | The smallest page that uses the CDN build. |
-| `references/` | [parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/parameters.md) (every option, presets, recipes), [performance.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/performance.md) (tiers, sleeping, many objects, measurements), [troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/troubleshooting.md). Read them when a step below points there. |
+| `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture, Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it loads silk.js and three.js from jsDelivr, so it needs the network, and renders on the main thread from `file://`). |
+| `examples/cdn.html` | The smallest page that imports silk.js from the CDN, the way for pages with nowhere to put files; `shoot.mjs --cdn` checks it. |
+| `references/` | [parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md) (every option, presets, recipes), [performance.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/performance.md) (tiers, sleeping, many objects, measurements), [troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md). Read them when a step below points there. |
 
 ## Step 1: Get the silhouette right
 
 The input decides the result more than any parameter does. Check the picture before you write code.
 
-**Best input:** a PNG with a transparent background, the subject whole (not cropped by the frame), long side 512–1024 px. If the user gives you one of these, skip to step 2.
+**Best input:** a PNG (or WebP) with a transparent background, the subject whole (not cropped by the frame), long side 512–1024 px. If the user gives you one of these, skip to step 2.
 
 **An SVG logo** works as it is: silkify rasterises it to 1024 px on its long side before inflating it (`image: 'logo.svg'`, a `data:image/svg+xml` URL, or an SVG `Blob`).
 
@@ -83,7 +93,7 @@ The dome is built automatically when the picture loads. The only choice is how h
 
 | `puff` | Height | Use for |
 |---|---|---|
-| `'dome'` (1) | a disc becomes a hemisphere | round objects: fruit, drops, pebbles, logos with a round body |
+| `'dome'` (1, the default) | a disc becomes a hemisphere | round objects: fruit, drops, pebbles, logos with a round body |
 | `'cushion'` (0.6) | pillow | rectangles, paintings, cards, flat animals |
 | `'flat'` (0.35) | a soft relief | wide wordmarks, thin or spiky silhouettes, portraits whose face must stay true |
 | any number | | the height multiplier itself |
@@ -109,7 +119,7 @@ One word each. Anything you also write explicitly wins over the preset.
 | `'gel'` | a deep, slow dent that settles at once |
 | `'jelly'` | big wobbles; holding pushes far in |
 
-A dark picture (lacquer, a black logo) needs a brighter, broader highlight: add `sheen: 0.5, sheenPower: 14`. A painting or poster: `puff: 'cushion', floor: 0.6, sheen: 0.25`. Exact preset values and every other option are in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/parameters.md). To find values by eye, open the [Lab](https://russguo.github.io/silkify/examples/lab.html), drop the picture in, and copy the options it prints.
+A dark picture (lacquer, a black logo) needs a brighter, broader highlight: add `sheen: 0.5, sheenPower: 14`. A painting or poster: `puff: 'cushion', floor: 0.6, sheen: 0.25`. Exact preset values and every other option are in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md). To find values by eye, open the [Lab](https://russguo.github.io/silkify/examples/lab.html), drop the picture in, and copy the options it prints.
 
 ## Step 4: Render it
 
@@ -121,11 +131,10 @@ On a phone, a finger that moves on the canvas would scroll the page instead of s
 <canvas id="pear" style="width: 420px; aspect-ratio: 1; touch-action: pan-y"></canvas>
 
 <script type="importmap">
-  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+  { "imports": { "three": "./node_modules/three/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';
-  // or, with src/ copied to ./silk/:  import { silkify } from './silk/silk.js';
+  import { silkify } from './silk/silk.js';      // src/ copied to ./silk/, three from `npm i three` (see Get the code)
 
   const pear = silkify(document.getElementById('pear'), { image: 'pear.png', material: 'satin' });
   await pear.ready;            // optional; pear.mode is then 'webgl', 'static' (drawn once) or 'failed' (see pear.reason)
@@ -134,7 +143,7 @@ On a phone, a finger that moves on the canvas would scroll the page instead of s
 
 The import map is required: silk.js imports `three` by name and hands the worker the URL the map resolves to.
 
-**Bundlers (Vite, webpack, Next.js).** Copy `src/` into the project (way b) and `npm i three`; do not import the CDN URL from bundled code. silk.js starts its worker as `new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })`, a form bundlers recognise, and the worker imports `three` itself, so both are bundled: no configuration, no `threeUrl`. `threeUrl` is only for a page without a bundler whose import map cannot be read (`worker: false` forces the main thread).
+**Bundlers (Vite, webpack, Next.js).** Copy `src/` into the project and `npm i three`, as in Get the code; never import the CDN URL from bundled code. silk.js starts its worker as `new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })`, a form bundlers recognise, and the worker imports `three` itself, so both are bundled: no configuration, no `threeUrl`. `threeUrl` is only for a page without a bundler whose import map cannot be read (`worker: false` forces the main thread).
 
 **The canvas belongs to the renderer.** In a worker the canvas is transferred and cannot be transferred again. On a remount, or when a failed worker falls back, silkify swaps in a fresh clone with the same attributes. Read the current element from `handle.canvas`, and never let a framework render that canvas: create it yourself, as below.
 
@@ -180,13 +189,13 @@ A new `src` is a remount, and so are StrictMode's mount → unmount → mount an
 - The loop sleeps by itself: 60 fps while touched and for 8 s after, a 12 fps tail, then no frames at all. Only the pointer over the canvas counts: moving or holding it elsewhere on the page draws nothing. The waves step at a fixed 60 Hz, so they move at the same speed on a 120 Hz display. Phones and small screens get the low tier; reduced motion, Save-Data and no WebGL2 get a still frame (pass a `poster`).
 - `breeze` and `autoplay` keep the loop awake (breeze draws 30 fps while visible). Use them on one hero object, never on a grid.
 
-Details and measurements: [references/performance.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/performance.md).
+Details and measurements: [references/performance.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/performance.md).
 
 ## Verify before you hand it over
 
 1. Serve the page (`npx serve .`) and move the pointer across every object. Each should look like its material before it is touched, and ripple only where it is touched.
 2. Check `handle.mode` is `'webgl'` and `handle.thread` is `'worker'` in the console (if not, `handle.reason` says why); the console must have no errors or warnings.
 3. Test a narrow viewport (375 px, low tier) and `prefers-reduced-motion` (still frame).
-4. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.2/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
+4. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
 
 In this repository, `node scripts/shoot.mjs` does steps 1–2 for every gallery card and the Lab in headless Chrome and exits non-zero on any failure; re-render posters with `--posters` whenever the look changes.

@@ -14,7 +14,7 @@
 - **不是 3D 模型。** 轮廓被吹鼓成一块从正面看的浮雕，更像软垫而不是雕塑，不能转到侧面去看（月球是唯一真正的球）。
 - **条件不够时只有一张静态图。** 没有 WebGL2、系统设置了减少动态效果、开了省流量，或者设备太弱，访客看到的就是一张静止的图。
 - **手机上只能点按和横向划动**，而且走的是轻量档；竖着划会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
-- **体积不小。** 走 CDN 时，第一个物体开始动之前要先下载整个 three.js（1.2 MB，压缩后约 240 KB）。
+- **体积不小。** 第一个物体开始动之前，要先加载整个 three.js（1.2 MB，压缩后约 240 KB）：从你自己的服务器或打包产物里加载，选了 CDN 就从 CDN 加载。
 - **不是抠图工具。** 背景杂乱的照片要先自己准备好抠好的 PNG；[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
 
 ## 一句话安装
@@ -23,10 +23,10 @@
 
 <!-- install: written by scripts/build-integrations.mjs; change it there -->
 ```text
-安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
+安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.2.3 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
 ```
 
-装好之后，跟它说「把这张图丝绸化」就行。你的项目里不用拷任何文件，Skill 会直接从 CDN 引入 silk.js。要是你的 Agent 装不了 skill，也照样能用：把 [SKILL.md](SKILL.md) 原文贴给它，或者让它去读 [llms.txt](llms.txt)。
+装好之后，跟它说「把这张图丝绸化」就行。Skill 会把 `src/` 拷进你的项目，页面不依赖任何外部服务；实在没有地方放文件，也可以改走 CDN。要是你的 Agent 装不了 skill，也照样能用：把 [SKILL.md](SKILL.md) 原文贴给它，或者让它去读 [llms.txt](llms.txt)。
 
 <details>
 <summary>各家 Agent 从哪里读 skill</summary>
@@ -66,7 +66,7 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md
 
 示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在高档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
 
-**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
+**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里，silk.js 和 three.js 从 jsDelivr 加载）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
 
@@ -78,20 +78,24 @@ npx serve .            # 或：python3 -m http.server
 
 ## 30 秒上手
 
+先把 `src/` 文件夹拷进项目，起名 `silk/`，再装上 three（`npm i three`），然后：
+
 ```html
 <canvas id="pear" style="width: 420px; aspect-ratio: 1"></canvas>
 <canvas id="moon" style="width: 420px; aspect-ratio: 1"></canvas>
 
 <script type="importmap">
-  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+  { "imports": { "three": "./node_modules/three/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';   // 或拷贝 src/ 后 import './src/silk.js'
+  import { silkify } from './silk/silk.js';
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // 任意透明底 PNG
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // 等距圆柱投影贴图
 </script>
 ```
+
+没地方放文件（比如 CodePen、只有一个 HTML 文件）？那就改成从 `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.3/src/silk.js` 引入，`three` 映射到 `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`；这样页面就得靠 jsDelivr 了（细节见 [SKILL.md](SKILL.md#get-the-code)）。
 
 - **图片没有透明底？** 运行 `python3 scripts/cutout.py photo.jpg out.png` 抠掉纯色背景；或者保留整张矩形，让 silkify 把它做成软垫。
 - **用 React？** 组件写法见 [SKILL.md](SKILL.md#react-and-nextjs)。
@@ -185,7 +189,7 @@ v0.2.0 加载时会在主线程临时建一个 WebGL 上下文来探测 WebGL2�
 ## 仓库结构
 
 ```
-SKILL.md            Agent Skill：取得代码（CDN 或拷贝）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
+SKILL.md            Agent Skill：取得代码（拷贝 src/，或走 CDN）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
 references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节
 CHANGELOG.md        每个版本改了什么，以及版本 tag 承诺什么（看重完整性时钉 commit）
 src/silk.js         入口：分档，Worker → 主线程 → 静态图三级退路，转发指针事件
@@ -201,7 +205,7 @@ scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENT
 scripts/browsers.mjs             shoot.mjs --browsers：WebKit 与 Firefox，同源与跨源（Playwright）
 scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）
 scripts/harness.mjs              各检查脚本共用的静态服务器与 Playwright 加载
-examples/           画廊、Lab 调参页与 cdn.html（静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
+examples/           画廊、Lab 调参页、CDN 用法的测试页 cdn.html（都是静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
 examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程
 test/edge.html      曾经静默失败的情形：SVG、空图或缺图、加载中的调用
 integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions

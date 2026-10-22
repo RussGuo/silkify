@@ -2,10 +2,15 @@
 
 ## Versions and what a tag promises
 
-- **Version numbers.** While silkify is 0.x, a minor release (0.3) may rename or remove options and handle members; it says so here. A patch release (0.2.2) fixes and adds, and never breaks a `silkify()` call that worked: the default look stays pixel for pixel the same (the gallery posters are re-rendered and compared byte for byte before a release).
-- **Tags.** A release tag (`v0.2.2`) is pushed once, after every check has passed on that commit, and is never moved or deleted. That is this project's promise, not a property of git: a tag can be force-pushed. jsDelivr keeps the files it has served for a tag, so `@v0.2.2` does not change under a page in practice, but nothing cryptographic guarantees it.
-- **When integrity matters, pin a commit.** `https://cdn.jsdelivr.net/gh/RussGuo/silkify@<40-character commit SHA>/src/silk.js` names exactly one tree of files. Or copy `src/` into the project and serve it yourself.
-- **Subresource Integrity covers one file.** An `integrity` attribute (or an import map's `integrity` entry) checks only the module the page imports directly, silk.js. The modules silk.js imports, the worker it starts, and three.js loaded inside that worker are fetched without one. For the whole chain, pin a commit and self-host.
+- **Version numbers.** While silkify is 0.x, a minor release (0.3) may rename or remove options and handle members; it says so here. A patch release (0.2.3) fixes and adds, and never breaks a `silkify()` call that worked: the default look stays pixel for pixel the same (the gallery posters are re-rendered and compared byte for byte before a release).
+- **Tags.** A release tag (`v0.2.3`) is pushed once, after every check has passed on that commit, and is never moved or deleted. That is this project's promise, not a property of git: a tag can be force-pushed.
+- **Copying `src/` is the default, and the safest.** A page that serves its own copy changes only when you copy a new release in, and depends on no outside service.
+- **If you import from the CDN instead,** jsDelivr keeps the files it has served for a tag, so `@v0.2.3` does not change under a page in practice, but nothing cryptographic guarantees it. When integrity matters, pin a commit: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@<40-character commit SHA>/src/silk.js` names exactly one tree of files.
+- **Subresource Integrity covers one file.** On the CDN, an `integrity` attribute (or an import map's `integrity` entry) checks only the module the page imports directly, silk.js. The modules silk.js imports, the worker it starts, and three.js loaded inside that worker are fetched without one. For the whole chain, copy `src/` and serve it yourself.
+
+## 0.2.3 (2026-10-22)
+
+- **Self-hosting is the default; the CDN is the alternative.** SKILL.md now has the agent copy `src/` from the skill's folder into the project and install three.js there too, so the page depends on no outside service. Importing from jsDelivr stays, for a page with nowhere to put files (a CodePen, one HTML file); the READMEs, references/troubleshooting.md (now with a Content-Security-Policy line for the default way, and its table no longer broken in two), AGENTS.md, llms.txt and the Cursor and Copilot files follow. The Lab's Download HTML still loads silk.js and three.js from jsDelivr, and now says so on its button and in the file it writes. Checked by an agent that had never seen the repository, following the new SKILL.md in an empty project: `'webgl'` on `'worker'`, ripples, no request to another origin, also under the Content-Security-Policy line. No code changes.
 
 ## 0.2.2 (2026-10-22)
 
