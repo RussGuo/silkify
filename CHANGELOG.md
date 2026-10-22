@@ -7,6 +7,10 @@
 - **When integrity matters, pin a commit.** `https://cdn.jsdelivr.net/gh/RussGuo/silkify@<40-character commit SHA>/src/silk.js` names exactly one tree of files. Or copy `src/` into the project and serve it yourself.
 - **Subresource Integrity covers one file.** An `integrity` attribute (or an import map's `integrity` entry) checks only the module the page imports directly, silk.js. The modules silk.js imports, the worker it starts, and three.js loaded inside that worker are fetched without one. For the whole chain, pin a commit and self-host.
 
+## Unreleased
+
+- The FateTell mark (the ink drop) is now stated the same way everywhere: © FateTell, all rights reserved, not covered by the MIT license, to be removed from forks and redistributions. The exception is spelled out at the end of LICENSE and in CREDITS, README, the gallery footer, the Lab and the files the Lab exports. Nothing else changes.
+
 ## 0.2.1 (2026-10-21)
 
 Fixes from an adversarial review of 0.2.0. Every change below is checked by `scripts/shoot.mjs`, `--browsers` or `scripts/frameworks.mjs`, which CI now runs on every push.

@@ -445,10 +445,12 @@
     bg.onchange = () => { state.bg = bg.value; sync(); writeHash(); };
     w3.append(bg);
     const local = el('p', { className: 'note', textContent: 'A local picture is never uploaded, so it is not in the link: the link opens the pomegranate with these settings.' });
-    box.append(r1, r2, r3, local);
+    const mark = el('p', { className: 'note', textContent: 'The ink drop is the FateTell mark, © FateTell: try things with it here, but put your own picture in a page you publish.' });
+    box.append(r1, r2, r3, local, mark);
     views.push({ key: 'object', row: r1, show() {
       s.value = state.obj; url.value = state.url || ''; bg.value = state.bg; stage.dataset.bg = state.bg;
       local.hidden = !isLocal();
+      mark.hidden = state.obj !== 'ink-drop';
     } });
     return box;
   }
@@ -533,7 +535,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title.replace(/</g, '&lt;')}, silkified</title>
 <\!-- Made in the silkify Lab (https://russguo.github.io/silkify/examples/lab.html). Open it with a double-click:
-     the picture is inside this file; silk.js and three.js load from jsDelivr, so it needs the network. -->
+     the picture is inside this file; silk.js and three.js load from jsDelivr, so it needs the network. -->${state.obj === 'ink-drop' ? '\n<\!-- The picture is the FateTell mark, © FateTell, all rights reserved: for your own experiments only. -->' : ''}
 <style>
   html, body { margin: 0; height: 100%; background: ${BACKGROUND[state.bg] || BACKGROUND.paper}; }
   canvas { display: block; width: min(92vw, 92vh); aspect-ratio: 1; margin: 4vh auto; touch-action: pan-y; }

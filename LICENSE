@@ -19,3 +19,21 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Exception: the FateTell mark
+
+The MIT License above covers the code and documentation. It does not cover
+the FateTell mark, which appears in this repository only as a demonstration
+subject, in these files:
+
+    examples/images/ink-drop.webp
+    examples/posters/ink-drop.webp
+    examples/posters/ink-drop@2x.webp
+    docs/shots/ink-drop-rest.jpg
+    docs/shots/ink-drop-ripple.gif
+
+The mark is (c) FateTell, all rights reserved. No rights to it are granted.
+If you fork or redistribute this repository, remove these files or replace
+them with a picture of your own.

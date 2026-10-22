@@ -48,7 +48,7 @@ Every frame below is a real headless-Chrome render of [`examples/index.html`](ex
 | **Portrait of a Man**: Rosalba Carriera, c. 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="miniature portrait at rest"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="miniature portrait rippling"> |
 | **Bird figure**: gold, enamel and gemstones, India, possibly 18th century | <img src="docs/shots/parrot-rest.jpg" width="300" alt="bird figure at rest"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="bird figure rippling"> |
 
-The images are public domain or CC0; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
+The images are public domain or CC0, except the FateTell mark, which is © FateTell and must be removed from forks; see [examples/CREDITS.md](examples/CREDITS.md). The left column is the gallery's poster: a still frame rendered by silkify itself. The GIFs are recorded in the high tier on the main thread, using SwiftShader, a software GPU. They are frame-stepped (three simulation steps per GIF frame at 20 fps), so the motion has the same timing as 60 fps on a real GPU. The GIF palette and the 320 px width soften the grain and the highlights.
 
 **[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture, then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it. One picture per preset is in [docs/shots/lab](docs/shots/lab).
 
@@ -200,5 +200,5 @@ The silk material and the wave-and-light pipeline began as the "silk moon" on th
 
 ## License
 
-The code is under the [MIT](LICENSE) license, © 2026 Guo Hao. The example images keep their own terms: public domain or CC0, except the FateTell mark (see [CREDITS](examples/CREDITS.md)).
+The code is under the [MIT](LICENSE) license, © 2026 Guo Hao. The example images keep their own terms: public domain or CC0, except the FateTell mark, which is © FateTell, all rights reserved, and not covered by MIT (see the exception in [LICENSE](LICENSE) and [CREDITS](examples/CREDITS.md)).
 

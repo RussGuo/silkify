@@ -48,7 +48,7 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKIL
 | **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
 | **鸟形摆件**：黄金、珐琅与宝石，印度，可能为 18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鸟形摆件"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鸟形摆件"> |
 
-示例图片均为公有领域或 CC0，来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
+示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
 
 **[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数排在一页：拖动滑杆，物体实时变化；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
 
@@ -200,4 +200,4 @@ AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 
 
 ## 许可证
 
-代码采用 [MIT](LICENSE) 许可证，© 2026 Guo Hao。示例图片各自保留原有条款：除 FateTell 标识外，均为公有领域或 CC0（见 [CREDITS](examples/CREDITS.md)）。
+代码采用 [MIT](LICENSE) 许可证，© 2026 Guo Hao。示例图片各自保留原有条款：除 FateTell 标识外，均为公有领域或 CC0；FateTell 标识 © FateTell 保留所有权利，不在 MIT 之内（见 [LICENSE](LICENSE) 末尾的例外条款与 [CREDITS](examples/CREDITS.md)）。
