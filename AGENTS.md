@@ -8,9 +8,15 @@ Turn a picture into a touchable silk object on a web page. At rest it is matte a
 
 This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js`.
 
+To install it as a skill, do what this sentence says (it is the one the README gives people to paste):
+
+```text
+Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+```
+
 ## Working on this repository
 
-- `SKILL.md` and `references/` are the only hand-written agent docs. `AGENTS.md`, `llms.txt` and everything in `integrations/` are generated: edit the sources, then run `npm run build:integrations` (`-- --check` fails on drift).
+- `SKILL.md` and `references/` are the only hand-written agent docs. `AGENTS.md`, `llms.txt` and everything in `integrations/` are generated: edit the sources, then run `npm run build:integrations` (`-- --check` fails on drift). The install sentence in the READMEs, the gallery and the Lab is written by the same script: change it there, not in the pages.
 - `node scripts/shoot.mjs` must pass before every commit (headless Chrome, Python with Pillow; about two minutes); it writes nothing into the repository (`--shots` rewrites `docs/shots/*-rest.jpg` when the look changed). CI also runs `--browsers` (WebKit and Firefox) and `scripts/frameworks.mjs` (React in Vite and Next.js); both need Playwright, which is never a dependency.
 - The default look is pixel-for-pixel fixed: every new option defaults to off, and the gallery posters in `examples/posters/` are not re-rendered unless their card changed.
 - No build step and no runtime dependencies besides three.js; every source file stays under 800 lines and opens with a comment that says what it is and why.

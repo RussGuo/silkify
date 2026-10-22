@@ -11,6 +11,13 @@
  *                                                  applies only to page and component files, and not to code review
  *   AGENTS.md, llms.txt                           at the repository root
  *
+ * It also owns the install sentence: one instruction, in English and in Chinese, that any agent can follow to install
+ * the skill (clone the release tag into the folder it loads skills from, read SKILL.md, say it is ready). Tested by
+ * hand in Claude Code and in Codex with an empty HOME. It is written into AGENTS.md and llms.txt, and into a slot in
+ * each page a person copies it from: the code block under `<!-- install -->` in README.md and README.zh-CN.md, and
+ * the `data-install` attribute of the "Install in your agent" button in examples/index.html and examples/lab.html.
+ * --check fails when any of them differs from the sentence below by one character.
+ *
  * There is no ChatGPT custom GPT any more: OpenAI retires custom GPTs on 2026-12-11, and the ChatGPT desktop app
  * reads skills like Codex does (the same clone of this repository).
  *
@@ -37,6 +44,18 @@ const BLOB = `${REPO}/blob/${TAG}/`;
 const RAW = `https://raw.githubusercontent.com/RussGuo/silkify/${TAG}/`;
 const CDN = `https://cdn.jsdelivr.net/gh/RussGuo/silkify@${TAG}/`;
 const SITE = 'https://russguo.github.io/silkify/';
+/** What a person pastes into their agent. One line (it ends up in a chat box and an HTML attribute): no quotes, &, < or >. */
+const INSTALL = {
+  en: `Install the silkify agent skill: git clone --depth 1 --branch ${TAG} ${REPO} into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.`,
+  zh: `安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch ${TAG} ${REPO} 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。`,
+};
+/** Where the sentence sits in hand-written pages: a pattern with three groups (before, the sentence, after). */
+const SLOTS = [
+  ['README.md', 'en', /(<!-- install[^\n]*-->\n```text\n)([^\n]*)(\n```)/],
+  ['README.zh-CN.md', 'zh', /(<!-- install[^\n]*-->\n```text\n)([^\n]*)(\n```)/],
+  ['examples/index.html', 'en', /(<button id="install"[^>]*? data-install=")([^"]*)(")/],
+  ['examples/lab.html', 'en', /(<button id="install"[^>]*? data-install=")([^"]*)(")/],
+];
 const REFERENCES = [
   ['references/parameters.md', 'Parameters', 'every option with its default and tuning range, the material and feel presets, recipes from the gallery'],
   ['references/performance.md', 'Performance', 'device tiers, when the loop sleeps, many objects on one page, what breeze and autoplay cost, measurements'],
@@ -87,6 +106,13 @@ for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README
   }
 }
 if (/\bClaude\b/.test(body)) errors.push('SKILL.md: the body names a host ("Claude"); say "the agent"');
+for (const [lang, text] of Object.entries(INSTALL)) if (/["&<>\n]/.test(text)) errors.push(`INSTALL.${lang}: one line, without quotes, & or angle brackets`);
+const pages = {};
+for (const [f, lang, slot] of SLOTS) {
+  pages[f] ??= await read(f);
+  if (!slot.test(pages[f])) errors.push(`${f}: no slot for the install sentence (${slot.source.slice(1, 24)}…)`);
+  else pages[f] = pages[f].replace(slot, (_, a, __, b) => a + INSTALL[lang] + b);
+}
 
 /* ============================================
  * Transforms
@@ -136,9 +162,15 @@ ${oneLine}
 
 This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from \`${CDN}src/silk.js\`.
 
+To install it as a skill, do what this sentence says (it is the one the README gives people to paste):
+
+\`\`\`text
+${INSTALL.en}
+\`\`\`
+
 ## Working on this repository
 
-- \`SKILL.md\` and \`references/\` are the only hand-written agent docs. \`AGENTS.md\`, \`llms.txt\` and everything in \`integrations/\` are generated: edit the sources, then run \`npm run build:integrations\` (\`-- --check\` fails on drift).
+- \`SKILL.md\` and \`references/\` are the only hand-written agent docs. \`AGENTS.md\`, \`llms.txt\` and everything in \`integrations/\` are generated: edit the sources, then run \`npm run build:integrations\` (\`-- --check\` fails on drift). The install sentence in the READMEs, the gallery and the Lab is written by the same script: change it there, not in the pages.
 - \`node scripts/shoot.mjs\` must pass before every commit (headless Chrome, Python with Pillow; about two minutes); it writes nothing into the repository (\`--shots\` rewrites \`docs/shots/*-rest.jpg\` when the look changed). CI also runs \`--browsers\` (WebKit and Firefox) and \`scripts/frameworks.mjs\` (React in Vite and Next.js); both need Playwright, which is never a dependency.
 - The default look is pixel-for-pixel fixed: every new option defaults to off, and the gallery posters in \`examples/posters/\` are not re-rendered unless their card changed.
 - No build step and no runtime dependencies besides three.js; every source file stays under 800 lines and opens with a comment that says what it is and why.
@@ -149,6 +181,8 @@ files['llms.txt'] = `# silkify
 > ${oneLine}
 
 silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Import it with no install from ${CDN}src/silk.js (pinned to ${TAG}) and an import map for three.js 0.152.2.
+
+An agent installs the skill by following this instruction: ${INSTALL.en}
 
 ## Skill
 
@@ -184,6 +218,7 @@ if (errors.length) {
 }
 
 const drift = [];
+Object.assign(files, pages);   // the pages with the sentence filled in: rewritten only when the sentence changed
 for (const [f, text] of Object.entries(files)) {
   const at = path.join(ROOT, f);
   const now = await readFile(at, 'utf8').catch(() => null);

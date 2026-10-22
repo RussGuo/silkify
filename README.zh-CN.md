@@ -17,13 +17,27 @@
 - **体积不小。** CDN 方式在第一个物体活起来时要下载整个 three.js（1.2 MB，压缩后约 240 KB）。
 - **不是抠图工具。** 背景杂乱的照片要先自己准备好抠好的 PNG；[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
 
-## 从你的 Agent 使用
+## 一句话安装
 
-silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKILL.md)，任何编码 Agent 都能照着做完从抠图到成品页面的全过程。项目里不用拷贝任何文件，Skill 直接从 CDN 引入 silk.js。
+把下面这句话复制给你的编码 Agent（Claude Code、Codex、Cursor、Copilot、Gemini CLI，或者别的能装 skill 的 Agent），它会自己把 silkify 装好：
+
+<!-- install: written by scripts/build-integrations.mjs; change it there -->
+```text
+安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
+```
+
+装好之后，跟它说「把这张图丝绸化」就行。你的项目里不用拷任何文件，Skill 会直接从 CDN 引入 silk.js。要是你的 Agent 装不了 skill，也照样能用：把 [SKILL.md](SKILL.md) 原文贴给它，或者让它去读 [llms.txt](llms.txt)。
+
+<details>
+<summary>各家 Agent 从哪里读 skill</summary>
+
+<br>
+
+silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md](SKILL.md)，从抠图到做出成品页面，任何编码 Agent 照着走一遍就行。
 
 | Agent | 安装 |
 |---|---|
-| Claude Code | `/plugin marketplace add RussGuo/silkify`，再 `/plugin install silkify@silkify` |
+| Claude Code | clone 到 `~/.claude/skills/silkify`；或者 `/plugin marketplace add RussGuo/silkify`，再 `/plugin install silkify@silkify` |
 | Codex（CLI、IDE 插件）与 ChatGPT 桌面端 | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
 | Cursor | 同一条 clone（Cursor 读取 `~/.agents/skills`），或把 [`integrations/cursor/silkify.mdc`](integrations/cursor/silkify.mdc) 放进 `.cursor/rules/` |
 | GitHub Copilot | 同一条 clone（Copilot 读取 `~/.agents/skills`）；只给某个仓库用时，把 [`integrations/copilot/silkify.instructions.md`](integrations/copilot/silkify.instructions.md) 放进 `.github/instructions/`（只作用于页面与组件文件） |
@@ -31,7 +45,9 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：一份 [SKILL.md](SKIL
 | OpenCode、Amp 等支持 Skill 的 Agent | 同一条 clone，或 `npx skills add RussGuo/silkify` |
 | 其他 | 把 [SKILL.md](SKILL.md) 原文贴进对话，或让 Agent 读 [llms.txt](llms.txt) |
 
-然后对它说「把这张图丝绸化」。想固定版本，clone 时加 `--branch v0.2.1`（各版本的变化见 [CHANGELOG.md](CHANGELOG.md)）。Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都由 `npm run build:integrations` 从 SKILL.md 生成，各宿主读到的是同一份说明。
+上面那句话用 `--branch` 把版本钉在当前发布版上；去掉它就一直跟着 `main` 走（每个版本改了什么，看 [CHANGELOG.md](CHANGELOG.md)）。多数 Agent 要新开一个会话才会认出新装的 skill。Cursor、Copilot 用的文件以及 [AGENTS.md](AGENTS.md)、[llms.txt](llms.txt) 都是 `npm run build:integrations` 从 SKILL.md 生成的，所以不管用哪个 Agent，读到的都是同一份说明。
+
+</details>
 
 ## 画廊
 
@@ -79,7 +95,7 @@ npx serve .            # 或：python3 -m http.server
 
 - **图片没有透明底？** 运行 `python3 scripts/cutout.py photo.jpg out.png` 抠掉纯色背景；或者保留整张矩形，让 silkify 把它做成软垫。
 - **用 React？** 组件写法见 [SKILL.md](SKILL.md#react-and-nextjs)。
-- **在 Agent 里用？** 见[从你的 Agent 使用](#从你的-agent-使用)。
+- **在 Agent 里用？** 见[一句话安装](#一句话安装)。
 
 `silkify()` 会立即返回一个句柄：
 
@@ -181,7 +197,7 @@ src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
 scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab 与 test/edge.html）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
-scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt（--check 查漂移）
+scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt；两份 README、画廊和 Lab 里的那句安装指令也由它写入（--check 查漂移）
 scripts/browsers.mjs             shoot.mjs --browsers：WebKit 与 Firefox，同源与跨源（Playwright）
 scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）
 scripts/harness.mjs              各检查脚本共用的静态服务器与 Playwright 加载

@@ -17,13 +17,27 @@ silkify is a small WebGL library (one ES module on top of [three.js](https://thr
 - **Not small on the wire.** The CDN way downloads all of three.js (1.2 MB, about 240 KB compressed) the first time an object goes live.
 - **Not a background remover.** A photo of a subject on a busy background needs a cut-out PNG first; [cutout.py](scripts/cutout.py) only keys out plain backdrops.
 
-## Use it from your agent
+## One-line install
 
-silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) that any coding agent can follow, from cutting out the picture to the finished page. Nothing has to be copied into your project, because the skill imports silk.js from the CDN.
+Copy this sentence into your coding agent (Claude Code, Codex, Cursor, Copilot, Gemini CLI, or any other agent that loads skills), and it installs silkify itself:
+
+<!-- install: written by scripts/build-integrations.mjs; change it there -->
+```text
+Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+```
+
+Then ask it to "silkify" a picture. Nothing has to be copied into your project, because the skill imports silk.js from the CDN. An agent that cannot install skills can still use it: paste [SKILL.md](SKILL.md) into the chat, or point it at [llms.txt](llms.txt).
+
+<details>
+<summary>Where each agent looks for skills</summary>
+
+<br>
+
+silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) that any coding agent can follow, from cutting out the picture to the finished page.
 
 | Agent | Install |
 |---|---|
-| Claude Code | `/plugin marketplace add RussGuo/silkify`, then `/plugin install silkify@silkify` |
+| Claude Code | clone into `~/.claude/skills/silkify`, or `/plugin marketplace add RussGuo/silkify`, then `/plugin install silkify@silkify` |
 | Codex (CLI, IDE extension) and the ChatGPT desktop app | `git clone --depth 1 https://github.com/RussGuo/silkify ~/.agents/skills/silkify` |
 | Cursor | the same clone (Cursor reads `~/.agents/skills`), or copy [`integrations/cursor/silkify.mdc`](integrations/cursor/silkify.mdc) into `.cursor/rules/` |
 | GitHub Copilot | the same clone (Copilot reads `~/.agents/skills`), or, for one repository, copy [`integrations/copilot/silkify.instructions.md`](integrations/copilot/silkify.instructions.md) into `.github/instructions/` (it applies to page and component files only) |
@@ -31,7 +45,9 @@ silkify is an [Agent Skill](https://agentskills.io): one [SKILL.md](SKILL.md) th
 | OpenCode, Amp and other skill-aware agents | the same clone, or `npx skills add RussGuo/silkify` |
 | Anything else | paste [SKILL.md](SKILL.md) into the chat, or point the agent at [llms.txt](llms.txt) |
 
-Then ask it to "silkify" a picture. Add `--branch v0.2.1` to the clone to pin a release ([CHANGELOG.md](CHANGELOG.md) says what changes between releases). The files for Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
+The sentence above pins the clone to the current release with `--branch`; leave it out to follow `main` ([CHANGELOG.md](CHANGELOG.md) says what changes between releases). Most agents pick up a new skill in the next session. The files for Cursor and Copilot, [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) are generated from SKILL.md by `npm run build:integrations`, so every host reads the same instructions.
+
+</details>
 
 ## Gallery
 
@@ -79,7 +95,7 @@ npx serve .            # or: python3 -m http.server
 
 - **No transparent background?** Run `python3 scripts/cutout.py photo.jpg out.png` to key out a plain backdrop, or keep the rectangle and let silkify make a cushion.
 - **React?** See the component in [SKILL.md](SKILL.md#react-and-nextjs).
-- **From an agent?** See [Use it from your agent](#use-it-from-your-agent).
+- **From an agent?** See [One-line install](#one-line-install).
 
 `silkify()` returns a handle right away:
 
@@ -181,7 +197,7 @@ src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
-scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt (--check for drift)
+scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence in both READMEs, the gallery and the Lab (--check for drift)
 scripts/browsers.mjs             shoot.mjs --browsers: WebKit and Firefox, same origin and cross-origin (Playwright)
 scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
 scripts/harness.mjs              the static server and the Playwright loader the check scripts share

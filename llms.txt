@@ -4,6 +4,8 @@
 
 silkify is a WebGL library (one ES module on three.js) plus an Agent Skill. Import it with no install from https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js (pinned to v0.2.1) and an import map for three.js 0.152.2.
 
+An agent installs the skill by following this instruction: Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+
 ## Skill
 
 - [SKILL.md](https://raw.githubusercontent.com/RussGuo/silkify/v0.2.1/SKILL.md): the steps an agent follows: get the code, cut out the subject, choose puff, material and feel, render in HTML or React, verify

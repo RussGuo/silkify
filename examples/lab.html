@@ -45,6 +45,9 @@
   h1 { margin: 0; font: 400 30px/1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; letter-spacing: -0.01em; }
   h1 em { color: var(--accent); }
   h1 a { color: inherit; text-decoration: none; }
+  .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  /* the gallery's "Install in your agent": copies the one-line install sentence written by build-integrations.mjs */
+  #install { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--paper) 78%, transparent); backdrop-filter: blur(6px); }
   .read { font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); text-align: right; max-width: 46em; }
   .read.bad { color: var(--accent); }
   .drop-hint { position: absolute; left: 22px; bottom: 16px; font-size: 12px; color: var(--muted); pointer-events: none; }
@@ -127,7 +130,7 @@
 <div class="lab">
   <section class="stage" id="stage">
     <div class="top">
-      <h1><a href="./">silk<em>ify</em></a> Lab</h1>
+      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
       <div class="read" id="read">loading…</div>
     </div>
     <span class="drop-hint">drop or paste an image or a URL · hold to press deeper · hold B to compare</span>
@@ -606,6 +609,8 @@ ${bump ? `  const BUMP = '${bump}';\n` : ''}  window.silk = silkify(document.get
   /* ---- output buttons ---- */
   const flash = (b, text) => { const t = b.textContent; b.textContent = text; setTimeout(() => (b.textContent = t), 1200); };
   document.getElementById('copy').onclick = (e) => navigator.clipboard.writeText(printed()).then(() => flash(e.target, 'Copied'));
+  document.getElementById('install').onclick = (e) => navigator.clipboard.writeText(e.currentTarget.dataset.install)
+    .then(() => flash(e.target, 'Copied'), () => window.prompt('Copy this sentence and paste it into your agent:', e.target.dataset.install));
   document.getElementById('link').onclick = (e) => navigator.clipboard.writeText(location.href)
     .then(() => flash(e.target, isLocal() ? 'Copied, without your local picture' : 'Copied'));
   document.getElementById('download').onclick = (e) => download(e.target);

@@ -9,6 +9,7 @@
 
 ## Unreleased
 
+- **One-line install.** The README's per-agent install table gives way to one sentence to paste into any coding agent: it clones the release tag into the folder that agent loads skills from (`~/.claude/skills` for Claude Code, `~/.agents/skills` for Codex, Cursor, Copilot, Gemini CLI and most others), reads SKILL.md and says it is ready. Checked in Claude Code, and in Codex with an empty home directory, in English and in Chinese: each installed it and a new session listed the skill. The gallery and the Lab copy the same sentence from an "Install in your agent" button. It is defined once, in `scripts/build-integrations.mjs`, which writes it into both READMEs, both pages, AGENTS.md and llms.txt, and `--check` fails if any copy differs. The per-agent table is still in the README, folded.
 - The FateTell mark (the ink drop) is now stated the same way everywhere: © FateTell, all rights reserved, not covered by the MIT license, to be removed from forks and redistributions. The exception is spelled out at the end of LICENSE and in CREDITS, README, the gallery footer, the Lab and the files the Lab exports. Nothing else changes.
 
 ## 0.2.1 (2026-10-21)

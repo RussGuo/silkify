@@ -15,6 +15,7 @@
  * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
  *          mount with WebGL in its Web Worker, and must change under a pointer stroke; one card again in the high tier
  *          (forced: the software GPU would pick low). Writes nothing into the repository unless --shots is given.
+ *          In the gallery and the Lab, "Install in your agent" must put its sentence on the clipboard.
  *          Then the Lab (low tier): presets switch, a dragged slider changes the frame through setTheme, the link
  *          restores every control in a fresh page, and at rest the renderer draws 0 frames in 10 s.
  *          Then test/edge.html: SVG pictures go live, an empty or missing picture fails with a reason and one
@@ -146,6 +147,18 @@ async function openLab(query = '', state = null) {
   return evaluate(`window.__lab.ready().then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier }))`);
 }
 const labRow = (key) => `[...document.querySelectorAll('#controls .row')].find((r) => r.querySelector('label')?.textContent === '${key}')`;
+/** The "Install in your agent" button (gallery and Lab): a click puts its sentence on the clipboard and says Copied.
+ *  The sentence itself is checked against build-integrations.mjs by `--check`; this checks that the button works. */
+async function checkInstall(where) {
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  await send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base });
+  const r = await evaluate(`(async () => { const b = document.getElementById('install'); if (!b) return null; b.click();
+    await new Promise((r) => setTimeout(r, 150));
+    return { want: b.dataset.install, label: b.textContent, got: await navigator.clipboard.readText().catch((e) => 'error: ' + e.message) }; })()`);
+  const ok = r && r.want.startsWith('Install the silkify') && r.got === r.want && r.label === 'Copied';
+  if (!ok) problems.push(`${where}: the install button did not copy its sentence (${JSON.stringify(r)})`);
+  console.log(where.padEnd(6), `install button: ${ok ? `copied ${r.got.length} chars` : 'FAILED'}`);
+}
 const stageRect = () => evaluate(`(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, sx: 0, sy: 0 }; })()`);
 const labStats = () => evaluate('window.__lab.handle.stats()');
 async function touchStroke(r, press = true) {
@@ -340,6 +353,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   /* ---- verify: posters at rest (JPEG), then each card live in its Worker, and it must ripple ---- */
   if (args.includes('--shots')) await mkdir(OUT, { recursive: true });
   ids = (await load(2)).filter((id) => !only || id === only);
+  if (!only) await checkInstall('gallery');
   await mouse('mouseMoved', 2, 2);
   for (const id of ids) {
     const r = await rectOf(id);
@@ -403,6 +417,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
 async function verifyLab() {
   const h = await openLab('?tier=low');
   if (h.mode !== 'webgl' || h.tier !== 'low') problems.push(`lab: ${h.mode} / ${h.tier}`);
+  await checkInstall('lab');
   for (const [field, value] of [['material', 'foil'], ['feel', 'water'], ['material', 'velvet'], ['feel', 'jelly'], ['material', 'ink']]) {
     await evaluate(`(() => { const s = ${labRow(field)}.querySelector('select'); s.value = '${value}'; s.dispatchEvent(new Event('change')); })()`);
     await sleep(300);
