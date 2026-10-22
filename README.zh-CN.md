@@ -12,9 +12,9 @@
 
 - **不是视频或 GIF 生成器。** 它是网页上实时运行的 WebGL；下面的 GIF 是本仓库的脚本录下来的屏幕录像。
 - **不是 3D 模型。** 轮廓被吹鼓成一块从正面看的浮雕，更像软垫而不是雕塑，不能转到侧面去看（月球是唯一真正的球）。
-- **该静的时候是静的。** 没有 WebGL2、系统要求减少动态效果、开了省流量或设备很弱时，访客只看到一帧静态图。
-- **手机上是点按和横向划动**，并且走轻量档；竖向划动会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
-- **体积不小。** CDN 方式在第一个物体活起来时要下载整个 three.js（1.2 MB，压缩后约 240 KB）。
+- **条件不够时只有一张静态图。** 没有 WebGL2、系统设置了减少动态效果、开了省流量，或者设备太弱，访客看到的就是一张静止的图。
+- **手机上只能点按和横向划动**，而且走的是轻量档；竖着划会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
+- **体积不小。** 走 CDN 时，第一个物体开始动之前要先下载整个 three.js（1.2 MB，压缩后约 240 KB）。
 - **不是抠图工具。** 背景杂乱的照片要先自己准备好抠好的 PNG；[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
 
 ## 一句话安装
@@ -64,9 +64,9 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md
 | **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
 | **鸟形摆件**：黄金、珐琅与宝石，印度，可能为 18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鸟形摆件"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鸟形摆件"> |
 
-示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 在高档、主线程下录制，使用软件 GPU SwiftShader，按帧步进：GIF 每帧对应三步模拟，20 fps 播放，所以动作节奏与真实 GPU 上的 60 fps 一致。GIF 调色板与 320 像素宽度会让颗粒和高光略显柔和。
+示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在高档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
 
-**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数排在一页：拖动滑杆，物体实时变化；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
+**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
 
@@ -108,18 +108,18 @@ silk.dispose();
 
 ## 参数速查
 
-多数质感两个词就够：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
+大多数效果两个词就能定：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
 
 | 分组 | 参数（默认值） |
 |---|---|
 | 预设 | `material`（`'silk'`）· `feel`（`'silk'`） |
-| 涟漪 | `pressDepth` 0.30（凹坑深度）· `pressDepthHold` 0.60（按住时）· `pressRadius` 0.075（半径）· `waveSpeed` 1.6（波速）· `damping` 0.996（阻尼）· `displace` 0.32（位移）· `ripple` 62（涟漪对法线的扰动） |
+| 涟漪 | `pressDepth` 0.30（凹坑深度）· `pressDepthHold` 0.60（按住时）· `pressRadius` 0.075（半径）· `waveSpeed` 1.6（波速）· `damping` 0.996（阻尼）· `displace` 0.32（位移）· `ripple` 62（涟漪的明暗对比） |
 | 材质 | `sheen` 球体 0.18 / 图片 0.3（高光）· `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]`（高光颜色）· `satin` 0.9（缎面）· `albedo` null 或 `[r,g,b]`（反照率）· `grain` 0（颗粒）· `grainScale` 1（颗粒尺寸）· `gamma` 1 · `exposure` 1（曝光）· `metallic` 0（金属感）· `anisotropy` 0（各向异性）· `anisotropyAngle` 0（丝线方向）· `threads` 0（丝线纹理）· `rim` 0（轮廓光）· `rimPower` 3 · `rimColor` `[1,1,1]` 或 null（取图片本色）· `iridescence` 0（虹彩）· `silkRest` 0（静止时的丝绸程度）· `silkSpread` 1（丝绸扩散范围） |
-| 光 | `light`（视空间主光方向）· `lightColor` `[1,1,1]`（主光颜色）· `satinLight` `[0.5,0.6,0.45]`（缎面与高光的光向）· `floor` 0.05 / 0.55（背光处亮度地板）· `volume` 0.28（体积感梯度）· `fillLight` true（补光跟随指针）· `idleSweep` true（闲置扫光） |
+| 光 | `light`（视空间主光方向）· `lightColor` `[1,1,1]`（主光颜色）· `satinLight` `[0.5,0.6,0.45]`（缎面与高光的光向）· `floor` 0.05 / 0.55（背光面的最低亮度）· `volume` 0.28（明暗体积感）· `fillLight` true（补光跟随指针）· `idleSweep` true（闲置时补光慢慢扫一圈） |
 | 动作 | `autoplay` false 或 `{ interval, depth, radius }`（定时自动落一滴）· `breeze` 0（微风）· `handle.ripple(x, y)`（程序化触碰一次） |
-| 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（体量档位）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
+| 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（鼓起的高度）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | 形状（球体） | `phase` null 或 0–1（月相）· `bump`（高程图）· `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
-| 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态帧）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
+| 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态图）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
 
 每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方在 [references/parameters.md](references/parameters.md)，常见问题排查在 [references/troubleshooting.md](references/troubleshooting.md)。
 
@@ -137,50 +137,50 @@ flowchart LR
 1. **轮廓 → 穹面。** 透明通道给出轮廓；不透明的图片当作圆角矩形。在轮廓内解泊松方程 ∇²u = −1（轮廓上 u = 0），高度取 2√u。对圆盘，这恰好是半球。细的部分鼓得低，中轴上也不会像距离场那样折出一道棱。月球跳过这一步，直接用真球。
 2. **波动。** 阻尼波动方程在两张半浮点渲染目标上 ping-pong 交替运行：r 通道存高度，g 通道存速度。指针在上面压出凹坑。图片模式下轮廓外恒为零，所以波在轮廓处反射，轮廓本身永远不动。
 3. **位移与法线。** 高度场推动表面：球体沿法线，图片沿视线方向，所以轮廓不会折叠。涟漪斜率叠加到法线上；图片模式下再乘以 n.z，这对高度场是精确叠加，并在轮廓处自然归零。
-4. **哑光光度。** 用 Lommel–Seeliger 光照，也就是月壤的背散射模型。受光面几乎是平的，所以图片看上去就是它本来的样子；明暗交界线利落，背光处有亮度地板，不会变成黑洞。补光梯度跟随指针，靠临界阻尼弹簧追随，闲置时缓慢扫动。
-5. **只在被触碰处显出丝绸。** 缎面叠加与柔和高光都随局部涟漪能量缩放。静止时能量为零，物体就是一张照片；起涟漪的地方变成丝绸，两种材质之间没有生硬的切换。
+4. **哑光的光照模型。** 用 Lommel–Seeliger 光照，也就是月壤的背散射模型。受光面几乎是平的，所以图片看上去还是它本来的样子；明暗交界利落，背光面留有最低亮度，不会黑成一个洞。补光跟着指针走，用临界阻尼的弹簧去追，所以不会抖；没人碰时它慢慢扫一圈。
+5. **只在被触碰处显出丝绸。** 缎面叠加与柔和高光都随局部涟漪能量缩放。静止时能量为零，物体就是一张照片；起涟漪的地方变成丝绸，两种材质之间是连续过渡，没有生硬的切换。
 
 ## 性能
 
-silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的执行、图片解码、泊松求解、着色器编译和每一帧的绘制都不占主线程。Worker 不能渲染时退回主线程；没有 WebGL2 时退回静态一帧。
+silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的执行、图片解码、泊松求解、着色器编译和每一帧的绘制都不占主线程。Worker 渲染不了就退到主线程；没有 WebGL2 就只画一张静态图。
 
 | 档 | 何时 | 做什么 |
 |---|---|---|
-| `high` 高 | 桌面级设备 | 像素比 ≤ 2，模拟 ≤ 256 格，网格 ≤ 240 段；闲置时补光扫一圈后睡 |
-| `low` 低 | 触屏为主、屏幕长边小于 1024、核数 ≤ 4、内存 ≤ 4 GB，或软件光栅 | 像素比 1，模拟 ≤ 128，网格 ≤ 120；只在交互前后画 |
-| `static` 静态 | 减少动态效果、省流量、2G、极弱设备、无 WebGL2 | 不加载 three.js；画 `poster`（或原图）一帧 |
+| `high` 高 | 桌面级设备 | 像素比最高 2，模拟最多 256 格，网格最多 240 段；闲置时补光扫一圈，然后停止渲染 |
+| `low` 低 | 以触屏为主、屏幕长边小于 1024、CPU 不超过 4 核、内存不超过 4 GB，或者是软件光栅 | 像素比 1，模拟最多 128 格，网格最多 120 段；只在有人交互的前后才渲染 |
+| `static` 静态 | 系统要求减少动态效果、省流量模式、2G 网络、设备太弱，或没有 WebGL2 | 不加载 three.js，只把 `poster`（或原图）画一次 |
 
-档位在挂载时判一次，`tier` 参数可以强制。
-- **分辨率随物体的屏幕尺寸取。** 模拟、网格和贴图都按物体在屏幕上的像素决定；模拟格子变粗时按格折算、分步推进，凹坑与波的相对大小和快慢不变。
-- **去掉 MSAA 与深度、模板缓冲。** 它们对这个画面没有贡献，像素比 2 时每块画布约占 18 MB。
-- **渲染循环会睡觉：**
-  - 被触碰时和碰后 8 秒内 60 fps；
-  - 之后 12 fps 补算余波，到 20 秒清零；
-  - 再之后一帧不画。
-  - 手指抬起即不再算悬停；指针在页面别处移动或按住，不会唤醒物体。
-  - 波动求解固定每秒 60 步，所以在 30、60、120 Hz 屏上涟漪的速度一样。
-  - `breeze` 与 `autoplay` 默认关闭，因为它们会让循环醒着：微风在可见时持续 30 fps，自动落滴每一滴都会唤醒。
-  - 离开视口或标签页隐藏时停下。
-  - GPU 跟不上时像素比自动 2 → 1.5 → 1。
+档位在挂载时只判断一次；`tier` 参数可以强制指定。
+- **分辨率跟着物体在屏幕上的大小走。** 模拟网格、几何网格和贴图都按它实际占多少像素来定；模拟格子变粗时，求解器会折算常数、每帧多走几步，所以凹坑和波纹相对物体的大小与快慢不变。
+- **不开 MSAA，也不要深度与模板缓冲。** 这个画面用不上它们，而像素比 2 时每块画布要为此多占约 18 MB。
+- **不需要画的时候就不画：**
+  - 被触碰时和碰后 8 秒内按 60 fps 渲染；
+  - 之后降到 12 fps 把余波算完，到第 20 秒清零；
+  - 再往后一帧都不画；
+  - 手指抬起就不再算悬停；指针在页面别处移动或按住，不会唤醒物体；
+  - 波动求解固定每秒 60 步，30、60、120 Hz 的屏幕上涟漪一样快；
+  - `breeze`（微风）与 `autoplay`（自动落滴）默认关闭，因为开了就得一直画：微风在可见时保持 30 fps，每落一滴都会把物体唤醒；
+  - 离开视口或标签页切到后台就停；
+  - GPU 跟不上时，像素比自动从 2 降到 1.5，再降到 1。
 
 画廊演示了「一页多个物体」的做法：
-- 每张卡片先显示懒加载的 WebP **静态帧**（真实渲染的静止画面，1x/2x 两档）。
+- 每张卡片先显示一张懒加载的 WebP **静态图**，就是渲染器画出来的静止画面，分 1x 与 2x 两档。
 - 第一次被碰到时才挂载实时渲染，滚出视口就释放。
 - 同时最多 3 个实时渲染。
 
-画廊实测（不触碰任何卡片，每张卡在被碰到之前都只是一张静态帧）：Lighthouse 12.8.2，移动预设（模拟 CPU 4 倍降速），3 次取中位数，Chrome 156，Apple M1 Pro。「真 GPU」指有界面的 Chrome 走 Metal；SwiftShader 是无头 Chrome 与 CI 用的软件 GPU。
+画廊实测（全程不碰任何卡片，所以每张卡都还是静态图）：Lighthouse 12.8.2，移动预设（模拟 CPU 4 倍降速），3 次取中位数，Chrome 156，Apple M1 Pro。「真 GPU」指有界面的 Chrome 走 Metal；SwiftShader 是无头 Chrome 与 CI 用的软件 GPU。
 
 | | v0.2.0 | v0.2.1 |
 |---|---|---|
 | 性能分，真 GPU / SwiftShader | 100 / 69 | **100 / 99** |
 | TBT（总阻塞时间），真 GPU / SwiftShader | 14 ms / 9,744 ms | **0 ms / 0 ms** |
-| 主线程总工作，真 GPU / SwiftShader | 0.25 s / 10.2 s | **0.18 s / 0.16 s** |
+| 主线程总耗时，真 GPU / SwiftShader | 0.25 s / 10.2 s | **0.18 s / 0.16 s** |
 | 传输字节 | 0.48 MB | 0.49 MB |
 | CLS（累计布局偏移） | 0 | 0 |
 | 挂载一张卡时主线程的长任务（真 GPU） | Worker 里没有；主线程渲染时 57 ms | 同左 |
 | 静止 10 秒画的帧数 | 0 | 0，指针在页面别处移动时也是 0 |
 
-v0.2.0 在加载时于主线程建一个一次性的 WebGL 上下文来探测 WebGL2，软件 GPU 上要付出数秒；v0.2.1 改在 Worker 里探测画布自己的上下文。最后两行由脚本与有界面的 Chrome 量出，因为 Lighthouse 不会和页面交互。细节见 [references/performance.md](references/performance.md)。
+v0.2.0 加载时会在主线程临时建一个 WebGL 上下文来探测 WebGL2，软件 GPU 上这一步要花好几秒；v0.2.1 改成在 Worker 里用画布自己的上下文探测。最后两行是脚本在有界面的 Chrome 里量的，因为 Lighthouse 不会去碰页面。细节见 [references/performance.md](references/performance.md)。
 
 ## 仓库结构
 
@@ -188,7 +188,7 @@ v0.2.0 在加载时于主线程建一个一次性的 WebGL 上下文来探测 We
 SKILL.md            Agent Skill：取得代码（CDN 或拷贝）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
 references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节
 CHANGELOG.md        每个版本改了什么，以及版本 tag 承诺什么（看重完整性时钉 commit）
-src/silk.js         入口：分档、Worker / 主线程 / 静态帧三级退路、转发指针
+src/silk.js         入口：分档，Worker → 主线程 → 静态图三级退路，转发指针事件
 src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
 src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
 src/worker.js       Web Worker 入口
@@ -212,7 +212,7 @@ AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 
 
 ## 致谢
 
-丝绸材质以及「波动 + 光照」这条管线，最早是作者个人网站上的「丝绸月球」。本仓库把它推广到任意轮廓：加入了泊松充气、正交相机、沿视线方向的位移，以及轮廓外归零的波。月球数据来自 NASA Scientific Visualization Studio 的 CGI Moon Kit；画廊图片来源见 [examples/CREDITS.md](examples/CREDITS.md)。
+丝绸材质以及「波动 + 光照」这条管线，最早是作者个人网站上的「丝绸月球」。本仓库把它推广到任意轮廓：加了泊松吹鼓、正交相机、沿视线方向的位移，以及轮廓外归零的波。月球数据来自 NASA Scientific Visualization Studio 的 CGI Moon Kit；画廊图片来源见 [examples/CREDITS.md](examples/CREDITS.md)。
 
 ## 许可证
 
