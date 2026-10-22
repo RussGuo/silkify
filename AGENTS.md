@@ -6,12 +6,12 @@ Turn a picture into a touchable silk object on a web page. At rest it is matte a
 
 ## Using silkify in another project
 
-This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js`.
+This repository is an Agent Skill. Read [SKILL.md](SKILL.md) and follow its steps; open the files in [references/](references/) only when a step points there. Nothing has to be copied: silk.js can be imported from `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js`.
 
 To install it as a skill, do what this sentence says (it is the one the README gives people to paste):
 
 ```text
-Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+Install the silkify agent skill: git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
 ```
 
 ## Working on this repository

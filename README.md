@@ -23,7 +23,7 @@ Copy this sentence into your coding agent (Claude Code, Codex, Cursor, Copilot, 
 
 <!-- install: written by scripts/build-integrations.mjs; change it there -->
 ```text
-Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+Install the silkify agent skill: git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
 ```
 
 Then ask it to "silkify" a picture. Nothing has to be copied into your project, because the skill imports silk.js from the CDN. An agent that cannot install skills can still use it: paste [SKILL.md](SKILL.md) into the chat, or point it at [llms.txt](llms.txt).
@@ -86,7 +86,7 @@ npx serve .            # or: python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';   // or copy src/ and import './src/silk.js'
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';   // or copy src/ and import './src/silk.js'
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // any PNG with a transparent background
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // an equirectangular map

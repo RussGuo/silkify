@@ -23,7 +23,7 @@
 
 <!-- install: written by scripts/build-integrations.mjs; change it there -->
 ```text
-安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
+安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
 ```
 
 装好之后，跟它说「把这张图丝绸化」就行。你的项目里不用拷任何文件，Skill 会直接从 CDN 引入 silk.js。要是你的 Agent 装不了 skill，也照样能用：把 [SKILL.md](SKILL.md) 原文贴给它，或者让它去读 [llms.txt](llms.txt)。
@@ -86,7 +86,7 @@ npx serve .            # 或：python3 -m http.server
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';   // 或拷贝 src/ 后 import './src/silk.js'
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';   // 或拷贝 src/ 后 import './src/silk.js'
 
   silkify(document.getElementById('pear'), { image: 'pear.png' });            // 任意透明底 PNG
   silkify(document.getElementById('moon'), { image: 'moon.png', shape: 'sphere' });   // 等距圆柱投影贴图

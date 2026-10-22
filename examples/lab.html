@@ -130,7 +130,7 @@
 <div class="lab">
   <section class="stage" id="stage">
     <div class="top">
-      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.2.1 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
+      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.2.2 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
       <div class="read" id="read">loading…</div>
     </div>
     <span class="drop-hint">drop or paste an image or a URL · hold to press deeper · hold B to compare</span>
@@ -514,7 +514,7 @@
    * The picture is inside it as a data: URL; silk.js and three.js come from jsDelivr, pinned to the release, so
    * the file needs the network but no server. Nothing leaves the browser: the file is made here.
    * ============================================ */
-  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';
+  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';
   const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
   const BACKGROUND = { stage: '#ebe6dc', paper: '#f3efe7', white: '#ffffff', black: '#000000', checker: '#f3efe7' };
   const dataUrl = (blob) => new Promise((resolve, reject) => {

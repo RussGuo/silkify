@@ -4,7 +4,7 @@ description: Turn a picture into a touchable silk object on a web page. At rest 
 license: MIT
 compatibility: A web page served over http(s) with ES modules and import maps; per MDN, live rendering needs WebGL2 and createImageBitmap imageOrientation (Chrome 112, Firefox 111, Safari 16.4) and the worker needs OffscreenCanvas WebGL2 and module workers (Chrome 80, Firefox 114, Safari 17); otherwise one still frame is drawn. three.js 0.152.2 or later. Tools - Python 3, Pillow, numpy (scipy for --keep-largest) for scripts/cutout.py; Node 22+, Chrome, Python with Pillow for scripts/shoot.mjs.
 metadata:
-  version: "0.2.1"
+  version: "0.2.2"
   repository: "https://github.com/RussGuo/silkify"
 ---
 
@@ -25,16 +25,16 @@ There are two ways. Pick one before writing any markup.
 **(a) From the CDN, nothing to copy.** Import the entry point straight from jsDelivr, pinned to a release tag:
 
 ```
-https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js
+https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js
 ```
 
-Pin a release tag (`@v0.2.1`), never `@main`, which follows the repository and changes under you. jsDelivr keeps a tag's files once served; where integrity matters, pin a commit instead (`@<40-character SHA>`), or copy `src/` (see [CHANGELOG.md](CHANGELOG.md) on versions). The rest of `src/` loads from the same place automatically.
+Pin a release tag (`@v0.2.2`), never `@main`, which follows the repository and changes under you. jsDelivr keeps a tag's files once served; where integrity matters, pin a commit instead (`@<40-character SHA>`), or copy `src/` (see [CHANGELOG.md](CHANGELOG.md) on versions). The rest of `src/` loads from the same place automatically.
 
 The renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, allow the CDN in `script-src` and both `blob:` and the CDN in `worker-src` (the full line is in [references/troubleshooting.md](references/troubleshooting.md)).
 
 **(b) Copy `src/` into the project.** Use this with a bundler, offline, or under a Content-Security-Policy that blocks the CDN. Copy the whole folder; the files import each other. The peer dependency is `three` (tested with 0.152.2 from an import map and 0.186.1 from npm).
 
-The helper scripts are in the same repository: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/scripts/cutout.py` (download it with `curl -O` when you need it).
+The helper scripts are in the same repository: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/scripts/cutout.py` (download it with `curl -O` when you need it).
 
 | File | What it is |
 |---|---|
@@ -127,7 +127,7 @@ On a phone, a finger that moves on the canvas would scroll the page instead of s
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 <script type="module">
-  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.1/src/silk.js';
+  import { silkify } from 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.2/src/silk.js';
   // or, with src/ copied to ./silk/:  import { silkify } from './silk/silk.js';
 
   const pear = silkify(document.getElementById('pear'), { image: 'pear.png', material: 'satin' });
