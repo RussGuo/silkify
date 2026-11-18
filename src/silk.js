@@ -17,7 +17,10 @@
  * once without loading three.js. The renderer itself is core.js; the dome is built by shape.js.
  *
  * Failing loudly: a picture that cannot be loaded or decoded, or one with nothing opaque in it, ends in
- * mode 'failed' with `handle.reason` and one console.warn — the only console output of the library. SVG pictures
+ * mode 'failed' with `handle.reason` and one console.warn — the only console output of the library. So does code that
+ * cannot be loaded (no import map for three, a worker.js or core.js that is not served), whatever it ends in: a worker
+ * that did not start but a main thread that did, or a still frame. A missing feature (no WebGL2, the static tier, no
+ * HTML-in-Canvas) is not a mistake and stays quiet. SVG pictures
  * are rasterised here, on the page (workers cannot decode SVG), and handed to the renderer as a bitmap.
  *
  * Live HTML: `silkify(canvas, { element })` prints a real element on the silk with HTML-in-Canvas (Chrome 157+);
@@ -386,14 +389,14 @@ export function silkify(canvasIn, options = {}) {
         else if (m.t === 'hover') o.onHover?.(m.on);
         else if (m.t === 'stats') { const { t, id, ...st } = m; asked.get(id)?.(st); asked.delete(id); }
         else if (m.t === 'html' || m.t === 'shaped') live?.received(m);
-        else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, picture: !!m.picture, svg: !!m.svg }));
+        else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, picture: !!m.picture, svg: !!m.svg, code: !!m.code }));
       };
       if (onWorker) {
         const offscreen = canvas.transferControlToOffscreen();
         claimed.add(canvas);
         worker = spawnWorker();
         worker.onmessage = (e) => receive(e.data);
-        worker.onerror = (e) => { e.preventDefault?.(); reject(new Error(e.message || 'the worker did not start')); };
+        worker.onerror = (e) => { e.preventDefault?.(); reject(Object.assign(new Error(`the worker did not start (${e.message || 'worker.js or a module it imports could not be loaded'})`), { code: true })); };
         send = (m, transfer) => worker?.postMessage(m, transfer || []);
         msg.canvas = offscreen;
         send(msg, [offscreen, ...(picture instanceof ImageBitmap ? [picture] : [])]);
@@ -405,7 +408,7 @@ export function silkify(canvasIn, options = {}) {
           msg.canvas = canvas;
           claimed.add(canvas);
           endpoint(msg);
-        }, reject);
+        }, (e) => reject(Object.assign(new Error(`core.js could not be loaded (${e?.message || e})`), { code: true })));
       }
     });
   }
@@ -481,7 +484,9 @@ export function silkify(canvasIn, options = {}) {
         canvas: () => canvas, send: (m, transfer) => send(m, transfer), o, fitAuto: options.fit === undefined, visible,
       });
     }
-    let why = handle.reason, pictureError = null;
+    let why = handle.reason, pictureError = null, codeError = null;
+    // code that could not be loaded is said once, whatever the mount ends in
+    const loudly = () => { if (codeError && !disposed) console.warn(`silkify: ${codeError}. Check the import map for three (or threeUrl) and that every file of silk.js is served.`); };
     if (tier.tier !== 'static') {
       // without an import map or threeUrl, the worker imports 'three' itself, which works where a bundler built it
       const threeUrl = resolveThree(o.threeUrl);
@@ -505,6 +510,8 @@ export function silkify(canvasIn, options = {}) {
             if (ok instanceof Error) return giveUp(ok.message);
           }
           Object.assign(handle, { mode: 'webgl', thread: onWorker ? 'worker' : 'main', tier: info.tier, info, reason: null });
+          if (codeError) codeError = `${codeError}: rendering on the main thread`;
+          loudly();
           return handle;
         } catch (e) {
           worker?.terminate();
@@ -517,10 +524,12 @@ export function silkify(canvasIn, options = {}) {
           }
           if (e.fatal) { fail(e.message); return handle; }
           if (e.picture) pictureError = e.message;
+          if (e.code) codeError = e.message;
           why = e.message;
         }
       }
     }
+    loudly();
     if (live) return asHtml(why || 'no live renderer');   // the element goes back to the page as plain HTML
     Object.assign(handle, { mode: 'static', tier: 'static', thread: null, info: null, reason: why || 'no live renderer' });
     if (!(await paintStatic()) && !disposed) {

@@ -9,8 +9,9 @@
   edge.html — the cases that once failed silently, run by scripts/shoot.mjs (Chrome) and --browsers (WebKit,
   Firefox). Each case records what the handle reported; window.__edge is set once every case has settled, and the
   canvases stay on the page so the script can photograph them. ?silk=<url> loads another build of silk.js.
-  console.warn is captured here (silkify's one console output, for a picture that fails), so an expected warning
-  is checked instead of failing the run.
+  console.warn is captured here (silkify's one console output, for a picture that fails or code that cannot be
+  loaded), so an expected warning is checked instead of failing the run. The page without an import map is a frame of
+  its own (an import map belongs to a document), and its warnings come here too.
 -->
 <style>
   body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
@@ -80,6 +81,26 @@
                  stats: await timeout(hidden.stats().then((s) => s.mode), 1000, 'pending') };
   out.warned = warned;
 
+  // 8. no import map for three: a mistake in the page, not a missing feature, so exactly one warning (and the
+  //    picture is still drawn once). A frame of its own, since the import map belongs to the document.
+  const frameWarned = [];
+  window.__frameWarn = (m) => frameWarned.push(m);
+  out.nomap = await timeout(new Promise((resolve) => {
+    window.__nomap = resolve;
+    const f = document.createElement('iframe');
+    f.style.cssText = 'width: 180px; height: 180px; border: 0';
+    f.srcdoc = `<!doctype html><meta charset="utf-8"><style>body { margin: 0 } canvas { width: 180px; height: 180px; display: block }</style>
+      <script>console.warn = (...a) => parent.__frameWarn(String(a[0]));<\/script><canvas></canvas>
+      <script type="module">
+        const { silkify } = await import(${JSON.stringify(new URL(silkUrl, location.href).href)});
+        const h = silkify(document.querySelector('canvas'), { image: ${JSON.stringify(new URL(PEAR, location.href).href)}, tier: '${tier}' });
+        h.ready.then((x) => parent.__nomap({ mode: x.mode, reason: x.reason }));
+      <\/script>`;
+    document.body.append(f);
+  }), 30000, { mode: 'pending' });
+  await new Promise((r) => setTimeout(r, 300));
+  out.nomap.warned = frameWarned;
+
   // what each case must report (the harness also photographs #plain, #dim and #base: the first two must match, the third must not)
   const problems = [];
   const expect = (ok, what) => { if (!ok) problems.push(what); };
@@ -90,6 +111,7 @@
   expect(warned.length === 2 && warned.some((w) => /404/.test(w)) && warned.some((w) => /nothing opaque/.test(w)), `console.warn: ${JSON.stringify(warned)}`);
   expect(out.earlyLoop === 'active', `ripple() before ready was lost (loop ${out.earlyLoop})`);
   expect(out.first.mode === 'disposed', `the first handle on a reused canvas: ${out.first.mode}`);
+  expect(out.nomap.mode === 'static' && frameWarned.length === 1 && /three/.test(frameWarned[0]), `no import map: ${JSON.stringify(out.nomap)}`);
   expect(out.hidden.before === 'pending' && out.hidden.afterDispose === 'disposed' && out.hidden.stats === 'disposed', `display: none: ${JSON.stringify(out.hidden)}`);
   out.problems = problems;
   window.__edge = { out, handles: { svg, svgBlob, empty, missing, plain, early, dim, base, second } };

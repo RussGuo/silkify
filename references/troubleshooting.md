@@ -12,7 +12,8 @@
 | Dark object shows no silk | Overlay cannot lift a dark albedo | Raise `sheen` to 0.5 and lower `sheenPower` to 14 |
 | The ripple is invisible | Pointer events blocked by an overlay, or `interactive: false` / reduced motion | Check `pointer-events` on elements above the canvas |
 | Live on desktop, but a still image on a phone | The static tier: reduced motion, Save-Data, or no WebGL2 in workers or on the page | Expected. Ship a `poster`. Force `tier: 'low'` only if the user really wants motion there. |
-| Works, but `handle.thread` is `'main'` | The worker could not load three.js (bundler, CSP) | Pass `threeUrl`, or accept the main thread |
+| Works, but `handle.thread` is `'main'`, with a `silkify:` warning that the worker did not start or three.js could not be loaded | The worker could not load its code or three.js (bundler, CSP) | Pass `threeUrl`, or fix the policy (below) |
+| A still frame (or plain HTML) instead of the live object, with a `silkify:` warning that three.js could not be loaded | No import map for `three` (it must be on the page, before the module script), or a file of `src/` that is not served | Add the import map from SKILL.md Step 4; serve every file of `src/` |
 | Only if silk.js is imported from the CDN: nothing loads, or `thread` is `'main'` under a Content-Security-Policy | The policy blocks the CDN module, the `blob:` trampoline worker, or the CDN worker it imports; or there is no import map for `three` | Copy `src/` into the project (the default way: no CDN, no `blob:`), or use the CDN line below (checked in Chrome 156, Firefox 157 and WebKit 27.2: `'worker'`, console clean) |
 | Nothing at all, `mode: 'failed'` and a `silkify:` warning | The picture did not load (404, CORS), could not be decoded, or has nothing opaque in it (a fully transparent PNG, or `threshold` above every alpha) | Read `handle.reason`: fix the URL or the CORS headers, re-export the picture, or lower `threshold` |
 | `ready` never resolves | The canvas has no size yet (`display: none`, a closed tab or panel, a zero-height parent) | Expected: it starts once the canvas is shown. Give the canvas a CSS size; call `dispose()` if it will never be shown |
@@ -44,7 +45,7 @@ default-src 'self'; script-src 'self' 'sha256-<hash of each inline script>'; con
 
 Checked in headless Chrome 156 with three 0.186.1 from `node_modules`: `'webgl'` on `'worker'`, ripples under the pointer, no request to another origin, console clean.
 
-With the CDN way, the import map is an inline script, so it needs its hash (or a nonce); the worker needs `blob:` and the CDN in `worker-src` (with only `blob:`, the worker cannot import the CDN one and silkify falls back to the main thread); `connect-src` must reach the picture, which the worker fetches; `img-src` covers the poster and the still frame:
+With the CDN way, the import map is an inline script, so it needs its hash (or a nonce); the worker needs `blob:` and the CDN in `worker-src` (with only `blob:`, the worker cannot import the CDN one and silkify falls back to the main thread, with one warning); `connect-src` must reach the picture, which the worker fetches; `img-src` covers the poster and the still frame:
 
 ```
 default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'sha256-<hash of your import map>'; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' <picture origins>; img-src 'self' data: blob: <picture origins>

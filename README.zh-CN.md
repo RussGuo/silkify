@@ -128,6 +128,9 @@ silk.dispose();
   <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
   <article id="card" style="position: relative; box-sizing: border-box; width: min(420px, 100% - 32px); padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
 </div>
+<script type="importmap">
+  { "imports": { "three": "./node_modules/three/build/three.module.js" } }
+</script>
 <script type="module">
   import { silkify } from './silk/silk.js';
   silkify(document.getElementById('silk'), { element: '#card' });

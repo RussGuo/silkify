@@ -16,6 +16,7 @@
     fit     the same card with an explicit fit: no warning (the caller chose the scale).
     snippet SKILL.md's Step 5 snippet as written, in a 375 px wide frame (a phone): live, the card whole inside its
             canvas with room around it (its rounded corners visible), and no warning.
+    nomap   the same snippet without its import map: plain HTML, and exactly one warning that names three.
 -->
 <style>
   body { margin: 0; padding: 12px; font: 15px/1.5 Georgia, serif; background: #f3efe7; }
@@ -95,29 +96,42 @@
   }
 
   // snippet: SKILL.md's Step 5 as an agent copies it, at a phone's width. Only the paths change: the import map's three
-  // and silk.js point at this repository; the frame's warnings come here.
-  {
-    const md = await (await fetch('../SKILL.md')).text();
-    const html = md.split('## Step 5')[1].match(/```html\n([\s\S]*?)```/)[1];
+  // and silk.js point at this repository; the frame's warnings come here. nomap: the same without its import map.
+  const md = await (await fetch('../SKILL.md')).text();
+  const snippet = md.split('## Step 5')[1].match(/```html\n([\s\S]*?)```/)[1];
+  async function frame(withMap) {
     const silkUrl = new URL('../src/silk.js', location.href).href;
     const map = '<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }<\/script>';
-    const page = html.replace('./silk/silk.js', silkUrl).replace(/<script type="importmap">[\s\S]*?<\/script>/, '');
-    const frame = document.createElement('iframe');
-    const frameWarns = [];
-    window.__frameWarn = (m) => frameWarns.push(m);
-    frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>body { margin: 0 }</style>
-      <script>console.warn = (...a) => parent.__frameWarn(String(a[0]));<\/script>${map}${page}`;
-    document.body.append(frame);
+    const page = snippet.replace('./silk/silk.js', silkUrl).replace(/<script type="importmap">[\s\S]*?<\/script>/, withMap ? map : '');
+    const f = document.createElement('iframe');
+    const warns = [];
+    window.__frameWarn = (m) => warns.push(m);
+    f.srcdoc = `<!doctype html><meta charset="utf-8"><style>body { margin: 0 }</style>
+      <script>console.warn = (...a) => parent.__frameWarn(String(a[0]));<\/script>${withMap && !/importmap/.test(snippet) ? map : ''}${page}`;
+    document.body.append(f);
+    return { f, warns };
+  }
+  {
+    const { f, warns } = await frame(true);
     const live = await timeout(new Promise((r) => { const t = setInterval(() => {
-      const card = frame.contentDocument?.getElementById('card');
+      const card = f.contentDocument?.getElementById('card');
       if (card?.parentElement?.tagName === 'CANVAS') { clearInterval(t); setTimeout(() => r(true), 500); }
     }, 100); }), 30000, false);
-    const d = frame.contentDocument, c = rect(d.getElementById('silk')), r = rect(d.getElementById('card'));
-    out.snippet = { mode: live ? 'webgl' : 'not live', canvas: [c.left, c.right], card: [r.left, r.right], warns: frameWarns };
+    const d = f.contentDocument, c = rect(d.getElementById('silk')), r = rect(d.getElementById('card'));
+    out.snippet = { mode: live ? 'webgl' : 'not live', canvas: [c.left, c.right], card: [r.left, r.right], warns };
     expect(live, 'snippet: the card did not go live in 30 s');
     expect(r.left >= c.left + 8 && r.right <= c.right - 8 && r.top >= c.top && r.bottom <= c.bottom, `snippet at 375 px: the card is not whole inside its canvas (${JSON.stringify(out.snippet)})`);
-    expect(frameWarns.length === 0, `snippet: ${JSON.stringify(frameWarns)}`);
-    frame.remove();
+    expect(warns.length === 0, `snippet: ${JSON.stringify(warns)}`);
+    f.remove();
+  }
+  {
+    const { f, warns } = await frame(false);
+    await timeout(new Promise((r) => { const t = setInterval(() => warns.length && (clearInterval(t), r()), 100); }), 30000);
+    await new Promise((r) => setTimeout(r, 500));
+    const parent = f.contentDocument.getElementById('card').parentElement.tagName;
+    out.nomap = { mode: parent === 'CANVAS' ? 'webgl' : 'static', warns };
+    expect(parent !== 'CANVAS' && warns.length === 1 && /three/.test(warns[0]), `no import map: ${JSON.stringify(out.nomap)}`);
+    f.remove();
   }
 
   for (const k of ['hold', 'big', 'fit', 'snippet']) if (out[k].mode !== 'webgl') problems.push(`${k}: ${out[k].mode}`);

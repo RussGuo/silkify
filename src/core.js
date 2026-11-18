@@ -609,7 +609,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
  * stats, dispose; for live HTML also html { img } (an Element or ElementImage to print on the albedo) and shape
  * { picture, patch } (the element changed size: a new dome from a new stand-in, the same context). Messages out:
  * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
- * html { ok, empty }, shaped, fail { reason, fatal, picture, svg }. `fatal` means another thread would fail the same
+ * html { ok, empty }, shaped, fail { reason, fatal, picture, svg, code }. `code`: the code could not be loaded (three.js),
+ * a mistake in the page rather than a missing feature, so the page says so. `fatal` means another thread would fail the same
  * way (an HTTP error, or nothing in the picture is opaque); `picture` that the picture could not be decoded here,
  * which another thread may still manage; `svg` that the picture is an SVG the page must rasterise.
  * ============================================ */
@@ -632,7 +633,8 @@ export function serve(post, loadThree) {
     latest.touches.unshift(...(m.touches || []));
     const gl = openContext(m.canvas);
     if (!gl) return post({ t: 'fail', reason: 'no WebGL2 with renderable half floats' });
-    const THREE = await loadThree(m.threeUrl);
+    // three.js that cannot be loaded is a mistake in the page (no import map, a wrong URL), not a missing feature
+    const THREE = await loadThree(m.threeUrl).catch((e) => { throw Object.assign(new Error(`three.js could not be loaded (${e?.message || e})`), { code: true }); });
     const opened = openRenderer(THREE, m.canvas, gl);
     if (!opened) return post({ t: 'fail', reason: 'three.js could not start a WebGL2 renderer' });
     // a software rasteriser cannot afford the high tier, unless the caller forced it
@@ -687,7 +689,7 @@ export function serve(post, loadThree) {
 
   return (m) => {
     switch (m.t) {
-      case 'init': init(m).catch((e) => post({ t: 'fail', reason: String(e?.message || e) })); break;
+      case 'init': init(m).catch((e) => post({ t: 'fail', reason: String(e?.message || e), code: !!e?.code })); break;
       case 'pointer': silk?.pointer(m.x, m.y); break;
       case 'press': silk?.press(m.down); break;
       case 'lift': silk?.lift(); break;
