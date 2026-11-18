@@ -63,6 +63,18 @@
     opacity: 0; transition: opacity 0.4s;
   }
   .stage:hover .hint { opacity: 0.8; }
+  /* the live-HTML card: the stage centres a real <article>; live, silkify prints it on the silk at the same place and
+     size (1:1), so nothing moves when it comes alive. Without HTML-in-Canvas it simply stays plain HTML */
+  .stage.html { display: grid; place-items: center; cursor: auto; }
+  .stage.html canvas { opacity: 1; transition: none; user-select: auto; -webkit-user-select: auto; }   /* the card's words stay selectable */
+  #html-card {
+    position: relative; width: min(270px, calc(100% - 56px)); padding: 22px 24px 20px; border-radius: 20px;
+    background: #fbf7ef; color: #2a2620; font: 15px/1.5 ui-serif, "Iowan Old Style", Georgia, serif; text-align: left;
+  }
+  #html-card h3 { margin: 0 0 8px; font: 600 22px/1.15 ui-serif, "Iowan Old Style", Georgia, serif; color: #6b1f1a; }
+  #html-card p { margin: 0 0 10px; }
+  #html-card p:last-child { margin: 0; font-size: 13px; }
+  #html-card a { color: #6b1f1a; }
   figcaption { padding: 16px 4px 0; }
   figcaption h2 { margin: 0; font: 400 22px/1.2 ui-serif, "Iowan Old Style", Georgia, serif; }
   figcaption p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
@@ -104,6 +116,18 @@
   </script>
 
   <main class="grid" id="grid"></main>
+  <template id="html-figure">
+    <figure data-id="html">
+      <div class="stage html">
+        <article id="html-card">
+          <h3>This card is HTML</h3>
+          <p>Select these words and copy them, or find them with the browser's search: they are text in the page, printed on silk.</p>
+          <p><a href="https://github.com/RussGuo/silkify#live-html">How it works →</a></p>
+        </article>
+      </div>
+      <figcaption><h2>Live HTML</h2><p id="html-note">A real piece of HTML on the silk, through HTML-in-Canvas (Chrome 157 and later): the words stay selectable, the link works, and it still ripples.</p><code>element: '#html-card'</code></figcaption>
+    </figure>
+  </template>
   <script>
     /* Built synchronously, before first paint, so nothing shifts when the module below loads. */
     /* Each card: what it is, where it came from, and the options that make it look right.
@@ -169,6 +193,13 @@
           <figcaption><h2>${c.title}</h2><p>${c.note}</p><code>${show(c.options) || 'defaults'}</code></figcaption>`;
         grid.append(fig);
       }
+      // the live-HTML card (not in CARDS: it has no picture and no poster; the HTML itself is what shows first)
+      grid.append(document.getElementById('html-figure').content.cloneNode(true));
+      const c = document.createElement('canvas');
+      c.setAttribute('content', 'drawable');
+      if (c.content !== 'drawable') {
+        document.getElementById('html-note').textContent = 'Your browser shows this card as plain HTML. Printing HTML on silk needs HTML-in-Canvas (Chrome 157 and later).';
+      }
     })();
   </script>
 
@@ -198,8 +229,8 @@
 
   // the poster stays until someone reaches for the object; then the live renderer takes over
   if (tier.tier !== 'static' && !posterMode) {
-    for (const c of CARDS) {
-      for (const ev of ['pointerenter', 'pointerdown']) stageOf(c.id).addEventListener(ev, () => activate(c.id), { passive: true });
+    for (const id of [...byId.keys(), 'html']) {
+      for (const ev of ['pointerenter', 'pointerdown']) stageOf(id).addEventListener(ev, () => activate(id), { passive: true });
     }
   }
   /** Mount the live renderer for one card (idempotent). Resolves with its handle once the first frame is up. */
@@ -208,9 +239,11 @@
     if (have) { have.used = performance.now(); return have.handle.ready; }
     const c = byId.get(id), stage = stageOf(id);
     const canvas = document.createElement('canvas');
-    canvas.setAttribute('aria-hidden', 'true');
+    canvas.setAttribute('aria-hidden', 'true');   // live HTML: silkify takes it off while the card is in the canvas
     stage.prepend(canvas);
-    const handle = silkify(canvas, { ...c.options, poster: `posters/${id}.webp`, tier: forced, ...extra });
+    const handle = id === 'html'
+      ? silkify(canvas, { element: '#html-card', tier: forced, ...extra })
+      : silkify(canvas, { ...c.options, poster: `posters/${id}.webp`, tier: forced, ...extra });
     live.set(id, { handle, used: performance.now() });
     for (const [other] of [...live].sort((a, b) => a[1].used - b[1].used)) {
       if (live.size <= MAX_LIVE) break;
@@ -218,6 +251,7 @@
     }
     return handle.ready.then((h) => {
       if (live.get(id)?.handle === h && h.mode === 'webgl') stage.classList.add('live');
+      if (id === 'html' && h.mode === 'static' && h.reason) document.getElementById('html-note').textContent = `Shown as plain HTML: ${h.reason}.`;
       return h;
     });
   }
@@ -240,7 +274,7 @@
   // hooks for scripts/shoot.mjs
   window.__gallery = {
     ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release,
-    stroke: (id) => byId.get(id).stroke || '',
+    stroke: (id) => byId.get(id)?.stroke || '',
   };
 </script>
 </body>

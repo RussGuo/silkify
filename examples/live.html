@@ -63,7 +63,7 @@
   document.getElementById('btn').addEventListener('click', (e) => { e.currentTarget.textContent = `Pressed ${++presses} times`; });
 
   const worker = new URLSearchParams(location.search).get('worker') === '0' ? false : 'auto';
-  const silk = window.silk = silkify(document.getElementById('silk'), { element: '#card', material: 'satin', worker });
+  const silk = window.silk = silkify(document.getElementById('silk'), { element: '#card', worker });
   await silk.ready;
   document.getElementById('status').textContent = silk.mode === 'webgl'
     ? `Live: printed on the silk (${silk.thread} thread, ${silk.tier} tier).`
