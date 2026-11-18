@@ -222,6 +222,7 @@ export function silkify(canvasIn, options = {}) {
   let canvas = canvasIn;
   let send = () => {};
   let live = null;           // live HTML (options.element): live.js
+  let passThrough = null;    // live HTML shown as plain HTML: the canvas's own pointer-events, restored on dispose()
   let worker = null, disposed = false, inView = true, staticPic = null, staticWhy = null, raster = null;
   const early = [];          // ripple() calls made before the renderer was ready: replayed by the renderer
   const asked = new Map();   // stats requests in flight: id → resolve
@@ -276,6 +277,7 @@ export function silkify(canvasIn, options = {}) {
       asked.clear();
       if (owner.get(canvas) === handle) owner.delete(canvas);
       live?.restore();
+      if (passThrough !== null) canvas.style.pointerEvents = passThrough;
     },
   };
   owner.set(canvas, handle);
@@ -445,6 +447,9 @@ export function silkify(canvasIn, options = {}) {
   /* ---- live HTML that cannot be live: the element stays (or goes back) where it was, as plain HTML ---- */
   function asHtml(reason) {
     live?.restore();
+    // the canvas stays an empty layer over the page: it must not take the clicks meant for the element under it
+    passThrough ??= canvas.style.pointerEvents;
+    canvas.style.pointerEvents = 'none';
     Object.assign(handle, { mode: 'static', tier: 'static', thread: null, info: null, reason });
     return handle;
   }
