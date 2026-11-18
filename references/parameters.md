@@ -95,7 +95,7 @@ The handle is the same, with `handle.element` (the element) and `snapshots` in `
 | One-colour logo as ink | `albedo: [0.15,0.15,0.165], grain: 1, light: [-0.66,0.72,0.2], exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14` |
 | Photo of an object (fruit, teapot, animal) | defaults; `puff: 'dome'` for round subjects, `'cushion'` for flat ones |
 | Painting or poster | `puff: 'cushion'`, `floor: 0.6`, `sheen: 0.25` (opaque PNG ⇒ rectangle) |
-| A card of live HTML | `element: '#card'` and the defaults; a resting sheen (`satin`, `wet`, `foil`) washes over the words, so keep those for touch |
+| A card of live HTML | `element: '#card'` and the defaults; a resting sheen (`satin`, `wet`, `foil`) washes over the words, so keep those for touch; `ink` (the far side in hard shadow) and `velvet` (a dark body, low `floor`) darken part of the card until the words there cannot be read, so not those either |
 | The moon on a light page | `shape: 'sphere', bump, phase: 0.38, floor: 0.6, bumpStrength: 7` |
 
 **Presets.** `material` and `feel` set many options at once; anything you also write explicitly wins. Pictures of each are in `docs/shots/lab/`; `material-rest-strip.jpg` shows all seven untouched. A material must read as itself before anyone touches it.
