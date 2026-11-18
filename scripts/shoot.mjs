@@ -20,6 +20,12 @@
  *          restores every control in a fresh page, and at rest the renderer draws 0 frames in 10 s.
  *          Then test/edge.html: SVG pictures go live, an empty or missing picture fails with a reason and one
  *          console.warn, calls made while loading are kept, display: none and dispose() settle `ready`.
+ *          Then live HTML (examples/live.html, HTML-in-Canvas, SwiftShader, about 25 s, 2 minutes at most): drag-select and copy,
+ *          double-click a word, the link, the button, typing (and an IME composition), the scrolling list, the
+ *          caret, the element growing and the canvas resizing (geometry stays 1:1), ripples, sleeping until the
+ *          element changes; then the main thread, no feature (plain HTML, no warning), an empty capture (plain HTML,
+ *          one warning), dispose() putting the element back, and the gallery's live-HTML card. Skipped, with a
+ *          note, in a Chrome without HTML-in-Canvas.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -411,6 +417,13 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   if (alive > 3) problems.push(`${alive} live renderers (cap is 3)`);
   if (!only || only === 'lab') await verifyLab();
   if (!only || only === 'edge') await verifyEdge();
+  if (!only || only === 'live') {
+    const LIVE_MS = 120000;   // about 25 s on SwiftShader; a hang (seen once on a real GPU) must not stall CI
+    let timer;
+    await Promise.race([verifyLive(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`live HTML: no result in ${LIVE_MS / 1000} s`)), LIVE_MS); })])
+      .catch((e) => problems.push(e.message));
+    clearTimeout(timer);
+  }
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */
@@ -534,6 +547,180 @@ async function verifyEdge() {
   if (!(same < 1) || !(unlike > 5)) problems.push(`edge: setTheme while loading was lost (Δ plain ${same.toFixed(2)}, Δ base ${unlike.toFixed(2)})`);
   console.log('edge  ', `svg ${out.svg.mode}/${out.svg.thread}`, `empty ${out.empty.mode}`, `404 ${out.missing.mode}`, `early ripple ${out.earlyLoop}`,
     `setTheme while loading Δ ${same.toFixed(2)} (vs default ${unlike.toFixed(2)})`, `display:none → ${out.hidden.afterDispose}`, `${out.problems.length} problem(s)`);
+}
+
+
+/* ---- verify, part 4: live HTML (examples/live.html), every assertion on the real element in a real Chrome ---- */
+async function verifyLive() {
+  const t0 = Date.now();
+  const tag = (label, ok, detail) => {
+    if (!ok) problems.push(`live: ${label} (${detail})`);
+    console.log('html  ', `${label}: ${detail}`, ok ? '' : 'FAILED', `[${((Date.now() - t0) / 1000).toFixed(0)} s]`);
+  };
+  const open = async (query = '') => {
+    await send('Emulation.setDeviceMetricsOverride', { width: 900, height: 860, deviceScaleFactor: 1, mobile: false });
+    await navigate('about:blank');
+    await navigate(`${base}/examples/live.html${query}`);
+    return evaluate(`silk.ready.then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier, reason: h.reason, parent: h.element.parentElement.tagName,
+      hidden: document.getElementById('silk').getAttribute('aria-hidden') }))`);
+  };
+  const box = (id) => evaluate(`(() => { const r = document.getElementById('${id}').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, sx: 0, sy: 0 }; })()`);
+  const mid = (r) => [r.x + r.w / 2, r.y + r.h / 2];
+  const click = async (x, y, n = 1) => { await mouse('mousePressed', x, y, { button: 'left', clickCount: n }); await mouse('mouseReleased', x, y, { button: 'left', clickCount: n }); };
+  const stats = () => evaluate('silk.stats()');
+  // 1:1: where the browser hit-tests the card (its geometry) is its own box, centred on the canvas
+  const oneToOne = () => evaluate(`(() => { const c = silk.canvas.getBoundingClientRect(), e = silk.element, r = e.getBoundingClientRect();
+    return Math.max(Math.abs(r.width - e.offsetWidth), Math.abs(r.height - e.offsetHeight), Math.abs(r.left - (c.left + (c.width - e.offsetWidth) / 2)), Math.abs(r.top - (c.top + (c.height - e.offsetHeight) / 2))); })()`);
+  const supported = await evaluate(`(() => { const c = document.createElement('canvas'); c.setAttribute('content', 'drawable'); return c.content === 'drawable'; })()`);
+  if (!supported) { console.log('html  ', 'this Chrome has no HTML-in-Canvas: live HTML not checked here'); return; }
+
+  // ---- the worker path, from a fresh page: mount, then sleeping until the element changes ----
+  await mouse('mouseMoved', 2, 2);
+  let h = await open();
+  tag('mount', h.mode === 'webgl' && h.thread === 'worker' && h.parent === 'CANVAS' && h.hidden === null, `${h.mode} ${h.tier}/${h.thread}, card in ${h.parent}`);
+  const canvasBox = await box('silk');
+  tag('1:1 geometry', (await oneToOne()) < 1, `off by ${(await oneToOne()).toFixed(2)} px`);
+  let st = await stats();
+  for (let t = 0; t < 20 && st.mode !== 'rest'; t++) { await sleep(500); st = await stats(); }
+  await sleep(1500);
+  const r0 = await stats();
+  await evaluate(`document.getElementById('btn').textContent = 'Pressed 0 times.'`);   // a change in the element only
+  await sleep(600);
+  const r1 = await stats();
+  await sleep(1000);
+  const r2 = await stats();
+  tag('sleep', r0.mode === 'rest' && r1.snapshots > r0.snapshots && r1.frames > r0.frames && r2.frames === r1.frames && r2.mode === 'rest',
+    `${r0.mode}; a text change → ${r1.snapshots - r0.snapshots} snapshot(s), ${r1.frames - r0.frames} frame(s), then ${r2.frames - r1.frames} frames in 1 s (${r2.mode})`);
+
+  // ---- select, copy, double-click, link, button ----
+  await send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base });
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  const para = await box('para');
+  const y = para.y + 10, x0 = para.x + 2, x1 = para.x + para.w * 0.6;
+  await mouse('mouseMoved', x0, y);
+  await mouse('mousePressed', x0, y, { button: 'left', buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 12; i++) { await mouse('mouseMoved', x0 + ((x1 - x0) * i) / 12, y, { button: 'left', buttons: 1 }); await sleep(16); }
+  await mouse('mouseReleased', x1, y, { button: 'left', clickCount: 1 });
+  await sleep(200);
+  const selected = await evaluate('getSelection().toString()');
+  await evaluate(`window.__copied = null; document.addEventListener('copy', () => { window.__copied = getSelection().toString(); }, { once: true }); 0`);
+  await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'c', code: 'KeyC', windowsVirtualKeyCode: 67, modifiers: process.platform === 'darwin' ? 4 : 2, commands: ['copy'] });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'c', code: 'KeyC', windowsVirtualKeyCode: 67 });
+  await sleep(150);
+  const copied = await evaluate('navigator.clipboard.readText().catch((e) => "error: " + e.message)');
+  tag('select and copy', selected.length > 10 && 'Every word here is text in the page'.startsWith(selected.trim()) && copied === selected, JSON.stringify(copied));
+  await click(para.x + 60, y);
+  await click(para.x + 60, y, 2);
+  await sleep(100);
+  const word = await evaluate('getSelection().toString()');
+  tag('double-click', /^\w+$/.test(word.trim()), JSON.stringify(word));
+  const link = await box('link');
+  tag('hit test', (await evaluate(`document.elementFromPoint(${mid(link).join(',')})?.id`)) === 'link', 'the link is where it is drawn');
+  await click(...mid(link));
+  await sleep(150);
+  tag('link', (await evaluate('location.hash')) === '#followed', await evaluate('location.hash'));
+  const btn = await box('btn');
+  for (let i = 0; i < 2; i++) { await click(...mid(btn)); await sleep(60); }
+  tag('button', (await evaluate(`document.getElementById('btn').textContent`)) === 'Pressed 2 times', await evaluate(`document.getElementById('btn').textContent`));
+
+  // ---- the list scrolls under the wheel ----
+  const list = await box('list');
+  await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: mid(list)[0], y: mid(list)[1], deltaX: 0, deltaY: 60 });
+  await sleep(400);
+  const top = await evaluate(`document.getElementById('list').scrollTop`);
+  tag('scroll', top > 0, `scrollTop ${top}`);
+
+  // ---- typing, an IME composition, the caret ----
+  const edit = await box('edit');
+  await click(edit.x + edit.w - 20, edit.y + edit.h / 2);
+  await sleep(100);
+  await send('Input.insertText', { text: 'silk ' });
+  await send('Input.imeSetComposition', { text: '丝', selectionStart: 1, selectionEnd: 1 });
+  await sleep(150);
+  const ime = await evaluate(`(() => { const s = getSelection(), r = s.rangeCount && s.getRangeAt(0).getBoundingClientRect(), e = document.getElementById('edit').getBoundingClientRect();
+    return r && r.height > 0 && r.left >= e.left && r.right <= e.right + 1 && r.top >= e.top - 1 && r.bottom <= e.bottom + 1; })()`);
+  await send('Input.insertText', { text: '丝绸' });
+  await sleep(300);
+  const typed = await evaluate(`document.getElementById('edit').textContent`);
+  tag('typing', typed.endsWith('silk 丝绸') && (await evaluate('document.activeElement.id')) === 'edit', `${JSON.stringify(typed)}, IME caret inside the line: ${ime}`);
+  if (!ime) problems.push('live: the IME composition caret is not inside the editable line');
+  // the caret blinks in the picture: the area right of the text changes while nothing else does
+  const e2 = await box('edit');
+  const caretClip = { x: e2.x, y: e2.y, w: e2.w, h: e2.h, sx: 0, sy: 0 };
+  const s0 = await stats();
+  const caretShots = [];
+  for (let i = 0; i < 6; i++) { caretShots.push((await send('Page.captureScreenshot', { format: 'png', clip: clipOf(caretClip, 1) })).data); await sleep(170); }
+  const s1 = await stats();
+  let blink = 0;
+  for (let i = 1; i < caretShots.length; i++) blink = Math.max(blink, (await diffOf(caretShots[0], caretShots[i]))[0]);
+  tag('caret', blink > 0.05 && s1.snapshots > s0.snapshots, `${s1.snapshots - s0.snapshots} snapshots in 1 s while focused, Δ ${blink.toFixed(2)} in the line`);
+
+  // ---- the element grows (a second line), the canvas narrows: still 1:1 where it is drawn and hit-tested ----
+  const h0 = await evaluate('silk.element.offsetHeight');
+  await send('Input.insertText', { text: ' — and a second line, long enough to wrap the editable line onto two lines' });
+  await sleep(1200);
+  const h1 = await evaluate('silk.element.offsetHeight');
+  const grown = await oneToOne();
+  const editHit = await evaluate(`(() => { const r = document.getElementById('edit').getBoundingClientRect(); return document.elementFromPoint(r.left + 12, r.bottom - 8)?.id; })()`);
+  tag('element grows', h1 > h0 && grown < 1 && editHit === 'edit', `${h0} → ${h1} px, off by ${grown.toFixed(2)} px, hit ${editHit}`);
+  await evaluate(`document.querySelector('.stage').style.width = '600px'; document.querySelector('.stage').style.margin = '0 auto'; 0`);
+  await sleep(800);
+  const narrowed = await oneToOne();
+  tag('canvas resized', narrowed < 1, `off by ${narrowed.toFixed(2)} px`);
+  await evaluate(`document.querySelector('.stage').style.cssText = ''; document.activeElement.blur(); 0`);
+  await sleep(600);
+
+  // ---- ripples ----
+  const cb = await box('silk');
+  const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(cb, 0.5) })).data;
+  const card = await box('card');
+  for (let i = 0; i <= 20; i++) { await mouse('mouseMoved', card.x + card.w * (0.15 + (0.7 * i) / 20), card.y + card.h * 0.3); await sleep(30); }
+  await sleep(200);
+  const [rip] = await diffOf(before, (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(cb, 0.5) })).data);
+  await mouse('mouseMoved', 2, 2);
+  st = await stats();
+  tag('ripples', rip > 0.3, `Δ ${rip.toFixed(2)}, ${st.snapshots} snapshots, ${st.frames} frames since mount`);
+
+  // ---- the main thread ----
+  h = await open('?worker=0');
+  const pb = await box('btn');
+  await click(...mid(pb));
+  await sleep(100);
+  tag('main thread', h.mode === 'webgl' && h.thread === 'main' && (await evaluate(`document.getElementById('btn').textContent`)) === 'Pressed 1 times', `${h.mode} ${h.tier}/${h.thread}`);
+  // dispose() puts the element back, as plain HTML
+  const back = await evaluate(`(() => { silk.dispose(); const e = document.getElementById('card'); return { parent: e.parentElement.className, drawable: e.hasAttribute('drawable'), w: e.offsetWidth }; })()`);
+  tag('dispose', back.parent === 'stage' && !back.drawable && back.w > 0, `card back in .${back.parent}`);
+
+  // ---- no HTML-in-Canvas: plain HTML, no warning ----
+  const { identifier } = await send('Page.addScriptToEvaluateOnNewDocument', { source: 'delete HTMLCanvasElement.prototype.requestPaint;' });
+  h = await open();
+  await send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
+  const status = await evaluate(`document.getElementById('status').textContent`);
+  tag('no feature', h.mode === 'static' && h.parent === 'DIV' && /not available/.test(h.reason), status);
+
+  // ---- an empty capture (simulated on the main thread): plain HTML after 4 s, and one warning ----
+  const empty = await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `WebGL2RenderingContext.prototype.texElementSubImage2D = function (t, l, x, y, src, o) { this.texSubImage2D(t, l, x, y, o.width, o.height, this.RGBA, this.UNSIGNED_BYTE, new Uint8Array(o.width * o.height * 4)); };`,
+  });
+  const warned = problems.length;
+  h = await open('?worker=0');
+  await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: empty.identifier });
+  const fresh = problems.splice(warned), expected = (p) => /^console\.warning: silkify: HTML-in-Canvas gave no picture/.test(p);
+  const warns = fresh.filter(expected);   // the one warning asked for; anything else stays a problem
+  problems.push(...fresh.filter((p) => !expected(p)));
+  const blank = await evaluate(`document.getElementById('silk').width`);
+  tag('empty capture', h.mode === 'static' && h.parent === 'DIV' && warns.length === 1, `${h.mode}, ${warns.length} warning: ${h.reason}; canvas ${blank} px wide (blank)`);
+
+  // ---- the gallery's live-HTML card ----
+  await send('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: 1, mobile: false });
+  await navigate('about:blank');
+  await navigate(`${base}/examples/`);
+  await evaluate(`document.querySelector('figure[data-id="html"]').scrollIntoView({ block: 'center' })`);   // it paints only in view
+  await sleep(300);
+  const g = await evaluate(`window.__gallery.activate('html').then((h) => ({ mode: h.mode, thread: h.thread, parent: h.element.parentElement.tagName }))`);
+  const gsel = await evaluate(`(() => { const p = document.querySelector('#html-card p'); const r = p.getBoundingClientRect(); return document.elementFromPoint(r.left + 20, r.top + 8) === p; })()`);
+  tag('gallery card', g.mode === 'webgl' && g.thread === 'worker' && g.parent === 'CANVAS' && gsel, `${g.mode}/${g.thread}, its words hit-test where drawn: ${gsel}`);
+  console.log('html  ', `canvas ${canvasBox.w}×${canvasBox.h}`);
 }
 
 ws.close();
