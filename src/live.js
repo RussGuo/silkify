@@ -17,17 +17,25 @@
  *   geometry     the camera is orthographic and the silk moves only along the line of sight, so the element is drawn
  *                where its flat rectangle is: one fixed scale and offset, set on mount, when the canvas or the
  *                element changes size, never per frame. By default it is 1:1 (fit = canvas ÷ element): the words are
- *                the size they are in the page. An explicit `fit` scales it like a picture.
+ *                the size they are in the page. An element larger than the canvas is shrunk to fit, with a margin, and
+ *                says so once (console.warn). An explicit `fit` scales it like a picture, and is never second-guessed.
+ *   stand-off    while the element is in the canvas, an invisible box of its size holds its place in the page (same
+ *                display, margins and flex / grid placement, no hit testing), so the layout around it does not move:
+ *                a stage the element held open stays open. It follows the element's size, and leaves with it.
  *   giving up    no picture with anything in it within 4 s of the canvas being visible → the element goes back
  *                where it was, as plain HTML (silk.js turns that into mode 'static', its reason and one warn).
  *
- * The element moves into the canvas only once the renderer is running, and goes back to where it was on dispose()
- * or any failure. While it is in the canvas the canvas belongs to the library: an aria-hidden on it would hide the
+ * The element moves into the canvas only once the renderer is running, and goes back to where it was (the stand-off's
+ * place) on dispose() or any failure. While it is in the canvas the canvas belongs to the library: an aria-hidden on it would hide the
  * element from assistive technology too, so it is removed, and put back on the way out.
  */
 
 const FIRST_PICTURE_MS = 4000;   // visible time allowed for the first picture with something in it
 const STAND_IN_SCALE = 2;        // the stand-in's pixels per CSS px (the dome's outline is cut from it)
+const ROOM = 0.92;               // an element larger than the canvas is shrunk to this share of it (a margin all round)
+/* what the stand-off copies from the element, so it takes the same place in the page's layout */
+const PLACED = ['marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'float', 'flexGrow', 'flexShrink', 'flexBasis', 'order',
+  'alignSelf', 'justifySelf', 'gridRowStart', 'gridRowEnd', 'gridColumnStart', 'gridColumnEnd', 'verticalAlign'];
 
 /* ---- support: { main, worker } — main: printable on the main thread; worker: also capturable for a worker ---- */
 let support;
@@ -78,6 +86,27 @@ function standIn(el, w, h) {
   return c;
 }
 
+/** The element's layout box (a transform does not change it), in fractional CSS px. */
+function layoutBox(el) {
+  const r = el.getBoundingClientRect();
+  return getComputedStyle(el).transform === 'none' ? { w: r.width, h: r.height } : { w: el.offsetWidth, h: el.offsetHeight };
+}
+
+/** The stand-off: an invisible, inert box that keeps the element's place in the page while it is in the canvas. */
+function standOff(el, { w, h }) {
+  const cs = getComputedStyle(el), d = document.createElement('div');
+  for (const k of PLACED) d.style[k] = cs[k];
+  Object.assign(d.style, {
+    display: cs.display === 'inline' ? 'inline-block' : cs.display,
+    position: cs.position === 'absolute' || cs.position === 'fixed' ? cs.position : 'static',
+    boxSizing: 'border-box', width: `${w}px`, height: `${h}px`, minWidth: '0', minHeight: '0', maxWidth: 'none', maxHeight: 'none',
+    padding: '0', border: '0', visibility: 'hidden', pointerEvents: 'none',
+  });
+  d.setAttribute('aria-hidden', 'true');
+  d.setAttribute('data-silkify-stand-off', '');
+  return d;
+}
+
 /**
  * The live element for one silkify() call.
  *   ctx: { canvas() → the current canvas, send(m, transfer), o (the options, read and written: image, fit),
@@ -85,10 +114,20 @@ function standIn(el, w, h) {
  */
 export function liveElement(element, ctx) {
   const { o } = ctx;
-  let home = null, hidden = null, size = null, thread = null, ctl = null, ro = null;
-  let reshaping = false, settle = null;
+  let home = null, hidden = null, size = null, thread = null, ctl = null, ro = null, stub = null;
+  let reshaping = false, settle = null, warned = false;
 
-  const fitFor = (cw, ch, w, h) => Math.min(cw / w, ch / h);
+  /** fit for 1:1 (canvas ÷ element); an element that does not fit is shrunk to ROOM of the canvas, said once. */
+  function fitFor(cw, ch, w, h) {
+    const one = Math.min(cw / w, ch / h);
+    if (one >= 1 || !Number.isFinite(one) || one <= 0) return one;
+    if (!warned) {
+      warned = true;
+      const px = (a, b) => `${Math.round(a)}×${Math.round(b)} px`;
+      console.warn(`silkify: the element (${px(w, h)}) is larger than the canvas (${px(cw, ch)}): it is drawn at ${Math.round(one * ROOM * 100)}% to fit. Give the canvas room for the element, or pass fit to choose the scale.`);
+    }
+    return 1 / ROOM;
+  }
   const boxOf = () => ({ w: element.offsetWidth, h: element.offsetHeight });
 
   /** The rectangle the element is drawn in, as the browser must know it for hit testing (CSS px of the canvas). */
@@ -114,8 +153,9 @@ export function liveElement(element, ctx) {
   }
 
   /* ---- the element changed size: 1:1 keeps it 1:1, and the dome is rebuilt for the new box ---- */
-  async function resizedElement() {
-    const b = boxOf();
+  async function resizedElement(entry) {
+    const bb = entry?.borderBoxSize?.[0], b = bb ? { w: bb.inlineSize, h: bb.blockSize } : boxOf();
+    if (stub && b.w && b.h) Object.assign(stub.style, { width: `${b.w}px`, height: `${b.h}px` });   // the page keeps its place
     if (!size || !b.w || !b.h || (Math.abs(b.w - size.w) < 0.5 && Math.abs(b.h - size.h) < 0.5)) return;
     size = b;
     const canvas = ctx.canvas();
@@ -145,6 +185,8 @@ export function liveElement(element, ctx) {
       thread = onWorker ? 'worker' : 'main';
       const canvas = ctx.canvas();
       home = { parent: element.parentNode, next: element.nextSibling };
+      stub = standOff(element, layoutBox(element));
+      element.parentNode?.insertBefore(stub, element);
       hidden = canvas.getAttribute('aria-hidden');
       canvas.removeAttribute('aria-hidden');
       canvas.setAttribute('content', 'drawable');
@@ -152,7 +194,7 @@ export function liveElement(element, ctx) {
       canvas.append(element);
       ctl = new AbortController();
       canvas.addEventListener('paint', onPaint, { signal: ctl.signal });
-      ro = new ResizeObserver(() => { resizedElement().catch(() => { reshaping = false; }); });
+      ro = new ResizeObserver((es) => { resizedElement(es[es.length - 1]).catch(() => { reshaping = false; }); });
       ro.observe(element);
       place();
       // inside the canvas the element is laid out against it: a different box rebuilds the dome (the observer's first
@@ -203,8 +245,11 @@ export function liveElement(element, ctx) {
       if (!home) return;
       const canvas = element.parentNode;
       element.removeAttribute('drawable');
-      if (home.parent) home.parent.insertBefore(element, home.next && home.next.parentNode === home.parent ? home.next : null);
+      if (stub?.parentNode) stub.replaceWith(element);   // where it was, even if the page changed around it
+      else if (home.parent) home.parent.insertBefore(element, home.next && home.next.parentNode === home.parent ? home.next : null);
       else element.remove();
+      stub?.remove();
+      stub = null;
       if (canvas instanceof HTMLCanvasElement) {
         canvas.removeAttribute('content');
         if (hidden !== null) canvas.setAttribute('aria-hidden', hidden);

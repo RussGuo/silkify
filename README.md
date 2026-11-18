@@ -238,7 +238,7 @@ src/worker.js       the Web Worker entry
 src/presets.js      material and feel presets: plain option fragments
 src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
-src/live.js         live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the plain-HTML fallback
+src/live.js         live HTML, the page side: feature detection, the element's stand-in, the place it keeps in the page, snapshots, hit geometry, the plain-HTML fallback
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html, live HTML), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
 scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence in both READMEs, the gallery and the Lab (--check for drift)
@@ -248,6 +248,7 @@ scripts/harness.mjs              the static server and the Playwright loader the
 examples/           the gallery, the Lab, live.html (live HTML), and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
 examples/react, examples/next    the smallest Vite and Next.js projects with the React components (Silk for a picture, SilkHtml for live HTML)
 test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
+test/live-edge.html live HTML in the layouts people write: a card that holds its stage open, one larger than its canvas
 integrations/       generated: a Cursor rule and a path-scoped Copilot instruction
 AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index
 .claude-plugin/     the plugin marketplace manifest (the skill is SKILL.md at the root)

@@ -238,7 +238,7 @@ src/worker.js       Web Worker 入口
 src/presets.js      material 与 feel 预设：纯参数片段
 src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
-src/live.js         活 HTML 的页面一侧：特性检测、元素的替身图、快照、命中几何、退回普通 HTML
+src/live.js         活 HTML 的页面一侧：特性检测、元素的替身图、在页面里占住原位、快照、命中几何、退回普通 HTML
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
 scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab、test/edge.html 与活 HTML）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
 scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt；两份 README、画廊和 Lab 里的那句安装指令也由它写入（--check 查漂移）
@@ -248,6 +248,7 @@ scripts/harness.mjs              各检查脚本共用的静态服务器与 Play
 examples/           画廊、Lab 调参页、活 HTML 示例 live.html、CDN 用法的测试页 cdn.html（都是静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
 examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程（图片用 Silk，活 HTML 用 SilkHtml）
 test/edge.html      曾经静默失败的情形：SVG、空图或缺图、加载中的调用
+test/live-edge.html 活 HTML 在常见布局下：卡片撑起舞台、卡片比画布大
 integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions
 AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引
 .claude-plugin/     插件 marketplace 清单（Skill 本体是根目录的 SKILL.md）

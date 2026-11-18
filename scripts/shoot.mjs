@@ -24,7 +24,8 @@
  *          double-click a word, the link, the button, typing (and an IME composition), the scrolling list, the
  *          caret, the element growing and the canvas resizing (geometry stays 1:1), ripples, sleeping until the
  *          element changes; then the main thread, no feature (plain HTML, no warning), an empty capture (plain HTML,
- *          one warning), dispose() putting the element back, and the gallery's live-HTML card. Skipped, with a
+ *          one warning), dispose() putting the element back, test/live-edge.html (layouts that hold the stage open, an
+ *          element larger than its canvas; it checks itself) and the gallery's live-HTML card. Skipped, with a
  *          note, in a Chrome without HTML-in-Canvas.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
@@ -710,6 +711,13 @@ async function verifyLive() {
   problems.push(...fresh.filter((p) => !expected(p)));
   const blank = await evaluate(`document.getElementById('silk').width`);
   tag('empty capture', h.mode === 'static' && h.parent === 'DIV' && warns.length === 1, `${h.mode}, ${warns.length} warning: ${h.reason}; canvas ${blank} px wide (blank)`);
+
+  // ---- test/live-edge.html: the layouts people write, and the mistakes they make (the page checks itself) ----
+  await send('Emulation.setDeviceMetricsOverride', { width: 900, height: 860, deviceScaleFactor: 1, mobile: false });
+  await navigate('about:blank');
+  await navigate(`${base}/test/live-edge.html`);
+  const le = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__liveEdge && (clearInterval(t), r(window.__liveEdge)), 100); })`);
+  tag('live-edge.html', !le.problems.length, le.problems.join('; ') || Object.keys(le.out).join(', '));
 
   // ---- the gallery's live-HTML card ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: 1, mobile: false });

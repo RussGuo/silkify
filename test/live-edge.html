@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify live-HTML edge cases</title>
+<link rel="icon" href="data:,">
+<!--
+  live-edge.html — live HTML in the layouts people actually write, run by scripts/shoot.mjs in a Chrome with
+  HTML-in-Canvas (elsewhere every case would simply stay plain HTML). The cases run one after another, each in its
+  own stage, and window.__liveEdge is set once all have settled: { out, problems }. console.warn is captured here, so
+  an expected warning is counted instead of failing the run.
+    hold    a card that holds its stage open (its min-height is smaller than the card): coming alive moves nothing — the
+            stage keeps its height, the paragraph below stays put, the link is hit where it was.
+    big     a card larger than its canvas: shrunk to fit, inside the canvas, and exactly one warning.
+    fit     the same card with an explicit fit: no warning (the caller chose the scale).
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 15px/1.5 Georgia, serif; background: #f3efe7; }
+  .stage { position: relative; display: grid; place-items: center; margin: 0 0 12px; background: #ebe6dc; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .card { position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef; }
+  .card h2 { margin: 0 0 8px; font-size: 24px; }
+  .card p { margin: 0 0 10px; }
+  #s-hold { min-height: 120px; }
+  #s-big, #s-fit { width: 300px; height: 160px; overflow: hidden; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="stage" id="s-hold"><canvas></canvas>
+  <article class="card" id="c-hold"><h2>A card taller than its stage</h2><p>The stage is 120 px high at least; this card holds it open.</p>
+    <p><a id="l-hold" href="#hold">A link in it</a></p><p>And a last line, to make it taller still.</p></article></div>
+<p id="below">The paragraph below the stage: it must not move when the card comes alive.</p>
+<div class="stage" id="s-big"><canvas></canvas><article class="card" id="c-big"><h2>Too big</h2><p>Wider than its canvas.</p></article></div>
+<div class="stage" id="s-fit"><canvas></canvas><article class="card" id="c-fit"><h2>Too big, fit given</h2><p>Wider than its canvas.</p></article></div>
+<script type="module">
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...a) => { if (String(a[0]).startsWith('silkify:')) warned.push(String(a[0])); else warn(...a); };
+
+  const { silkify } = await import('../src/silk.js');
+  const $ = (id) => document.getElementById(id);
+  const rect = (el) => el.getBoundingClientRect();
+  const out = {}, problems = [];
+  const expect = (ok, what) => { if (!ok) problems.push(what); };
+  const timeout = (p, ms, value) => Promise.race([p, new Promise((r) => setTimeout(() => r(value), ms))]);
+  const mount = async (id, opts = {}) => {
+    const n = warned.length;
+    const h = silkify($(`s-${id}`).querySelector('canvas'), { element: `#c-${id}`, tier: 'low', ...opts });
+    await timeout(h.ready, 30000);
+    return { h, warns: warned.slice(n) };
+  };
+  const inside = (a, b) => a.left >= b.left - 0.5 && a.top >= b.top - 0.5 && a.right <= b.right + 0.5 && a.bottom <= b.bottom + 0.5;
+
+  // hold: nothing moves when the card comes alive, and nothing when it goes back
+  {
+    const link = rect($('l-hold')), x = link.left + link.width / 2, y = link.top + link.height / 2;
+    const before = { stage: rect($('s-hold')).height, below: rect($('below')).top };
+    const { h, warns } = await mount('hold');
+    await new Promise((r) => setTimeout(r, 300));
+    const mode = h.mode, live = { stage: rect($('s-hold')).height, below: rect($('below')).top, hit: document.elementFromPoint(x, y)?.id };
+    h.dispose();
+    const back = { below: rect($('below')).top, stubs: document.querySelectorAll('[data-silkify-stand-off]').length, parent: $('c-hold').parentElement.id };
+    out.hold = { mode, before, live, back, warns };
+    expect(warns.length === 0, `hold: ${JSON.stringify(warns)}`);
+    expect(Math.abs(live.stage - before.stage) < 0.5 && Math.abs(live.below - before.below) < 0.5,
+      `hold: the layout moved (stage ${before.stage} → ${live.stage}, below ${before.below} → ${live.below})`);
+    expect(live.hit === 'l-hold', `hold: the link's place hits ${live.hit}`);
+    expect(Math.abs(back.below - before.below) < 0.5 && back.stubs === 0 && back.parent === 's-hold', `hold: after dispose ${JSON.stringify(back)}`);
+  }
+
+  // big: shrunk into the canvas, said once
+  {
+    const { h, warns } = await mount('big');
+    const r = rect($('c-big')), c = rect(h.canvas);
+    out.big = { mode: h.mode, card: [r.width, r.height], canvas: [c.width, c.height], warns };
+    expect(h.mode === 'webgl', `big: ${h.mode} (${h.reason})`);
+    expect(inside(r, c) && r.width < $('c-big').offsetWidth, `big: the card is not inside its canvas (${JSON.stringify(out.big)})`);
+    expect(warns.length === 1 && /larger than the canvas/.test(warns[0]), `big: ${JSON.stringify(warns)}`);
+    h.dispose();
+  }
+
+  // fit: the caller's scale, no warning
+  {
+    const { h, warns } = await mount('fit', { fit: 1.2 });
+    out.fit = { mode: h.mode, warns };
+    expect(h.mode === 'webgl' && warns.length === 0, `fit: ${h.mode}, ${JSON.stringify(warns)}`);
+    h.dispose();
+  }
+
+  for (const k of ['hold', 'big', 'fit']) if (out[k].mode !== 'webgl') problems.push(`${k}: ${out[k].mode}`);
+  window.__liveEdge = { out, problems };
+</script>
+</body>
+</html>
