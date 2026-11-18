@@ -263,7 +263,8 @@ export function silkify(canvasIn, options = {}) {
       if (handle.mode === 'loading') early.push(m);
       send(m);
     },
-    /** For measuring: frames drawn since mount and the loop's current mode ('active', 'breeze', 'tail', 'sweep', 'rest'). */
+    /** For measuring: frames drawn since mount and the loop's current mode ('active', 'breeze', 'tail', 'sweep', 'rest';
+     *  live HTML: 'html' while the loop rests but the element's snapshots keep coming, each one a frame). */
     stats() {
       if (handle.mode !== 'webgl') return Promise.resolve({ frames: 0, mode: handle.mode });
       return new Promise((resolve) => { asked.set(++askId, resolve); send({ t: 'stats', id: askId }); });

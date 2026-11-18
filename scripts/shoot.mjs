@@ -590,8 +590,8 @@ async function verifyLive() {
   const r1 = await stats();
   await sleep(1000);
   const r2 = await stats();
-  tag('sleep', r0.mode === 'rest' && r1.snapshots > r0.snapshots && r1.frames > r0.frames && r2.frames === r1.frames && r2.mode === 'rest',
-    `${r0.mode}; a text change → ${r1.snapshots - r0.snapshots} snapshot(s), ${r1.frames - r0.frames} frame(s), then ${r2.frames - r1.frames} frames in 1 s (${r2.mode})`);
+  tag('sleep', r0.mode === 'rest' && r1.snapshots > r0.snapshots && r1.frames > r0.frames && r1.mode === 'html' && r2.frames === r1.frames && r2.mode === 'rest',
+    `${r0.mode}; a text change → ${r1.snapshots - r0.snapshots} snapshot(s), ${r1.frames - r0.frames} frame(s) (${r1.mode}), then ${r2.frames - r1.frames} frames in 1 s (${r2.mode})`);
 
   // ---- select, copy, double-click, link, button ----
   await send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base });
@@ -654,7 +654,7 @@ async function verifyLive() {
   const s1 = await stats();
   let blink = 0;
   for (let i = 1; i < caretShots.length; i++) blink = Math.max(blink, (await diffOf(caretShots[0], caretShots[i]))[0]);
-  tag('caret', blink > 0.05 && s1.snapshots > s0.snapshots, `${s1.snapshots - s0.snapshots} snapshots in 1 s while focused, Δ ${blink.toFixed(2)} in the line`);
+  tag('caret', blink > 0.05 && s1.snapshots > s0.snapshots && s1.mode !== 'rest', `${s1.snapshots - s0.snapshots} snapshots in 1 s while focused (${s1.mode}), Δ ${blink.toFixed(2)} in the line`);
 
   // ---- the element grows (a second line), the canvas narrows: still 1:1 where it is drawn and hit-tested ----
   const h0 = await evaluate('silk.element.offsetHeight');

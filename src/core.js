@@ -41,6 +41,7 @@ const FIRST_DROP_MS = 800;          // autoplay: the first drop comes soon after
 const SWEEP_RATE = 0.22;            // rad/s → one loop ≈ 28.6 s
 const SWEEP_TURN = (2 * Math.PI) / SWEEP_RATE;
 const SLOW_FRAME_MS = 28;
+const HTML_MS = 1000;               // live HTML: stats() says 'html' while a snapshot came within this long
 const SIM_HZ = 60;                  // the wave solver's fixed rate: ripples move at the same speed on any display
 const MAX_STEPS_ACTIVE = 4;         // at most this many 60 Hz steps per drawn frame while active (a slow frame lags)
 const MAX_CATCH_UP = 12;            // and in the 12 fps tail or the 30 fps breeze
@@ -350,6 +351,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   let simDirty = false, frameMs = 1000 / 60, slowRun = 0, slowSum = 0, lastStir = -1e9, drawCount = 0;
   let simClock = 0, solverSteps = 0;   // solver steps owed (in 60 Hz steps) and taken since mount
   let snapshots = 0, seen = false;     // live HTML: pictures of the element printed; one of them had something in it
+  let lastSnapshot = -1e9;             // when the last one was printed (stats() reports 'html' for a second after it)
   const sweeping = () => tier.idleSweep && o.idleSweep && !still && sweepUsed < SWEEP_TURN;
   const chasing = () => tmp.copy(target).sub(fill).lengthSq() > 0.0016 || vel.lengthSq() > 0.02;
   function modeAt(now) {
@@ -543,7 +545,12 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       if (uv) { addTouch(uv, opts); wake(); }
       return !!uv;
     },
-    stats: () => ({ frames: drawCount, steps: solverSteps, mode: modeAt(performance.now()), ...(o.html ? { snapshots } : {}) }),
+    // 'html': the loop is at rest, but the element's rendering keeps changing and every change is a frame (the loop's
+    // own schedule never sees this mode: snapshots are drawn by the paint event, not by the loop)
+    stats: () => {
+      const now = performance.now(), mode = modeAt(now);
+      return { frames: drawCount, steps: solverSteps, mode: mode === 'rest' && now - lastSnapshot < HTML_MS ? 'html' : mode, ...(o.html ? { snapshots } : {}) };
+    },
     /**
      * Live HTML: print a picture of an HTML element into the albedo, over the stand-in the dome was built from.
      * `src` is the Element itself (main thread, inside the page's paint event) or an ElementImage the page captured
@@ -589,6 +596,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       gl.generateMipmap(gl.TEXTURE_2D);
       renderer.resetState();   // three's cached GL state no longer matches what was bound here
       snapshots++;
+      lastSnapshot = performance.now();
       wake();
       return { ok: true, empty };
     },

@@ -31,7 +31,7 @@
 | Square corners on a rounded card | The rounding is on an inner element, not the element passed to silkify | Put `border-radius` and the background on the element itself (in React, `cardStyle` on `SilkHtml`) |
 | The card is smaller on the silk than in the page, with a warning that it is larger than the canvas | At 1:1 the element would not fit in the canvas, so it is shrunk to fit | Give the canvas room for the element (a card width such as `min(420px, 100% - 32px)` with `box-sizing: border-box` fits a phone), or pass a `fit` |
 | Screen readers skip the card while it is live | `aria-hidden` or `inert` on an ancestor of the canvas (silkify only removes `aria-hidden` from the canvas itself) | Remove it from the ancestor |
-| It keeps drawing while nothing is touched | Something in the element keeps repainting: a CSS animation, a video, a focused editable line (the caret blinks about twice a second) | Keep continuous animation out of the element; `handle.stats()` shows `snapshots` climbing |
+| It keeps drawing while nothing is touched | Something in the element keeps repainting: a CSS animation, a video, a focused editable line (the caret blinks about twice a second) | Keep continuous animation out of the element; `handle.stats()` shows `mode: 'html'` and `snapshots` climbing |
 | The words look soft | The low tier renders at pixel ratio 1 | Expected on phones and software GPUs; `tier: 'high'` where it must be sharp |
 | A cross-origin image in the element is blank on the silk | HTML-in-Canvas never paints cross-origin content (images, iframes), `:visited` styles or spelling marks into the picture | Serve the image from the same origin; the plain-HTML fallback shows it as usual |
 

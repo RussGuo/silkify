@@ -86,7 +86,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | `poster` | Ignored: the fallback is the element itself. |
 | `shape: 'sphere'` (and `phase`, `bump`, `spin`, `angle`) | `shape: 'sphere'` throws a `TypeError`; the rest only ever apply to a sphere. |
 
-The handle is the same, with `handle.element` (the element) and `snapshots` in `stats()` (pictures of the element printed since mount). `mode` is `'static'` when the element stays plain HTML: no HTML-in-Canvas, the static tier, no WebGL2, an element with no size (`reason` says which, and nothing is logged), or a browser that has the feature but gave no picture of the element within 4 s of the canvas being visible (this one also logs one `console.warn`). Code that could not be loaded (no import map for `three`) also leaves the element as plain HTML, with one `console.warn`. `ready` resolves once the element's first picture is on the silk.
+The handle is the same, with `handle.element` (the element) and `snapshots` in `stats()` (pictures of the element printed since mount); `stats().mode` is `'html'` while the loop rests but a snapshot came within the last second (each snapshot is a frame), and `'rest'` only when nothing is drawn. `mode` is `'static'` when the element stays plain HTML: no HTML-in-Canvas, the static tier, no WebGL2, an element with no size (`reason` says which, and nothing is logged), or a browser that has the feature but gave no picture of the element within 4 s of the canvas being visible (this one also logs one `console.warn`). Code that could not be loaded (no import map for `three`) also leaves the element as plain HTML, with one `console.warn`. `ready` resolves once the element's first picture is on the silk.
 
 ## Recipes (from the gallery)
 
