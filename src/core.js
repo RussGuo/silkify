@@ -350,7 +350,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   let elapsed = 0, frameId = 0, timerId = 0, lastTick = 0, dead = false, drawn = false;
   let simDirty = false, frameMs = 1000 / 60, slowRun = 0, slowSum = 0, lastStir = -1e9, drawCount = 0;
   let simClock = 0, solverSteps = 0;   // solver steps owed (in 60 Hz steps) and taken since mount
-  let snapshots = 0, seen = false;     // live HTML: pictures of the element printed; one of them had something in it
+  let snapshots = 0, seen = false, cleared = false;     // live HTML: pictures of the element printed; one of them had something in it
   let lastSnapshot = -1e9;             // when the last one was printed (stats() reports 'html' for a second after it)
   const sweeping = () => tier.idleSweep && o.idleSweep && !still && sweepUsed < SWEEP_TURN;
   const chasing = () => tmp.copy(target).sub(fill).lengthSq() > 0.0016 || vel.lengthSq() > 0.02;
@@ -571,6 +571,12 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       let empty = false;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
+      if (!cleared) {
+        // the stand-in's last row or column can stay outside the picture's rectangle (both are rounded to texels): it
+        // would show as a thin line under an element with no background, so the first picture starts from nothing
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, D, D, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(D * D * 4));
+        cleared = true;
+      }
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       try {
         gl.texElementSubImage2D(gl.TEXTURE_2D, 0, x0, y0, src, { width: w, height: h });
