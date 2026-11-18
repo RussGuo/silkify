@@ -24,7 +24,7 @@
     background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 60%, var(--paper)), var(--stage)); }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   /* the card: plain HTML, styled by its own id (it moves into the canvas, so no `.stage > #card`) */
-  #card { position: relative; width: 420px; max-width: calc(100% - 32px); padding: 26px 30px; border-radius: 22px;
+  #card { position: relative; width: min(420px, 100% - 32px); padding: 26px 30px; border-radius: 22px;
     background: #fbf7ef; color: #2a2620; font: 16px/1.5 ui-serif, Georgia, serif; }
   #card h2 { margin: 0 0 8px; font: 600 26px/1.15 ui-serif, Georgia, serif; color: #6b1f1a; }
   #card p { margin: 0 0 12px; }

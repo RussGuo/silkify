@@ -126,7 +126,7 @@ A piece of the page can be the silk instead of a picture. With HTML-in-Canvas (C
 ```html
 <div style="position: relative; display: grid; place-items: center; min-height: 480px">
   <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
-  <article id="card" style="position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+  <article id="card" style="position: relative; box-sizing: border-box; width: min(420px, 100% - 32px); padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
 </div>
 <script type="module">
   import { silkify } from './silk/silk.js';
@@ -140,7 +140,7 @@ A piece of the page can be the silk instead of a picture. With HTML-in-Canvas (C
 | Chrome 157, a real GPU: words selected on the silk | The same card touched, after typing into its last line |
 
 - **Browsers.** Live HTML needs HTML-in-Canvas, which Chrome ships from version 157. silkify detects the feature itself, never the browser's name. Everywhere else (Safari, Firefox, older Chrome), and with reduced motion, the element simply stays where it is as plain HTML: nothing to write for the fallback, and nothing logged.
-- **1:1.** The element is drawn at its own size, in the place the page laid it out, so the fallback and the live card look the same and nothing moves when it comes alive. Pass `fit` to scale it like a picture.
+- **1:1.** The element is drawn at its own size, in the place the page laid it out, and an invisible box of its size keeps that place in the page, so the fallback and the live card look the same and nothing moves when it comes alive. An element larger than its canvas is shrunk to fit, and one `console.warn` says so; pass `fit` to scale it like a picture, without a warning.
 - **Its own box is the outline.** The element's background and `border-radius` become the silk's shape; `matte`, `threshold`, `corner`, `albedo`, `grain` and `poster` are ignored. `material`, `feel` and every light and ripple option apply; `puff` defaults to `'cushion'`.
 - **It costs nothing at rest.** The element is printed again only when its rendering changes (text, style, hover, selection, the caret), each time one snapshot and one frame, measured at about 1–3 ms of GPU work on a real GPU ([references/performance.md](references/performance.md)).
 - **Accessibility.** The element stays in the page's accessibility tree. While it is inside the canvas, silkify removes any `aria-hidden` from the canvas, which would otherwise hide the element too, and puts it back afterwards.
@@ -248,7 +248,7 @@ scripts/harness.mjs              the static server and the Playwright loader the
 examples/           the gallery, the Lab, live.html (live HTML), and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
 examples/react, examples/next    the smallest Vite and Next.js projects with the React components (Silk for a picture, SilkHtml for live HTML)
 test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
-test/live-edge.html live HTML in the layouts people write: a card that holds its stage open, one larger than its canvas
+test/live-edge.html live HTML in the layouts people write: a card that holds its stage open, one larger than its canvas, SKILL.md's snippet at 375 px
 integrations/       generated: a Cursor rule and a path-scoped Copilot instruction
 AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index
 .claude-plugin/     the plugin marketplace manifest (the skill is SKILL.md at the root)

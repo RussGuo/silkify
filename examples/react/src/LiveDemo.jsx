@@ -7,7 +7,7 @@ const CARDS = {
   pomegranate: { title: 'Pomegranate, in silk', text: 'Every word here is text in the page: select it and copy it.' },
   parrot: { title: 'A bird of gold', text: 'Gold, enamel and gemstones, printed on silk, still text in the page.' },
 };
-const cardStyle = { width: 300, padding: '20px 24px', borderRadius: 18, background: '#fbf7ef', color: '#2a2620', fontFamily: 'Georgia, serif' };
+const cardStyle = { boxSizing: 'border-box', width: 'min(348px, 100% - 32px)', padding: '20px 24px', borderRadius: 18, background: '#fbf7ef', color: '#2a2620', fontFamily: 'Georgia, serif' };
 
 export default function LiveDemo() {
   const [id, setId] = useState('pomegranate');
@@ -22,7 +22,7 @@ export default function LiveDemo() {
         <button id="hide" onClick={() => setShown((v) => !v)}>{shown ? 'Unmount' : 'Mount'}</button>
       </p>
       {shown && (
-        <SilkHtml key={id} style={{ width: 420, aspectRatio: '1' }} cardStyle={cardStyle} onReady={(h) => { window.__silk = h; }}>
+        <SilkHtml key={id} style={{ width: 'min(420px, 100%)', aspectRatio: '1' }} cardStyle={cardStyle} onReady={(h) => { window.__silk = h; }}>
           <h2 id="title" style={{ margin: '0 0 8px', color: '#6b1f1a' }}>{c.title}</h2>
           <p id="words-line" style={{ margin: 0 }}>{c.text}{more && ' And now a second sentence, written in place by React, so the card grows.'}</p>
         </SilkHtml>

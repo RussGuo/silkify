@@ -195,7 +195,7 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 ```html
 <div class="stage" style="position: relative; display: grid; place-items: center; min-height: 480px; touch-action: pan-y">
   <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
-  <article id="card" style="position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+  <article id="card" style="position: relative; box-sizing: border-box; width: min(420px, 100% - 32px); padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
 </div>
 <script type="module">
   import { silkify } from './silk/silk.js';
@@ -204,7 +204,7 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 </script>
 ```
 
-- **Lay it out for the fallback.** Put the element in the flow, centred in the canvas's box. Live, it is drawn 1:1 at that same place and size, so nothing moves when it comes alive. An explicit `fit` scales it like a picture instead; at 1:1 the canvas must be at least as large as the element.
+- **Lay it out for the fallback.** Put the element in the flow, centred in the canvas's box, with a width that also fits a phone (`width: min(420px, 100% - 32px)` and `box-sizing: border-box`, as above). Live, it is drawn 1:1 at that same place and size, and an invisible box of its size keeps its place in the page, so nothing moves when it comes alive, even when the element is what holds the stage open. An element larger than its canvas is shrunk to fit, with a margin, and silkify says so in one `console.warn`. An explicit `fit` scales it like a picture instead, without a warning.
 - **Style the element by its own id or class.** It moves into the canvas while it is live, so `.stage > #card` would stop matching. Give it a background: its painted box, alpha included, is the silk's outline (its `border-radius` too), and transparent parts are cut away.
 - **The canvas belongs to silkify.** No `user-select: none` on the canvas or its ancestors, or the words cannot be selected. An `aria-hidden` on the canvas would hide the element from screen readers: silkify removes it while the element is inside, and puts it back afterwards.
 - **Options.** `material`, `feel`, light and ripple options apply; `puff` defaults to `'cushion'`. Ignored without error: `matte`, `threshold`, `corner`, `albedo`, `grain`, `poster`. `image` together with `element`, or `shape: 'sphere'`, throws. The table is in [references/parameters.md](references/parameters.md#element-mode-live-html).

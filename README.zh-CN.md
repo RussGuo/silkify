@@ -126,7 +126,7 @@ silk.dispose();
 ```html
 <div style="position: relative; display: grid; place-items: center; min-height: 480px">
   <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
-  <article id="card" style="position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+  <article id="card" style="position: relative; box-sizing: border-box; width: min(420px, 100% - 32px); padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
 </div>
 <script type="module">
   import { silkify } from './silk/silk.js';
@@ -140,7 +140,7 @@ silk.dispose();
 | Chrome 157，真 GPU：在绸面上选中文字 | 同一张卡片，在最后一行输入之后被触碰 |
 
 - **浏览器。** 活 HTML 需要 HTML-in-Canvas，Chrome 从 157 版开始提供。silkify 只检测这个特性本身，不看浏览器的名字。其他浏览器（Safari、Firefox、更早的 Chrome）里，以及系统要求减少动态效果时，元素就留在原处，是普通的 HTML：退路不用另写，控制台也不输出任何东西。
-- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上。所以退路和活版看起来一样，活起来的那一刻不会跳动。想放大或缩小，传 `fit`，它就像图片一样缩放。
+- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上；原处留着一个同样大小、看不见的占位，页面排版不变。所以退路和活版看起来一样，活起来的那一刻不会跳动。元素比画布大时，会缩到能放下，并用一条 `console.warn` 说明。想放大或缩小，传 `fit`，它就像图片一样缩放，不会提示。
 - **轮廓就是元素自己的盒子。** 元素的背景和 `border-radius` 就是绸面的形状；`matte`、`threshold`、`corner`、`albedo`、`grain`、`poster` 会被忽略。`material`、`feel` 以及所有光照和涟漪参数照常起作用；`puff` 默认为 `'cushion'`。
 - **静止时不花钱。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧。在真 GPU 上实测每次约 1–3 ms 的 GPU 工作（见 [references/performance.md](references/performance.md)）。
 - **无障碍。** 元素一直在页面的无障碍树里。元素在画布里的时候，silkify 会去掉画布上的 `aria-hidden`（否则元素也会被一起藏掉），之后再放回去。
@@ -248,7 +248,7 @@ scripts/harness.mjs              各检查脚本共用的静态服务器与 Play
 examples/           画廊、Lab 调参页、活 HTML 示例 live.html、CDN 用法的测试页 cdn.html（都是静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
 examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程（图片用 Silk，活 HTML 用 SilkHtml）
 test/edge.html      曾经静默失败的情形：SVG、空图或缺图、加载中的调用
-test/live-edge.html 活 HTML 在常见布局下：卡片撑起舞台、卡片比画布大
+test/live-edge.html 活 HTML 在常见布局下：卡片撑起舞台、卡片比画布大、SKILL.md 的片段在 375 px 宽下
 integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions
 AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引
 .claude-plugin/     插件 marketplace 清单（Skill 本体是根目录的 SKILL.md）

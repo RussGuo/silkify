@@ -79,7 +79,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | Option | In element mode |
 |---|---|
 | `element` | An `Element`, or a selector for one. Takes the place of `image`; passing both throws a `TypeError`. |
-| `fit` | Default: canvas ÷ element, the smaller of the two ratios, so the element is drawn 1:1 (its words the size they are in the page), recomputed whenever the canvas or the element changes size. A number scales it like a picture. |
+| `fit` | Default: canvas ÷ element, the smaller of the two ratios, so the element is drawn 1:1 (its words the size they are in the page), recomputed whenever the canvas or the element changes size. An element larger than the canvas is shrunk to 92% of it instead, and one `console.warn` gives both sizes. A number scales it like a picture, and never warns. |
 | `puff` | Default `'cushion'`. |
 | `matte`, `threshold`, `corner` | Ignored: the outline is the element's own painted box, its `border-radius` included. |
 | `albedo`, `grain` | Ignored, also when a preset (`foil`, `paper`, `ink`) or `setTheme()` sets them: they would paint over the words. |

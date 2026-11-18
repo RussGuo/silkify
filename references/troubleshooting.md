@@ -28,7 +28,7 @@
 | The element loses its styles when it goes live | A selector that depends on where the element sits (`.stage > #card`): it moves into the canvas while live | Style it by its own id or class |
 | Holes in the silk, or the silk cut to the letters | The element (or part of it) has no background: its painted alpha is the outline | Give the element a background colour |
 | Square corners on a rounded card | The rounding is on an inner element, not the element passed to silkify | Put `border-radius` and the background on the element itself (in React, `cardStyle` on `SilkHtml`) |
-| Part of the card is cut off | At 1:1 the canvas is smaller than the element | Make the canvas at least as large as the element, or pass a `fit` |
+| The card is smaller on the silk than in the page, with a warning that it is larger than the canvas | At 1:1 the element would not fit in the canvas, so it is shrunk to fit | Give the canvas room for the element (a card width such as `min(420px, 100% - 32px)` with `box-sizing: border-box` fits a phone), or pass a `fit` |
 | Screen readers skip the card while it is live | `aria-hidden` or `inert` on an ancestor of the canvas (silkify only removes `aria-hidden` from the canvas itself) | Remove it from the ancestor |
 | It keeps drawing while nothing is touched | Something in the element keeps repainting: a CSS animation, a video, a focused editable line (the caret blinks about twice a second) | Keep continuous animation out of the element; `handle.stats()` shows `snapshots` climbing |
 | The words look soft | The low tier renders at pixel ratio 1 | Expected on phones and software GPUs; `tier: 'high'` where it must be sharp |
