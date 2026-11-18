@@ -212,6 +212,10 @@ export function silkify(canvasIn, options = {}) {
     if (options.image != null) throw new TypeError('silkify: pass options.image or options.element, not both');
     if (options.shape === 'sphere') throw new TypeError("silkify: options.element cannot be wrapped on a sphere (shape: 'sphere')");
   }
+  if ('element' in options && options.element == null && options.image == null) {
+    // the usual cause: getElementById() or a ref read before the element was rendered
+    throw new TypeError(`silkify: options.element is ${options.element}: call silkify() after the element is in the DOM`);
+  }
   const o = resolveOptions(options);
   const kind = o.shape;
   const element = options.element != null ? resolveElement(options.element) : null;

@@ -17,6 +17,8 @@
     snippet SKILL.md's Step 5 snippet as written, in a 375 px wide frame (a phone): live, the card whole inside its
             canvas with room around it (its rounded corners visible), and no warning.
     nomap   the same snippet without its import map: plain HTML, and exactly one warning that names three.
+    throws  element: null, element: undefined and a selector that matches nothing throw a TypeError at once, saying
+            to call silkify() after the element is in the DOM (not that an image is required).
     soon    dispose() 0, 30 and 120 ms after silkify() (the renderer still starting, as on React StrictMode's first
             mount): ready settles with mode 'disposed' and the card is back where it was, with nothing left behind.
 -->
@@ -136,6 +138,14 @@
     expect(parent !== 'CANVAS' && warns.length === 1 && /three/.test(warns[0]), `no import map: ${JSON.stringify(out.nomap)}`);
     f.remove();
   }
+
+  // throws: an element that is not there yet
+  out.throws = {};
+  for (const [k, v] of [['null', null], ['undefined', undefined], ['selector', '#not-rendered-yet']]) {
+    try { silkify($('s-soon').querySelector('canvas'), { element: v }).dispose(); out.throws[k] = 'no error'; }
+    catch (e) { out.throws[k] = `${e.name}: ${e.message}`; }
+  }
+  expect(Object.values(out.throws).every((m) => /^TypeError: .*call silkify\(\) after the element is in the DOM/.test(m)), `no element: ${JSON.stringify(out.throws)}`);
 
   // soon: dispose() while the renderer is starting
   out.soon = {};

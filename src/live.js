@@ -57,7 +57,9 @@ export function liveSupport() {
 export function resolveElement(x) {
   const el = typeof x === 'string' ? document.querySelector(x) : x;
   if (!(typeof Element !== 'undefined' && el instanceof Element)) {
-    throw new TypeError(`silkify: options.element must be an element or a selector that matches one (${typeof x === 'string' ? `'${x}' matched nothing` : String(x)})`);
+    throw new TypeError(typeof x === 'string'
+      ? `silkify: options.element '${x}' matched nothing: call silkify() after the element is in the DOM`
+      : `silkify: options.element must be an element or a selector that matches one (not ${String(x)})`);
   }
   return el;
 }
