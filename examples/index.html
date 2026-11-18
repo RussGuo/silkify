@@ -198,7 +198,9 @@
       const c = document.createElement('canvas');
       c.setAttribute('content', 'drawable');
       if (c.content !== 'drawable') {
-        document.getElementById('html-note').textContent = 'Your browser shows this card as plain HTML. Printing HTML on silk needs HTML-in-Canvas (Chrome 157 and later).';
+        const note = document.getElementById('html-note');
+        note.textContent = 'Your browser shows this card as plain HTML. Printing HTML on silk needs HTML-in-Canvas (Chrome 157 and later).';
+        note.dataset.plain = '';
       }
     })();
   </script>
@@ -251,7 +253,8 @@
     }
     return handle.ready.then((h) => {
       if (live.get(id)?.handle === h && h.mode === 'webgl') stage.classList.add('live');
-      if (id === 'html' && h.mode === 'static' && h.reason) document.getElementById('html-note').textContent = `Shown as plain HTML: ${h.reason}.`;
+      const note = document.getElementById('html-note');   // the browser has the feature, but this card stayed plain: say why
+      if (id === 'html' && h.mode === 'static' && !('plain' in note.dataset)) note.textContent = `Shown as plain HTML: ${h.reason}.`;
       return h;
     });
   }
