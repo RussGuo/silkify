@@ -26,7 +26,7 @@
  *                where it was, as plain HTML (silk.js turns that into mode 'static', its reason and one warn).
  *
  * The element moves into the canvas only once the renderer is running, and goes back to where it was (the stand-off's
- * place) on dispose() or any failure. While it is in the canvas the canvas belongs to the library: an aria-hidden on it would hide the
+ * place) on dispose() or any failure; either way it keeps the focus and the selection inside it (move()). While it is in the canvas the canvas belongs to the library: an aria-hidden on it would hide the
  * element from assistive technology too, so it is removed, and put back on the way out.
  */
 
@@ -107,6 +107,23 @@ function standOff(el, { w, h }) {
   d.setAttribute('aria-hidden', 'true');
   d.setAttribute('data-silkify-stand-off', '');
   return d;
+}
+
+/**
+ * Move `node` into `parent` before `ref` without taking the focus or the selection away from what is inside it.
+ * moveBefore() keeps both where the browser has it; otherwise (or if it refuses) the node is re-inserted and the
+ * focus and the document selection are put back.
+ */
+function move(node, parent, ref = null) {
+  const active = node.contains(document.activeElement) ? document.activeElement : null;
+  const sel = getSelection();
+  const kept = sel?.rangeCount && node.contains(sel.anchorNode) && node.contains(sel.focusNode)
+    ? [sel.anchorNode, sel.anchorOffset, sel.focusNode, sel.focusOffset] : null;
+  try { parent.moveBefore(node, ref); } catch { parent.insertBefore(node, ref); }   // no moveBefore: a TypeError, caught
+  if (active && document.activeElement !== active) active.focus({ preventScroll: true });
+  if (kept && (sel.anchorNode !== kept[0] || sel.anchorOffset !== kept[1] || sel.focusNode !== kept[2] || sel.focusOffset !== kept[3])) {
+    try { sel.setBaseAndExtent(...kept); } catch { /* the nodes changed meanwhile: leave it */ }
+  }
 }
 
 /**
@@ -193,7 +210,7 @@ export function liveElement(element, ctx) {
       canvas.removeAttribute('aria-hidden');
       canvas.setAttribute('content', 'drawable');
       element.setAttribute('drawable', '');
-      canvas.append(element);
+      move(element, canvas);   // with its focus and selection: typing in it goes on
       ctl = new AbortController();
       canvas.addEventListener('paint', onPaint, { signal: ctl.signal });
       ro = new ResizeObserver((es) => { resizedElement(es[es.length - 1]).catch(() => { reshaping = false; }); });
@@ -247,8 +264,8 @@ export function liveElement(element, ctx) {
       if (!home) return;
       const canvas = element.parentNode;
       element.removeAttribute('drawable');
-      if (stub?.parentNode) stub.replaceWith(element);   // where it was, even if the page changed around it
-      else if (home.parent) home.parent.insertBefore(element, home.next && home.next.parentNode === home.parent ? home.next : null);
+      if (stub?.parentNode) move(element, stub.parentNode, stub);   // where it was, even if the page changed around it
+      else if (home.parent) move(element, home.parent, home.next && home.next.parentNode === home.parent ? home.next : null);
       else element.remove();
       stub?.remove();
       stub = null;

@@ -17,6 +17,8 @@
     snippet SKILL.md's Step 5 snippet as written, in a 375 px wide frame (a phone): live, the card whole inside its
             canvas with room around it (its rounded corners visible), and no warning.
     nomap   the same snippet without its import map: plain HTML, and exactly one warning that names three.
+    focus   a field in the card has focus (and a selection) when the card moves into the canvas and when it goes back:
+            it keeps both.
     throws  element: null, element: undefined and a selector that matches nothing throw a TypeError at once, saying
             to call silkify() after the element is in the DOM (not that an image is required).
     soon    dispose() 0, 30 and 120 ms after silkify() (the renderer still starting, as on React StrictMode's first
@@ -44,6 +46,7 @@
 <p id="below">The paragraph below the stage: it must not move when the card comes alive.</p>
 <div class="stage" id="s-big"><canvas></canvas><article class="card" id="c-big"><h2>Too big</h2><p>Wider than its canvas.</p></article></div>
 <div class="stage" id="s-soon"><canvas></canvas><article class="card" id="c-soon"><h2>Disposed early</h2></article></div>
+<div class="stage" id="s-focus"><canvas></canvas><article class="card" id="c-focus"><h2>Focused</h2><input id="f-input" value="silk and satin"></article></div>
 <div class="stage" id="s-fit"><canvas></canvas><article class="card" id="c-fit"><h2>Too big, fit given</h2><p>Wider than its canvas.</p></article></div>
 <script type="module">
   const warned = [];
@@ -139,6 +142,20 @@
     f.remove();
   }
 
+  // focus: moving the card must not take the focus (or the selection) away from what is in it
+  {
+    const input = $('f-input');
+    input.focus();
+    input.setSelectionRange(5, 8);
+    const { h } = await mount('focus');
+    const live = { mode: h.mode, active: document.activeElement?.id, sel: [input.selectionStart, input.selectionEnd] };
+    h.dispose();
+    const back = { active: document.activeElement?.id, sel: [input.selectionStart, input.selectionEnd] };
+    out.focus = { mode: live.mode, live, back };
+    expect(live.active === 'f-input' && live.sel.join() === '5,8' && back.active === 'f-input' && back.sel.join() === '5,8', `focus: ${JSON.stringify(out.focus)}`);
+    input.blur();
+  }
+
   // throws: an element that is not there yet
   out.throws = {};
   for (const [k, v] of [['null', null], ['undefined', undefined], ['selector', '#not-rendered-yet']]) {
@@ -159,7 +176,7 @@
   expect(Object.values(out.soon).every((v) => v === 'disposed, card in #s-soon') && !document.querySelector('[data-silkify-stand-off]'),
     `dispose() while starting: ${JSON.stringify(out.soon)}`);
 
-  for (const k of ['hold', 'big', 'fit', 'snippet']) if (out[k].mode !== 'webgl') problems.push(`${k}: ${out[k].mode}`);
+  for (const k of ['hold', 'big', 'fit', 'snippet', 'focus']) if (out[k].mode !== 'webgl') problems.push(`${k}: ${out[k].mode}`);
   window.__liveEdge = { out, problems };
 </script>
 </body>
