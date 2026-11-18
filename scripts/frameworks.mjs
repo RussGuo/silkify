@@ -11,6 +11,12 @@
  * Chrome through Playwright (see harness.mjs): mount, switch the picture three times, unmount, mount again. Every
  * mount must be mode 'webgl' on thread 'worker', ripple under a pointer stroke, and the console must stay clean.
  * Nothing is installed into the repository. CHROME=/path/to/chrome picks the browser (default: Playwright's).
+ *
+ * Then live HTML (SilkHtml: /?live in Vite, /live in Next.js): mount, switch to another card three times (a new
+ * element each time), change the words in place (the card grows), unmount, mount again, all under StrictMode. In a
+ * Chrome with HTML-in-Canvas every mount must be 'webgl' on 'worker' with the card inside the canvas, hit-tested 1:1
+ * where it is drawn, and ripple; the words changed by React must reach the silk. In a Chrome without it, every mount
+ * must leave the card in its stage as plain HTML. Either way the card must be back in the page after each unmount.
  */
 import { spawn } from 'node:child_process';
 import { cp, mkdtemp, rm } from 'node:fs/promises';
@@ -95,6 +101,71 @@ async function probe(url) {
   return { ok: ok && !noise.length, steps, noise };
 }
 
+/* ---- live HTML: mount, switch the card three times, change its words, unmount, mount ---- */
+async function probeLive(url) {
+  const page = await browser.newPage({ viewport: { width: 900, height: 760 } });
+  const noise = [];
+  page.on('console', (m) => ['error', 'warning'].includes(m.type()) && noise.push(`console.${m.type()}: ${m.text().slice(0, 160)}`));
+  page.on('pageerror', (e) => noise.push(`exception: ${e.message.slice(0, 160)}`));
+  page.on('response', (r) => r.status() >= 400 && noise.push(`HTTP ${r.status()} ${r.url()}`));
+  await page.goto(url);
+  const native = await page.evaluate(() => { const c = document.createElement('canvas'); c.setAttribute('content', 'drawable'); return c.content === 'drawable'; });
+  const steps = [];
+  const look = () => page.evaluate(() => {
+    const h = window.__silk, e = h?.element, c = h?.canvas;
+    if (!e) return null;
+    const r = e.getBoundingClientRect(), cr = c.getBoundingClientRect(), t = document.getElementById('title').getBoundingClientRect();
+    return {
+      mode: h.mode, thread: h.thread, inCanvas: e.parentElement === c, canvases: c.parentElement?.querySelectorAll('canvas').length,
+      off: Math.max(Math.abs(r.width - e.offsetWidth), Math.abs(r.left - (cr.left + (cr.width - e.offsetWidth) / 2)), Math.abs(r.top - (cr.top + (cr.height - e.offsetHeight) / 2))),
+      hit: document.elementFromPoint(t.left + 10, t.top + t.height / 2)?.id, text: e.innerText,
+    };
+  });
+  const mounted = async (label) => {
+    await page.waitForFunction(() => window.__silk && window.__silk.mode !== 'loading' && window.__silk.canvas.isConnected, null, { timeout: 60000 }).catch(() => {});
+    const h = await look();
+    let ripples = !native;
+    if (native && h) {
+      const box = await page.evaluate(() => { const r = window.__silk.canvas.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+      await sleep(600);
+      const a = await page.screenshot({ clip: box });
+      await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.45);
+      await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.55, { steps: 20 });
+      await sleep(150);
+      ripples = !a.equals(await page.screenshot({ clip: box }));
+      await page.mouse.move(2, 2);
+    }
+    const ok = !!h && (native
+      ? h.mode === 'webgl' && h.thread === 'worker' && h.inCanvas && h.canvases === 1 && h.off < 1 && h.hit === 'title' && ripples
+      : h.mode === 'static' && !h.inCanvas && h.hit === 'title');
+    steps.push(`${label} ${ok ? 'ok' : `FAIL (${JSON.stringify(h)}, ${ripples ? 'ripples' : 'no ripple'})`}`);
+    return ok;
+  };
+  let ok = await mounted('mount');
+  for (let i = 1; i <= 3; i++) {
+    await page.evaluate(() => { window.__silk = null; });
+    await page.click('#toggle');
+    ok = (await mounted(`switch ${i}`)) && ok;
+  }
+  // the words change in place: React writes into the card while it is in the canvas; the silk must follow
+  const s0 = native ? await page.evaluate(() => window.__silk.stats()) : null;
+  await page.click('#words');
+  await sleep(1200);
+  const w = await look();
+  const s1 = native ? await page.evaluate(() => window.__silk.stats()) : null;
+  const wordsOk = /second sentence/.test(w?.text || '') && (native ? w.inCanvas && w.off < 1 && w.hit === 'title' && s1.snapshots > s0.snapshots : !w.inCanvas);
+  steps.push(`words ${wordsOk ? 'ok' : `FAIL (${JSON.stringify(w)})`}`);
+  await page.click('#hide');
+  await sleep(400);
+  const gone = (await page.locator('canvas').count()) === 0 && (await page.locator('#title').count()) === 0;
+  steps.push(`unmount ${gone ? 'ok' : 'FAIL'}`);
+  await page.evaluate(() => { window.__silk = null; });
+  await page.click('#hide');
+  ok = (await mounted('remount')) && wordsOk && gone && ok;
+  await page.close();
+  return { ok: ok && !noise.length, steps: [native ? 'HTML-in-Canvas' : 'no HTML-in-Canvas', ...steps], noise };
+}
+
 /* ---- each mode: (build), start, wait for it to answer, probe, stop ---- */
 const failures = [];
 let port = 5370;
@@ -106,10 +177,13 @@ for (const mode of modes) {
     const url = `http://localhost:${p}/`;
     for (let t = 0; t < 120; t++) { if (await fetch(url).then((r) => r.ok, () => false)) break; await sleep(500); }
     const r = await probe(url);
+    const l = await probeLive(m.app === 'next' ? `${url}live` : `${url}?live`);
     process.kill(-server.pid);
     console.log(`${mode.padEnd(11)}`, r.ok ? 'ok   ' : 'FAIL ', r.steps.join(' · '));
     for (const n of r.noise) console.log('           ', n);
-    if (!r.ok) failures.push(mode);
+    console.log(`${''.padEnd(11)}`, l.ok ? 'ok   ' : 'FAIL ', 'live HTML:', l.steps.join(' · '));
+    for (const n of l.noise) console.log('           ', n);
+    if (!r.ok || !l.ok) failures.push(mode);
   } catch (e) {
     console.log(`${mode.padEnd(11)}`, 'FAIL ', e.message);
     failures.push(mode);
