@@ -10,10 +10,15 @@
  *            CDN): it must start its Web Worker through the blob: trampoline, ripple under a pointer stroke, and its
  *            solver must take 60 steps a second whatever the browser's frame rate.
  *   cdn      with --ref: the same page with silk.js from jsDelivr at that ref (needs the ref on GitHub).
+ *   live     live HTML where the browser has no HTML-in-Canvas: examples/live.html and the gallery's live-HTML card
+ *            must stay plain HTML (mode 'static', the element where it was, readable, its link working), say so in
+ *            one line, and log nothing. Where the browser has the feature, the card must go live instead.
  * chromium is optional (CHROME=/path picks an installed Chrome); shoot.mjs covers Chrome in depth over its own protocol.
  * The console must stay clean (no errors, no warnings) apart from the 404 that test/edge.html asks for on purpose.
  */
 import path from 'node:path';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { playwright, serve } from './harness.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -22,6 +27,7 @@ const at = args.indexOf('--browsers');
 const list = (at >= 0 && args[at + 1] && !args[at + 1].startsWith('--') ? args[at + 1] : 'webkit,firefox').split(',');
 const ref = args.includes('--ref') ? args[args.indexOf('--ref') + 1] : null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SHOTS = process.env.SHOTS || (await mkdtemp(path.join(tmpdir(), 'silkify-browsers-')));   // the gallery card as each browser shows it
 
 const pw = await playwright();
 const site = await serve(ROOT);
@@ -74,12 +80,36 @@ for (const name of list) {
     if (!ok) problems.push(`${tag} ${label}: ${h.mode}/${h.thread} (${h.reason}), ${moved ? 'ripples' : 'no ripple'}, ${sps.toFixed(0)} solver steps/s`);
     console.log(tag.padEnd(22), label.padEnd(6), `${h.mode} ${h.tier}/${h.thread}, ${moved ? 'ripples' : 'NO RIPPLE'}, ${fps.toFixed(0)} fps drawn, ${sps.toFixed(0)} solver steps/s`);
   }
+  // ---- live HTML: the fallback is the element itself ----
+  await page.goto(`${site.base}/examples/live.html`);
+  const lv = await page.waitForFunction(() => window.silk?.mode && window.silk.mode !== 'loading' && window.silk, null, { timeout: 60000 })
+    .then(() => page.evaluate(() => { const c = document.getElementById('card');
+      return { mode: silk.mode, reason: silk.reason, parent: c.parentElement.className, h: c.offsetHeight, text: c.innerText.slice(0, 40),
+        status: document.getElementById('status').textContent,
+        native: (() => { const x = document.createElement('canvas'); x.setAttribute('content', 'drawable'); return x.content === 'drawable'; })() }; }));
+  await page.click('#link');
+  const followed = await page.evaluate(() => location.hash === '#followed');
+  const liveOk = lv.native ? lv.mode === 'webgl' : lv.mode === 'static' && lv.parent === 'stage' && lv.h > 100 && /Pomegranate/.test(lv.text) && /^Plain HTML/.test(lv.status);
+  if (!liveOk || !followed) problems.push(`${tag} live: ${JSON.stringify(lv)}, link ${followed}`);
+  // the gallery's card: plain HTML with a one-line note, and still plain after someone reaches for it
+  await page.goto(`${site.base}/examples/`);
+  await page.locator('figure[data-id="html"]').scrollIntoViewIfNeeded();
+  await page.hover('figure[data-id="html"] .stage');
+  const card = await page.evaluate(() => window.__gallery.activate('html').then((h) => ({ mode: h.mode, parent: h.element.parentElement.className,
+    note: document.getElementById('html-note').textContent })));
+  const cardOk = lv.native ? card.mode === 'webgl' : card.mode === 'static' && /stage/.test(card.parent) && /plain HTML/.test(card.note);
+  if (!cardOk) problems.push(`${tag} gallery card: ${JSON.stringify(card)}`);
+  await page.screenshot({ path: path.join(SHOTS, `${name}-live.png`), fullPage: false, clip: await page.evaluate(() => {
+    const r = document.querySelector('figure[data-id="html"]').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }) });
+  console.log(tag.padEnd(22), 'live  ', `live.html ${lv.mode} (${lv.reason}), link ${followed ? 'works' : 'BROKEN'}; gallery card ${card.mode}: ${card.note}`);
+
   for (const n of noise) problems.push(`${tag} ${n}`);
   if (!noise.length) console.log(tag.padEnd(22), 'console clean');
   await browser.close();
 }
 site.close();
 cdn.close();
+console.log(`screenshots of the gallery's live-HTML card: ${SHOTS}`);
 if (problems.length) {
   console.error(`\n${problems.length} problem(s):\n  ` + problems.join('\n  '));
   process.exit(1);
