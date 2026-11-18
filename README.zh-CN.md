@@ -147,7 +147,7 @@ silk.dispose();
 - **轮廓就是元素自己的盒子。** 元素的背景和 `border-radius` 就是绸面的形状；`matte`、`threshold`、`corner`、`albedo`、`grain`、`poster` 会被忽略。`material`、`feel` 以及所有光照和涟漪参数照常起作用；`puff` 默认为 `'cushion'`。
 - **静止时不花钱。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧（这时 `stats().mode` 是 `'html'`，一秒内没有变化才回到 `'rest'`）。在真 GPU 上实测每次约 1–3 ms 的 GPU 工作（见 [references/performance.md](references/performance.md)）。
 - **无障碍。** 元素一直在页面的无障碍树里。元素在画布里的时候，silkify 会去掉画布上的 `aria-hidden`（否则元素也会被一起藏掉），之后再放回去。
-- **限制。** 浏览器从不把跨源的图片和 iframe、`:visited` 样式、拼写标记画进快照；输入法的候选框是系统自己的窗口，由浏览器定位。不要在元素里放持续的动画（它的每一帧都是一张快照）。给元素用它自己的 id 或 class 写样式，因为活起来时它会被移进画布；画布上的 `user-select` 也不要关掉。
+- **限制。** 浏览器从不把跨源的图片和 iframe、`:visited` 样式、拼写标记画进快照；输入法的候选框是系统自己的窗口，由浏览器定位。不要在元素里放持续的动画（它的每一帧都是一张快照）。给元素用它自己的 id 或 class 写样式，因为活起来时它会被移进画布；画布上的 `user-select` 也不要关掉。元素里 `position: fixed` 的子元素，活起来时相对画布定位，退路下相对视口定位，两边位置不同，所以不要在元素里放固定定位的子元素。
 
 React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `SilkHtml` 会把它的子元素印在绸面上。规则见 [SKILL.md](SKILL.md#step-5-optional-live-html-instead-of-a-picture)。
 
