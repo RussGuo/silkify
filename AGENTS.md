@@ -2,7 +2,7 @@
 
 # silkify
 
-Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Covers cutting the subject out, inflating its silhouette into a dome, choosing a material and feel (satin, velvet, wet, foil, paper, ink; water, gel, jelly), tuning it live in the Lab, and embedding the three.js renderer in plain HTML or React.
+Turn a picture into a touchable silk object on a web page. At rest it is matte and photographic; where the pointer touches it, the surface dents, ripples and shines like satin. Use when someone wants to "silkify" a logo, product shot, fruit, animal, portrait, painting, the moon or any other image, or asks for a silk, satin or fabric ripple-on-hover effect, or wants an interactive WebGL hero object made from a PNG. Also prints a live piece of the page (a card, a quote) on silk, its words still selectable and its links still working (HTML-in-Canvas, Chrome 157+). Covers cutting the subject out, inflating its silhouette into a dome, choosing a material and feel (satin, velvet, wet, foil, paper, ink; water, gel, jelly), tuning it live in the Lab, and embedding the three.js renderer in plain HTML or React.
 
 ## Using silkify in another project
 

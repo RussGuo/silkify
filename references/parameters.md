@@ -2,7 +2,7 @@
 
 # Parameters
 
-All parameters are optional except `image`. Defaults marked *sphere / image* differ by shape. The fastest way to find values is the [Lab](https://russguo.github.io/silkify/examples/lab.html) (`examples/lab.html`): every option below is a live control there, and it prints the options to copy.
+All parameters are optional except `image` (or `element`, see [Element mode](#element-mode-live-html)). Defaults marked *sphere / image* differ by shape. The fastest way to find values is the [Lab](https://russguo.github.io/silkify/examples/lab.html) (`examples/lab.html`): every option below is a live control there, and it prints the options to copy.
 
 | Option | Default | What it does | Tuning |
 |---|---|---|---|
@@ -72,6 +72,22 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | `poster` | — | A still frame of this canvas, shown in the static tier (default: the picture, drawn flat) | render one with `scripts/shoot.mjs --posters` |
 | `onHover` | — | `(isOver) => {}` | for a cursor or caption change |
 
+## Element mode (live HTML)
+
+`silkify(canvas, { element })` prints a real element on the silk instead of a picture (HTML-in-Canvas, Chrome 157 and later; elsewhere the element stays plain HTML). Every option above keeps its meaning unless the table says otherwise.
+
+| Option | In element mode |
+|---|---|
+| `element` | An `Element`, or a selector for one. Takes the place of `image`; passing both throws a `TypeError`. |
+| `fit` | Default: canvas ÷ element, the smaller of the two ratios, so the element is drawn 1:1 (its words the size they are in the page), recomputed whenever the canvas or the element changes size. A number scales it like a picture. |
+| `puff` | Default `'cushion'`. |
+| `matte`, `threshold`, `corner` | Ignored: the outline is the element's own painted box, its `border-radius` included. |
+| `albedo`, `grain` | Ignored, also when a preset (`foil`, `paper`, `ink`) or `setTheme()` sets them: they would paint over the words. |
+| `poster` | Ignored: the fallback is the element itself. |
+| `shape: 'sphere'` (and `phase`, `bump`, `spin`, `angle`) | `shape: 'sphere'` throws a `TypeError`; the rest only ever apply to a sphere. |
+
+The handle is the same, with `handle.element` (the element) and `snapshots` in `stats()` (pictures of the element printed since mount). `mode` is `'static'` when the element stays plain HTML: no HTML-in-Canvas, the static tier, no WebGL2, an element with no size (`reason` says which, and nothing is logged), or a browser that has the feature but gave no picture of the element within 4 s of the canvas being visible (this one also logs one `console.warn`). `ready` resolves once the element's first picture is on the silk.
+
 ## Recipes (from the gallery)
 
 | Subject | Options |
@@ -79,6 +95,7 @@ All parameters are optional except `image`. Defaults marked *sphere / image* dif
 | One-colour logo as ink | `albedo: [0.15,0.15,0.165], grain: 1, light: [-0.66,0.72,0.2], exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14` |
 | Photo of an object (fruit, teapot, animal) | defaults; `puff: 'dome'` for round subjects, `'cushion'` for flat ones |
 | Painting or poster | `puff: 'cushion'`, `floor: 0.6`, `sheen: 0.25` (opaque PNG ⇒ rectangle) |
+| A card of live HTML | `element: '#card'` and the defaults; a resting sheen (`satin`, `wet`, `foil`) washes over the words, so keep those for touch |
 | The moon on a light page | `shape: 'sphere', bump, phase: 0.38, floor: 0.6, bumpStrength: 7` |
 
 **Presets.** `material` and `feel` set many options at once; anything you also write explicitly wins. Pictures of each are in `docs/shots/lab/`; `material-rest-strip.jpg` shows all seven untouched. A material must read as itself before anyone touches it.

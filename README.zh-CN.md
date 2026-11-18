@@ -119,6 +119,35 @@ silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```
 
+## 活 HTML
+
+印在丝绸上的也可以是页面里的一段 HTML，而不是一张图片。在支持 HTML-in-Canvas 的浏览器里（Chrome 157 起），silkify 把一个真实的元素印在绸面上，它仍然是 HTML：字能选中、复制，能被浏览器的查找找到，链接能点，按钮能按，能输入，能滚动，读屏软件照常朗读。摸一下，它照样凹陷、起涟漪。可以去[在线画廊](https://russguo.github.io/silkify/examples/)的最后一张卡片试，或者打开 [examples/live.html](examples/live.html)。
+
+```html
+<div style="position: relative; display: grid; place-items: center; min-height: 480px">
+  <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
+  <article id="card" style="position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+</div>
+<script type="module">
+  import { silkify } from './silk/silk.js';
+  silkify(document.getElementById('silk'), { element: '#card' });
+</script>
+```
+
+| | |
+|---|---|
+| <img src="docs/shots/live/chrome157-gpu-selected.jpg" width="360" alt="Chrome 157 里印在绸面上的 HTML 卡片，选中了一行字"> | <img src="docs/shots/live/chrome157-gpu-ripple.jpg" width="360" alt="同一张卡片在指针下起涟漪，最后一行里输入了文字"> |
+| Chrome 157，真 GPU：在绸面上选中文字 | 同一张卡片，在最后一行输入之后被触碰 |
+
+- **浏览器。** 活 HTML 需要 HTML-in-Canvas，Chrome 从 157 版开始提供。silkify 只检测这个特性本身，不看浏览器的名字。其他浏览器（Safari、Firefox、更早的 Chrome）里，以及系统要求减少动态效果时，元素就留在原处，是普通的 HTML：退路不用另写，控制台也不输出任何东西。
+- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上。所以退路和活版看起来一样，活起来的那一刻不会跳动。想放大或缩小，传 `fit`，它就像图片一样缩放。
+- **轮廓就是元素自己的盒子。** 元素的背景和 `border-radius` 就是绸面的形状；`matte`、`threshold`、`corner`、`albedo`、`grain`、`poster` 会被忽略。`material`、`feel` 以及所有光照和涟漪参数照常起作用；`puff` 默认为 `'cushion'`。
+- **静止时不花钱。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧。在真 GPU 上实测每次约 1–3 ms 的 GPU 工作（见 [references/performance.md](references/performance.md)）。
+- **无障碍。** 元素一直在页面的无障碍树里。元素在画布里的时候，silkify 会去掉画布上的 `aria-hidden`（否则元素也会被一起藏掉），之后再放回去。
+- **限制。** 浏览器从不把跨源的图片和 iframe、`:visited` 样式、拼写标记画进快照；输入法的候选框是系统自己的窗口，由浏览器定位。不要在元素里放持续的动画（它的每一帧都是一张快照）。给元素用它自己的 id 或 class 写样式，因为活起来时它会被移进画布；画布上的 `user-select` 也不要关掉。
+
+React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `SilkHtml` 会把它的子元素印在绸面上。规则见 [SKILL.md](SKILL.md#step-5-optional-live-html-instead-of-a-picture)。
+
 ## 参数速查
 
 大多数效果两个词就能定：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
@@ -132,6 +161,7 @@ silk.dispose();
 | 动作 | `autoplay` false 或 `{ interval, depth, radius }`（定时自动落一滴）· `breeze` 0（微风）· `handle.ripple(x, y)`（程序化触碰一次） |
 | 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（鼓起的高度）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | 形状（球体） | `phase` null 或 0–1（月相）· `bump`（高程图）· `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
+| 活 HTML | `element`（元素或选择器，代替 `image`）· `fit` 默认 1:1 · `puff` `'cushion'` |
 | 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态图）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
 
 每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方在 [references/parameters.md](references/parameters.md)，常见问题排查在 [references/troubleshooting.md](references/troubleshooting.md)。
@@ -208,14 +238,15 @@ src/worker.js       Web Worker 入口
 src/presets.js      material 与 feel 预设：纯参数片段
 src/tier.js         设备分档与按屏幕尺寸取分辨率
 src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
+src/live.js         活 HTML 的页面一侧：特性检测、元素的替身图、快照、命中几何、退回普通 HTML
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
-scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab 与 test/edge.html）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
+scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab、test/edge.html 与活 HTML）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
 scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt；两份 README、画廊和 Lab 里的那句安装指令也由它写入（--check 查漂移）
 scripts/browsers.mjs             shoot.mjs --browsers：WebKit 与 Firefox，同源与跨源（Playwright）
 scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）
 scripts/harness.mjs              各检查脚本共用的静态服务器与 Playwright 加载
-examples/           画廊、Lab 调参页、CDN 用法的测试页 cdn.html（都是静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
-examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程
+examples/           画廊、Lab 调参页、活 HTML 示例 live.html、CDN 用法的测试页 cdn.html（都是静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
+examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程（图片用 Silk，活 HTML 用 SilkHtml）
 test/edge.html      曾经静默失败的情形：SVG、空图或缺图、加载中的调用
 integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions
 AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引

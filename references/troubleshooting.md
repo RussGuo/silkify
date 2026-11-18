@@ -18,6 +18,22 @@
 | `ready` never resolves | The canvas has no size yet (`display: none`, a closed tab or panel, a zero-height parent) | Expected: it starts once the canvas is shown. Give the canvas a CSS size; call `dispose()` if it will never be shown |
 | Black square or nothing at all | Page opened as `file://`, image CORS, or an unsized canvas | Serve over http, check CORS headers, and give the canvas a CSS size |
 
+## Live HTML (element mode)
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| The element stays plain HTML, `mode: 'static'`, nothing logged | No HTML-in-Canvas (anything but Chrome 157 and later), the static tier (reduced motion, Save-Data), no WebGL2, or the element had no size when silkify started | Expected outside Chrome 157+. `handle.reason` says which. Mount once the element is visible |
+| The element stays plain HTML with a warning that HTML-in-Canvas gave no picture | The browser has the feature but every picture of the element came back empty within 4 s of the canvas being visible | A browser fault; the page stays readable. Report it with the browser version |
+| The words cannot be selected | `user-select: none` on the canvas or one of its ancestors (a common rule for canvases) | Set `user-select: auto` on the canvas, as the gallery's live-HTML card does |
+| The element loses its styles when it goes live | A selector that depends on where the element sits (`.stage > #card`): it moves into the canvas while live | Style it by its own id or class |
+| Holes in the silk, or the silk cut to the letters | The element (or part of it) has no background: its painted alpha is the outline | Give the element a background colour |
+| Square corners on a rounded card | The rounding is on an inner element, not the element passed to silkify | Put `border-radius` and the background on the element itself (in React, `cardStyle` on `SilkHtml`) |
+| Part of the card is cut off | At 1:1 the canvas is smaller than the element | Make the canvas at least as large as the element, or pass a `fit` |
+| Screen readers skip the card while it is live | `aria-hidden` or `inert` on an ancestor of the canvas (silkify only removes `aria-hidden` from the canvas itself) | Remove it from the ancestor |
+| It keeps drawing while nothing is touched | Something in the element keeps repainting: a CSS animation, a video, a focused editable line (the caret blinks about twice a second) | Keep continuous animation out of the element; `handle.stats()` shows `snapshots` climbing |
+| The words look soft | The low tier renders at pixel ratio 1 | Expected on phones and software GPUs; `tier: 'high'` where it must be sharp |
+| A cross-origin image in the element is blank on the silk | HTML-in-Canvas never paints cross-origin content (images, iframes), `:visited` styles or spelling marks into the picture | Serve the image from the same origin; the plain-HTML fallback shows it as usual |
+
 ## Content-Security-Policy
 
 With `src/` copied into the project (the default way) nothing beyond `'self'` is needed: the worker is a file on the same origin, and so is three.js. Only inline scripts need a hash or a nonce: the import map, and your module script if it is inline too (and `style-src` covers inline styles, as on any page):

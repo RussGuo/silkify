@@ -119,6 +119,35 @@ silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```
 
+## Live HTML
+
+A piece of the page can be the silk instead of a picture. With HTML-in-Canvas (Chrome 157 and later), silkify prints a real element on the silk, and it stays HTML: select its words and copy them, find them with the browser's search, follow its links, press its buttons, type into it, scroll it; screen readers read it as usual. Touch it and it dents and ripples like any other object. Try the last card of the [live gallery](https://russguo.github.io/silkify/examples/), or [examples/live.html](examples/live.html).
+
+```html
+<div style="position: relative; display: grid; place-items: center; min-height: 480px">
+  <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
+  <article id="card" style="position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+</div>
+<script type="module">
+  import { silkify } from './silk/silk.js';
+  silkify(document.getElementById('silk'), { element: '#card' });
+</script>
+```
+
+| | |
+|---|---|
+| <img src="docs/shots/live/chrome157-gpu-selected.jpg" width="360" alt="a card of HTML on the silk in Chrome 157, a line of its text selected"> | <img src="docs/shots/live/chrome157-gpu-ripple.jpg" width="360" alt="the same card rippling under the pointer, text typed into its last line"> |
+| Chrome 157, a real GPU: words selected on the silk | The same card touched, after typing into its last line |
+
+- **Browsers.** Live HTML needs HTML-in-Canvas, which Chrome ships from version 157. silkify detects the feature itself, never the browser's name. Everywhere else (Safari, Firefox, older Chrome), and with reduced motion, the element simply stays where it is as plain HTML: nothing to write for the fallback, and nothing logged.
+- **1:1.** The element is drawn at its own size, in the place the page laid it out, so the fallback and the live card look the same and nothing moves when it comes alive. Pass `fit` to scale it like a picture.
+- **Its own box is the outline.** The element's background and `border-radius` become the silk's shape; `matte`, `threshold`, `corner`, `albedo`, `grain` and `poster` are ignored. `material`, `feel` and every light and ripple option apply; `puff` defaults to `'cushion'`.
+- **It costs nothing at rest.** The element is printed again only when its rendering changes (text, style, hover, selection, the caret), each time one snapshot and one frame, measured at about 1–3 ms of GPU work on a real GPU ([references/performance.md](references/performance.md)).
+- **Accessibility.** The element stays in the page's accessibility tree. While it is inside the canvas, silkify removes any `aria-hidden` from the canvas, which would otherwise hide the element too, and puts it back afterwards.
+- **Limits.** The browser never paints cross-origin images or iframes, `:visited` styles or spelling marks into the picture; the input method's candidate window is the system's own, placed by the browser. Keep continuous animation out of the element (every frame of it would be a snapshot). Style the element by its own id or class, since it moves into the canvas while live, and leave `user-select` alone on the canvas.
+
+React and Next.js: `SilkHtml` in [examples/react](examples/react/src/SilkHtml.jsx) renders its children on the silk. The rules are in [SKILL.md](SKILL.md#step-5-optional-live-html-instead-of-a-picture).
+
 ## Parameters at a glance
 
 Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`, `'foil'`, `'paper'`, `'ink'`) sets what the surface is made of, and `feel` (`'silk'`, `'water'`, `'gel'`, `'jelly'`) sets how it answers a touch, as in `silkify(canvas, { image, material: 'foil', feel: 'water' })`. Explicit options always win over both. To find your own values, use the [Lab](https://russguo.github.io/silkify/examples/lab.html).
@@ -132,6 +161,7 @@ Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`
 | Motion | `autoplay` false or `{ interval, depth, radius }` · `breeze` 0 · `handle.ripple(x, y)` |
 | Shape (image) | `puff` `'dome'` / `'cushion'` / `'flat'` / a number · `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
 | Shape (sphere) | `phase` null or 0–1 · `bump` (elevation map) · `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
+| Live HTML | `element` (an element or a selector, instead of `image`) · `fit` defaults to 1:1 · `puff` `'cushion'` |
 | Runtime | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'` · `worker` `'auto'` / false · `threeUrl` · `poster` · `dpr` (per tier) · `reducedMotion` `'auto'` · `onHover` |
 
 [references/parameters.md](references/parameters.md) explains what each option does and how to tune it and gives recipes for logos, photos, paintings and the moon; [references/troubleshooting.md](references/troubleshooting.md) has the fixes.
@@ -208,14 +238,15 @@ src/worker.js       the Web Worker entry
 src/presets.js      material and feel presets: plain option fragments
 src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
+src/live.js         live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the plain-HTML fallback
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
-scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
+scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html, live HTML), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
 scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence in both READMEs, the gallery and the Lab (--check for drift)
 scripts/browsers.mjs             shoot.mjs --browsers: WebKit and Firefox, same origin and cross-origin (Playwright)
 scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
 scripts/harness.mjs              the static server and the Playwright loader the check scripts share
-examples/           the gallery, the Lab, and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
-examples/react, examples/next    the smallest Vite and Next.js projects with the React component
+examples/           the gallery, the Lab, live.html (live HTML), and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
+examples/react, examples/next    the smallest Vite and Next.js projects with the React components (Silk for a picture, SilkHtml for live HTML)
 test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
 integrations/       generated: a Cursor rule and a path-scoped Copilot instruction
 AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index

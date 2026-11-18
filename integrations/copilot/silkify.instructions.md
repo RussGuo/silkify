@@ -50,11 +50,13 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | `src/core.js`, `src/shaders.js` | The renderer (no DOM) and its GLSL. |
 | `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js`, `src/tier.js`, `src/shape.js` | The worker entry, device tiers, and silhouette → dome geometry. |
+| `src/live.js` | Live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the fallback to plain HTML. |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
 | `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, and the edge cases in `test/edge.html`; renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
-| `examples/index.html` | A working gallery of ten objects with the options that make each look right, and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
+| `examples/index.html` | A working gallery of ten objects with the options that make each look right, a live-HTML card (step 5), and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
 | `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture, Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it loads silk.js and three.js from jsDelivr, so it needs the network, and renders on the main thread from `file://`). |
 | `examples/cdn.html` | The smallest page that imports silk.js from the CDN, the way for pages with nowhere to put files; `shoot.mjs --cdn` checks it. |
+| `examples/live.html` | The smallest live-HTML page (step 5): a card with a link, a button, a scrolling list and an editable line; `shoot.mjs` drives it. |
 | `references/` | [parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md) (every option, presets, recipes), [performance.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/performance.md) (tiers, sleeping, many objects, measurements), [troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md). Read them when a step below points there. |
 
 ## Step 1: Get the silhouette right
@@ -184,6 +186,31 @@ A new `src` is a remount, and so are StrictMode's mount → unmount → mount an
 | `setPhase(f)` | Sphere only: lunar phase 0–1 (0.5 full, `null` lit from the front). |
 | `wake()`, `dispose()` | Restart a sleeping loop; remove listeners, observers and GPU resources (call it on unmount). After `dispose()`, `ready` and `stats()` settle with `mode: 'disposed'`. A second `silkify()` on the same canvas disposes the first. |
 
+## Step 5 (optional): live HTML instead of a picture
+
+When the thing to silkify is part of the page itself (a card, a quote, a sign-up box) rather than a picture, pass the element: `silkify(canvas, { element: '#card' })`. With HTML-in-Canvas (Chrome 157 and later) the element is printed on the silk and stays real HTML: its words can be selected, copied and found with the browser's search, links and buttons work, editable text takes typing (an input method too), it scrolls, and screen readers read it. In every other browser, and in the static tier, it simply stays where it is as plain HTML, with no warning: the page reads as it would without silkify.
+
+```html
+<div class="stage" style="position: relative; display: grid; place-items: center; min-height: 480px; touch-action: pan-y">
+  <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
+  <article id="card" style="position: relative; width: 420px; padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+</div>
+<script type="module">
+  import { silkify } from './silk/silk.js';
+  const card = silkify(document.getElementById('silk'), { element: '#card' });
+  await card.ready;   // 'webgl': on the silk, once its first picture is there; 'static': plain HTML (card.reason says why)
+</script>
+```
+
+- **Lay it out for the fallback.** Put the element in the flow, centred in the canvas's box. Live, it is drawn 1:1 at that same place and size, so nothing moves when it comes alive. An explicit `fit` scales it like a picture instead; at 1:1 the canvas must be at least as large as the element.
+- **Style the element by its own id or class.** It moves into the canvas while it is live, so `.stage > #card` would stop matching. Give it a background: its painted box, alpha included, is the silk's outline (its `border-radius` too), and transparent parts are cut away.
+- **The canvas belongs to silkify.** No `user-select: none` on the canvas or its ancestors, or the words cannot be selected. An `aria-hidden` on the canvas would hide the element from screen readers: silkify removes it while the element is inside, and puts it back afterwards.
+- **Options.** `material`, `feel`, light and ripple options apply; `puff` defaults to `'cushion'`. Ignored without error: `matte`, `threshold`, `corner`, `albedo`, `grain`, `poster`. `image` together with `element`, or `shape: 'sphere'`, throws. The table is in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md#element-mode-live-html).
+- **Cost.** Every change in the element's rendering (text, style, hover, selection, the caret blinking) is one snapshot and one frame; nothing changes, nothing is drawn. Keep continuous animation out of the element.
+- **The handle.** `handle.element` is the element; `stats()` also reports `snapshots`; `dispose()` puts the element back. If the browser has the feature but gives no picture of the element within 4 s, the element goes back as plain HTML: mode `'static'`, a reason, and one `console.warn`.
+
+**React.** `examples/react/src/SilkHtml.jsx` (Next.js: `examples/next/components/SilkHtml.js`) renders its children inside a card `<div>`: silkify moves that `<div>` into its canvas while live and back on unmount, and React keeps rendering inside it. React never inserts or removes the card node itself, which is why the move is safe; style it through `cardStyle`. `scripts/frameworks.mjs` checks it under StrictMode in Vite and Next.js.
+
 ## Performance rules
 
 - One live object per WebGL context, and browsers allow about 16. With more than three objects on a page, use the gallery's pattern: a WebP poster first, `silkify()` on the first `pointerenter`, `dispose()` when the card scrolls away, at most 3 live.
@@ -197,6 +224,7 @@ Details and measurements: [references/performance.md](https://github.com/RussGuo
 1. Serve the page (`npx serve .`) and move the pointer across every object. Each should look like its material before it is touched, and ripple only where it is touched.
 2. Check `handle.mode` is `'webgl'` and `handle.thread` is `'worker'` in the console (if not, `handle.reason` says why); the console must have no errors or warnings.
 3. Test a narrow viewport (375 px, low tier) and `prefers-reduced-motion` (still frame).
-4. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
+4. Live HTML: in Chrome 157 or later, select a few words and copy them, click the links, and type into editable text; in Safari or Firefox the element must read as plain HTML.
+5. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
 
 In this repository, `node scripts/shoot.mjs` does steps 1–2 for every gallery card and the Lab in headless Chrome and exits non-zero on any failure; re-render posters with `--posters` whenever the look changes.
