@@ -142,10 +142,10 @@ silk.dispose();
 | <img src="docs/shots/live/chrome157-gpu-selected.jpg" width="360" alt="Chrome 157 里印在绸面上的 HTML 卡片，选中了一行字"> | <img src="docs/shots/live/chrome157-gpu-ripple.jpg" width="360" alt="同一张卡片在指针下起涟漪，最后一行里输入了文字"> |
 | Chrome 157，真 GPU：在绸面上选中文字 | 同一张卡片，在最后一行输入之后被触碰 |
 
-- **浏览器。** 活 HTML 需要 HTML-in-Canvas，Chrome 从 157 版开始提供。silkify 只检测这个特性本身，不看浏览器的名字。其他浏览器（Safari、Firefox、更早的 Chrome）里，以及系统要求减少动态效果时，元素就留在原处，是普通的 HTML：退路不用另写，控制台也不输出任何东西。
-- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上；原处留着一个同样大小、看不见的占位，页面排版不变。所以退路和活版看起来一样，活起来的那一刻不会跳动。元素比画布大时，会缩到能放下，并用一条 `console.warn` 说明。想放大或缩小，传 `fit`，它就像图片一样缩放，不会提示。
+- **浏览器。** 活 HTML 需要 HTML-in-Canvas，Chrome 从 157 版开始提供。silkify 只检测这个特性本身，不看浏览器的名字。其他浏览器（Safari、Firefox、更早的 Chrome）里，以及系统开启了「减弱动态效果」时，元素就留在原处，是普通的 HTML：退路不用另写，控制台也不输出任何东西。
+- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上；原处留着一个同样大小、看不见的占位，页面排版不变。所以退路和活起来的卡片看起来一样，活起来的那一刻不会跳动。元素比画布大时，会缩到能放下，并用一条 `console.warn` 说明。想放大或缩小，传 `fit`，它就像图片一样缩放，不会提示。
 - **轮廓就是元素自己的盒子。** 元素的背景和 `border-radius` 就是绸面的形状；`matte`、`threshold`、`corner`、`albedo`、`grain`、`poster` 会被忽略。`material`、`feel` 以及所有光照和涟漪参数照常起作用；`puff` 默认为 `'cushion'`。
-- **静止时不花钱。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧（这时 `stats().mode` 是 `'html'`，一秒内没有变化才回到 `'rest'`）。在真 GPU 上实测每次约 2 ms 的 GPU 工作，90 分位约 5 ms（见 [references/performance.md](references/performance.md)）。
+- **静止时零开销。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧（这时 `stats().mode` 是 `'html'`，一秒内没有变化才回到 `'rest'`）。在真 GPU 上实测每次约 2 ms 的 GPU 工作，90 分位约 5 ms（见 [references/performance.md](references/performance.md)）。
 - **无障碍。** 元素一直在页面的无障碍树里。元素在画布里的时候，silkify 会去掉画布上的 `aria-hidden`（否则元素也会被一起藏掉），之后再放回去。
 - **限制。** 浏览器从不把跨源的图片和 iframe、`:visited` 样式、拼写标记画进快照；输入法的候选框是系统自己的窗口，由浏览器定位。不要在元素里放持续的动画（它的每一帧都是一张快照）。给元素用它自己的 id 或 class 写样式，因为活起来时它会被移进画布；画布上的 `user-select` 也不要关掉。元素里 `position: fixed` 的子元素，活起来时相对画布定位，退路下相对视口定位，两边位置不同，所以不要在元素里放固定定位的子元素。
 
