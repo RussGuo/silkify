@@ -3,31 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>silkify — live HTML (prototype)</title>
+<title>silkify — live HTML</title>
+<link rel="icon" href="data:,">
 <!--
-  Prototype for feat/live-html: a real piece of HTML printed on the silk with HTML-in-Canvas (Chrome 157+).
-  The words stay selectable, the link and the button stay clickable, the last line stays editable; the silk still
-  dents and ripples under the pointer. Where the feature is missing, the card simply stays plain HTML.
-  ?worker=0 renders on the main thread instead of the Web Worker.
+  The smallest live-HTML page: a real piece of HTML printed on the silk with HTML-in-Canvas (Chrome 157+).
+  The words stay selectable, the link and the button clickable, the last line editable, the list scrollable; the silk
+  still dents and ripples under the pointer. Where the feature is missing, the card simply stays here as plain HTML,
+  laid out exactly where the live one is drawn (1:1, centred in the stage).
+  ?worker=0 renders on the main thread instead of the Web Worker. scripts/shoot.mjs drives this page.
 -->
 <style>
-  :root { --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #7a746a; --accent: #8a6d3b; color-scheme: light; }
+  :root { --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #7a746a; color-scheme: light; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
   .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
   h1 { margin: 0 0 6px; font: 400 40px/1.1 ui-serif, Georgia, serif; }
   .lede { margin: 0 0 28px; color: var(--muted); }
-  .stage { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden; touch-action: pan-y;
+  /* the stage centres the card; the canvas covers the stage. Live, the card is drawn at the same place and size */
+  .stage { position: relative; display: grid; place-items: center; min-height: 520px; border-radius: 18px; overflow: hidden; touch-action: pan-y;
     background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 60%, var(--paper)), var(--stage)); }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  /* the card: plain HTML; silkify moves it into the canvas only where HTML-in-Canvas works */
-  #card { position: relative; width: 480px; max-width: 100%; margin: 40px auto; padding: 28px 32px; background: #fbf7ef; color: #2a2620;
-    font: 16px/1.5 ui-serif, Georgia, serif; }
+  /* the card: plain HTML, styled by its own id (it moves into the canvas, so no `.stage > #card`) */
+  #card { position: relative; width: 420px; max-width: calc(100% - 32px); padding: 26px 30px; border-radius: 22px;
+    background: #fbf7ef; color: #2a2620; font: 16px/1.5 ui-serif, Georgia, serif; }
   #card h2 { margin: 0 0 8px; font: 600 26px/1.15 ui-serif, Georgia, serif; color: #6b1f1a; }
   #card p { margin: 0 0 12px; }
   #card a { color: #6b1f1a; }
   #card button { font: inherit; font-size: 14px; padding: 4px 14px; border: 1px solid #6b1f1a; border-radius: 999px; background: #fff; color: #6b1f1a; cursor: pointer; }
-  #card .edit { margin-top: 12px; padding: 6px 8px; border: 1px dashed #b9a98c; border-radius: 6px; outline: none; }
+  #card ul { height: 64px; overflow: auto; margin: 0 0 12px; padding: 4px 10px 4px 26px; border: 1px solid #e3d9c6; border-radius: 6px; font-size: 14px; }
+  #card .edit { padding: 6px 8px; border: 1px dashed #b9a98c; border-radius: 6px; outline: none; }
   #card .edit:focus { border-style: solid; border-color: #6b1f1a; }
   .status { margin-top: 14px; font-size: 13px; color: var(--muted); }
 </style>
@@ -35,13 +39,14 @@
 <body>
 <div class="wrap">
   <h1>Live HTML on silk</h1>
-  <p class="lede">The card below is real HTML. Select its words, follow the link, press the button, type in the last line; touch it and the silk ripples.</p>
+  <p class="lede">The card below is real HTML. Select its words, follow the link, press the button, scroll the list, type in the last line; touch it and the silk ripples.</p>
   <div class="stage">
-    <canvas id="silk"></canvas>   <!-- no aria-hidden: in live mode the card becomes its child and must stay readable -->
+    <canvas id="silk"></canvas>
     <article id="card">
       <h2>Pomegranate, in silk</h2>
       <p id="para">Every word here is text in the page: select it, copy it, find it with the browser's search.</p>
       <p><a id="link" href="#followed">A link that works</a> · <button id="btn" type="button">Pressed 0 times</button></p>
+      <ul id="list"><li>Seeds: about six hundred</li><li>Skin: leathery, red</li><li>Season: autumn</li><li>Native to: Iran</li><li>In silk: since today</li></ul>
       <div id="edit" class="edit" contenteditable="true">Type here: </div>
     </article>
   </div>
@@ -54,19 +59,15 @@
 <script type="module">
   import { silkify } from '../src/silk.js';
 
-  const card = document.getElementById('card');
-  card.style.borderRadius = `${0.06 * Math.min(card.offsetWidth, card.offsetHeight)}px`;   // matches the dome's corner
   let presses = 0;
   document.getElementById('btn').addEventListener('click', (e) => { e.currentTarget.textContent = `Pressed ${++presses} times`; });
 
   const worker = new URLSearchParams(location.search).get('worker') === '0' ? false : 'auto';
-  const silk = window.silk = silkify(document.getElementById('silk'), {
-    element: card, puff: 'flat', fit: 1.12, floor: 0.75, sheen: 0.22, worker,
-  });
+  const silk = window.silk = silkify(document.getElementById('silk'), { element: '#card', material: 'satin', worker });
   await silk.ready;
   document.getElementById('status').textContent = silk.mode === 'webgl'
-    ? `live: mode ${silk.mode}, thread ${silk.thread}, tier ${silk.tier}`
-    : `plain HTML: ${silk.reason}`;
+    ? `Live: printed on the silk (${silk.thread} thread, ${silk.tier} tier).`
+    : `Plain HTML: ${silk.reason}.`;
 </script>
 </body>
 </html>

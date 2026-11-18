@@ -349,6 +349,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   let elapsed = 0, frameId = 0, timerId = 0, lastTick = 0, dead = false, drawn = false;
   let simDirty = false, frameMs = 1000 / 60, slowRun = 0, slowSum = 0, lastStir = -1e9, drawCount = 0;
   let simClock = 0, solverSteps = 0;   // solver steps owed (in 60 Hz steps) and taken since mount
+  let snapshots = 0, seen = false;     // live HTML: pictures of the element printed; one of them had something in it
   const sweeping = () => tier.idleSweep && o.idleSweep && !still && sweepUsed < SWEEP_TURN;
   const chasing = () => tmp.copy(target).sub(fill).lengthSq() > 0.0016 || vel.lengthSq() > 0.02;
   function modeAt(now) {
@@ -542,39 +543,62 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       if (uv) { addTouch(uv, opts); wake(); }
       return !!uv;
     },
-    stats: () => ({ frames: drawCount, steps: solverSteps, mode: modeAt(performance.now()) }),
+    stats: () => ({ frames: drawCount, steps: solverSteps, mode: modeAt(performance.now()), ...(o.html ? { snapshots } : {}) }),
     /**
-     * Live HTML (prototype, feat/live-html): print a picture of an HTML element into the albedo, where the picture
-     * placeholder was. `src` is the Element itself (main thread) or an ElementImage captured on the page (worker).
-     * The silhouette is centred in the square domain and 2 / side of its width, so the element's rectangle in domain
-     * texels follows from side and aspect; FLIP_Y turns the element's top-down rows into the domain's v-up rows.
+     * Live HTML: print a picture of an HTML element into the albedo, over the stand-in the dome was built from.
+     * `src` is the Element itself (main thread, inside the page's paint event) or an ElementImage the page captured
+     * (worker). The silhouette is centred in the square domain and 2 / side of its width, so the element's rectangle in
+     * domain texels follows from side and aspect; FLIP_Y turns the element's top-down rows into the domain's v-up rows.
+     * The element's own alpha replaces the stand-in's: its border-radius is the outline. Until one picture has had
+     * something in it, a few rows are read back (once, cheap) so the page can tell an empty capture from a real one.
+     * → { ok, empty }
      */
     html(src) {
-      if (SPHERE || dead) return false;
+      if (SPHERE || dead) return { ok: false };
       const gl = renderer.getContext();
-      if (typeof gl.texElementSubImage2D !== 'function') return false;
+      if (typeof gl.texElementSubImage2D !== 'function') return { ok: false };
       const D = grid.domain;
       const w = Math.min(D, Math.round((2 * D) / side)), h = Math.min(D, Math.round((2 * D * aspect) / side));
       const x0 = Math.round((D - w) / 2), y0 = Math.round((D - h) / 2);
+      const tex = renderer.properties.get(albedoTex).__webglTexture;
+      let empty = false;
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, renderer.properties.get(albedoTex).__webglTexture);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       try {
         gl.texElementSubImage2D(gl.TEXTURE_2D, 0, x0, y0, src, { width: w, height: h });
+      } catch {
+        renderer.resetState();
+        return { ok: false };
       } finally {
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       }
+      if (!seen) {
+        const fb = gl.createFramebuffer(), row = new Uint8Array(w * 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        empty = true;
+        for (let k = 1; k < 10 && empty; k++) {
+          gl.readPixels(x0, y0 + Math.floor((h * k) / 10), w, 1, gl.RGBA, gl.UNSIGNED_BYTE, row);
+          for (let i = 3; i < row.length; i += 4) if (row[i]) { empty = false; break; }
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(fb);
+        seen = !empty;
+      }
       gl.generateMipmap(gl.TEXTURE_2D);
       renderer.resetState();   // three's cached GL state no longer matches what was bound here
+      snapshots++;
       wake();
-      return true;
+      return { ok: true, empty };
     },
     wake,
-    dispose() {
+    /** `keepRenderer`: the scene goes, the context stays (live HTML rebuilds its dome when the element changes size). */
+    dispose(keepRenderer = false) {
       dead = true;
       halt();
       [...disposables, fboA, fboB].forEach((r) => r.dispose());
-      renderer.dispose();
+      if (!keepRenderer) renderer.dispose();
     },
   };
 }
@@ -582,16 +606,26 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 /* ============================================
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
  * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
- * stats, dispose, html (live HTML prototype: an Element or ElementImage to print on the albedo). Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode },
- * fail { reason, fatal, picture, svg }. `fatal` means another thread would fail the same way (an HTTP error, or
- * nothing in the picture is opaque); `picture` that the picture could not be decoded here, which another thread may
- * still manage; `svg` that the picture is an SVG the page must rasterise.
+ * stats, dispose; for live HTML also html { img } (an Element or ElementImage to print on the albedo) and shape
+ * { picture, patch } (the element changed size: a new dome from a new stand-in, the same context). Messages out:
+ * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
+ * html { ok, empty }, shaped, fail { reason, fatal, picture, svg }. `fatal` means another thread would fail the same
+ * way (an HTTP error, or nothing in the picture is opaque); `picture` that the picture could not be decoded here,
+ * which another thread may still manage; `svg` that the picture is an SVG the page must rasterise.
  * ============================================ */
 export function serve(post, loadThree) {
   let silk = null, dead = false;
   // messages that arrive before the scene exists: the newest view / visibility / stillness, every option patch
   // merged in order, and every programmatic touch, replayed once the scene is up
   const latest = { options: {}, touches: [] };
+  let scene = null;                                   // what a rebuilt dome needs: THREE, the renderer, tier, options
+  const before = { frames: 0, steps: 0, snapshots: 0 };   // counts from scenes a rebuild replaced
+  let reshaping = Promise.resolve();
+
+  const make = (picture) => createSilk(scene.THREE, scene.opened, { picture }, scene.o, scene.tier, {
+    view: latest.view, visible: latest.visible, still: latest.still,
+    onHover: (on) => post({ t: 'hover', on }),
+  });
 
   async function init(m) {
     Object.assign(latest, { view: m.view, visible: m.visible, still: m.still });
@@ -617,7 +651,8 @@ export function serve(post, loadThree) {
       return post({ t: 'fail', reason: e.svg ? 'svg' : `could not load the picture (${e?.message || e})`, fatal: !!e.http, picture: !e.svg, svg: !!e.svg });
     }
     if (dead) return opened.renderer.dispose();
-    silk = createSilk(THREE, opened, { picture, bump }, { ...m.options, ...latest.options }, tier, {
+    scene = { THREE, opened, tier, o: { ...m.options, ...latest.options } };
+    silk = createSilk(THREE, opened, { picture, bump }, scene.o, tier, {
       view: latest.view, visible: latest.visible, still: latest.still,
       onHover: (on) => post({ t: 'hover', on }),
     });
@@ -628,9 +663,27 @@ export function serve(post, loadThree) {
       return post({ t: 'fail', reason: `the picture has nothing opaque in it (no pixel above threshold ${m.options.threshold}): use a PNG whose subject is visible`, fatal: true });
     }
     for (const t of latest.touches.splice(0)) silk.touch(t.x, t.y, t);
-    if (latest.html) { silk.html(latest.html); latest.html = null; }
     post({ t: 'ready', tier: tier.tier, software: opened.software, ...silk.info });   // the first frame is already drawn
   }
+
+  /* ---- live HTML: the element changed size, so the dome is rebuilt from a new stand-in on the same context ---- */
+  async function reshape(m) {
+    const picture = await loadBitmap(m.picture);
+    if (dead || !silk) return picture.close?.();
+    const s = silk.stats();
+    before.frames += s.frames; before.steps += s.steps; before.snapshots += s.snapshots || 0;
+    silk.dispose(true);
+    Object.assign(scene.o, m.patch);
+    silk = make(picture);
+    picture.close?.();
+    post({ t: 'shaped' });
+  }
+
+  const stats = () => {
+    if (!silk) return { frames: 0, mode: 'loading' };
+    const s = silk.stats();
+    return { ...s, frames: s.frames + before.frames, steps: s.steps + before.steps, ...('snapshots' in s ? { snapshots: s.snapshots + before.snapshots } : {}) };
+  };
 
   return (m) => {
     switch (m.t) {
@@ -639,13 +692,14 @@ export function serve(post, loadThree) {
       case 'press': silk?.press(m.down); break;
       case 'lift': silk?.lift(); break;
       case 'touch': if (silk) silk.touch(m.x, m.y, m); else latest.touches.push(m); break;
-      case 'stats': post({ t: 'stats', id: m.id, ...(silk ? silk.stats() : { frames: 0, mode: 'loading' }) }); break;
+      case 'stats': post({ t: 'stats', id: m.id, ...stats() }); break;
       case 'view': latest.view = m.view; silk?.resize(m.view); break;
       case 'visible': latest.visible = m.visible; silk?.setVisible(m.visible); break;
       case 'still': latest.still = m.still; silk?.setStill(m.still); break;
       case 'options': if (silk) silk.setOptions(m.patch); else Object.assign(latest.options, m.patch); break;
       case 'wake': silk?.wake(); break;
-      case 'html': if (silk) silk.html(m.img); else latest.html = m.img; break;
+      case 'html': post({ t: 'html', ...(silk ? silk.html(m.img) : { ok: false }) }); break;
+      case 'shape': reshaping = reshaping.then(() => reshape(m)).catch((e) => post({ t: 'fail', reason: `could not rebuild the dome (${e?.message || e})` })); break;
       case 'dispose': dead = true; silk?.dispose(); silk = null; break;
     }
   };
