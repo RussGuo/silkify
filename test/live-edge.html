@@ -17,6 +17,8 @@
     snippet SKILL.md's Step 5 snippet as written, in a 375 px wide frame (a phone): live, the card whole inside its
             canvas with room around it (its rounded corners visible), and no warning.
     nomap   the same snippet without its import map: plain HTML, and exactly one warning that names three.
+    soon    dispose() 0, 30 and 120 ms after silkify() (the renderer still starting, as on React StrictMode's first
+            mount): ready settles with mode 'disposed' and the card is back where it was, with nothing left behind.
 -->
 <style>
   body { margin: 0; padding: 12px; font: 15px/1.5 Georgia, serif; background: #f3efe7; }
@@ -39,6 +41,7 @@
     <p><a id="l-hold" href="#hold">A link in it</a></p><p>And a last line, to make it taller still.</p></article></div>
 <p id="below">The paragraph below the stage: it must not move when the card comes alive.</p>
 <div class="stage" id="s-big"><canvas></canvas><article class="card" id="c-big"><h2>Too big</h2><p>Wider than its canvas.</p></article></div>
+<div class="stage" id="s-soon"><canvas></canvas><article class="card" id="c-soon"><h2>Disposed early</h2></article></div>
 <div class="stage" id="s-fit"><canvas></canvas><article class="card" id="c-fit"><h2>Too big, fit given</h2><p>Wider than its canvas.</p></article></div>
 <script type="module">
   const warned = [];
@@ -133,6 +136,18 @@
     expect(parent !== 'CANVAS' && warns.length === 1 && /three/.test(warns[0]), `no import map: ${JSON.stringify(out.nomap)}`);
     f.remove();
   }
+
+  // soon: dispose() while the renderer is starting
+  out.soon = {};
+  for (const ms of [0, 30, 120]) {
+    const h = silkify($('s-soon').querySelector('canvas'), { element: '#c-soon', tier: 'low' });
+    await new Promise((r) => setTimeout(r, ms));
+    h.dispose();
+    const mode = await timeout(h.ready.then((x) => x.mode), 1000, 'pending');
+    out.soon[ms] = `${mode}, card in #${$('c-soon').parentElement.id}`;
+  }
+  expect(Object.values(out.soon).every((v) => v === 'disposed, card in #s-soon') && !document.querySelector('[data-silkify-stand-off]'),
+    `dispose() while starting: ${JSON.stringify(out.soon)}`);
 
   for (const k of ['hold', 'big', 'fit', 'snippet']) if (out[k].mode !== 'webgl') problems.push(`${k}: ${out[k].mode}`);
   window.__liveEdge = { out, problems };

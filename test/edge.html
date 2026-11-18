@@ -27,7 +27,7 @@
 <div class="grid">
   <canvas id="svg"></canvas><canvas id="svgblob"></canvas><canvas id="empty"></canvas><canvas id="missing"></canvas>
   <canvas id="plain"></canvas><canvas id="early"></canvas><canvas id="dim"></canvas><canvas id="twice"></canvas>
-  <canvas id="base"></canvas>
+  <canvas id="base"></canvas><canvas id="soon0"></canvas><canvas id="soon30"></canvas><canvas id="soon120"></canvas>
 </div>
 <canvas id="hidden"></canvas>
 <script type="module">
@@ -81,6 +81,15 @@
                  stats: await timeout(hidden.stats().then((s) => s.mode), 1000, 'pending') };
   out.warned = warned;
 
+  // 9. dispose() while the renderer is still starting (React StrictMode's first mount): ready settles at once
+  out.soon = {};
+  for (const ms of [0, 30, 120]) {
+    const h = silkify($(`soon${ms}`), { image: PEAR, tier });
+    await new Promise((r) => setTimeout(r, ms));
+    h.dispose();
+    out.soon[ms] = await timeout(h.ready.then((x) => x.mode), 1000, 'pending');
+  }
+
   // 8. no import map for three: a mistake in the page, not a missing feature, so exactly one warning (and the
   //    picture is still drawn once). A frame of its own, since the import map belongs to the document.
   const frameWarned = [];
@@ -112,6 +121,7 @@
   expect(out.earlyLoop === 'active', `ripple() before ready was lost (loop ${out.earlyLoop})`);
   expect(out.first.mode === 'disposed', `the first handle on a reused canvas: ${out.first.mode}`);
   expect(out.nomap.mode === 'static' && frameWarned.length === 1 && /three/.test(frameWarned[0]), `no import map: ${JSON.stringify(out.nomap)}`);
+  expect(Object.values(out.soon).every((m) => m === 'disposed'), `dispose() while starting: ready ${JSON.stringify(out.soon)}`);
   expect(out.hidden.before === 'pending' && out.hidden.afterDispose === 'disposed' && out.hidden.stats === 'disposed', `display: none: ${JSON.stringify(out.hidden)}`);
   out.problems = problems;
   window.__edge = { out, handles: { svg, svgBlob, empty, missing, plain, early, dim, base, second } };

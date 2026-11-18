@@ -369,7 +369,7 @@ export function silkify(canvasIn, options = {}) {
     return createImageBitmap(o.image);
   }
 
-  /* ---- live: one attempt on a given thread; resolves with the ready info or rejects ---- */
+  /* ---- live: one attempt on a given thread; resolves with the ready info (null after dispose()) or rejects ---- */
   async function attempt(onWorker, threeUrl) {
     let picture;
     try {
@@ -383,7 +383,11 @@ export function silkify(canvasIn, options = {}) {
       t: 'init', threeUrl, picture, bump, options: plain(o), tier, lowTier: TIERS.low, forced: o.tier !== 'auto',
       view: view(), visible: visible(), still: reduced(), touches: early.slice(),
     };
+    if (disposed) return null;
     return new Promise((resolve, reject) => {
+      // dispose() while the renderer is starting (React StrictMode's first mount) terminates the worker, which will
+      // never answer: the attempt ends here, so `ready` settles with mode 'disposed'
+      ctl.signal.addEventListener('abort', () => resolve(null), { once: true });
       const receive = (m) => {
         if (m.t === 'ready') resolve(m);
         else if (m.t === 'hover') o.onHover?.(m.on);
