@@ -60,3 +60,16 @@ Measured separately, because Lighthouse never touches the page:
 - **Main-thread long tasks while one card mounts** (headed Chrome, real GPU, 3 runs): none in a worker; 57–59 ms with `worker: false`.
 - **Frames drawn at rest:** 0 in 10 s (`scripts/shoot.mjs`, the Lab in the low tier), and 0 in 3 s with the pointer moving and held elsewhere on the page.
 - **GPU buffers** (estimate, 373 px card at ratio 2): ≈ 5 MB per live object, at most 3 live, 0 until touched.
+
+**Live HTML (`element`).** The element is printed again only when its rendering changes: the browser fires a `paint` event on the canvas for a change of text, style, layout, focus, hover or selection, and for the caret blinking in a focused editable line (about twice a second). Each paint is one snapshot: captured on the page and transferred to the worker (`captureElementImage`), or uploaded from the element directly on the main thread, then mipmapped, then one frame is drawn. Nothing changes, no paint, no frame: a resting card draws 0 frames, like a resting picture (`scripts/shoot.mjs` checks it: one change, one snapshot, one frame, then 0 frames). Hit geometry is set on mount and when the canvas or the element changes size, never per frame; an element that changes size rebuilds its dome (a new stand-in, the same WebGL context).
+
+Measured on `examples/live.html` (a 420 × 307 px card), 40 text changes each, Chrome 157.0.8103.79 on an Apple M1 Pro, median / 90th percentile:
+
+| | real GPU, headed, ratio 2 (890² texture) | SwiftShader, headless, ratio 1 (446² texture) |
+|---|---|---|
+| Capture on the page (worker path) | 0.0 / 0.1 ms | 0.0 / 0.1 ms |
+| Upload, element rasterised into the texture, to completion (main-thread path) | 1.2 / 2.9 ms | 20.3 / 22.8 ms |
+| Mipmaps, to completion | 0.4 / 1.8 ms | 0.5 / 0.6 ms |
+| Change → printed, worker path (until the worker has issued the upload) | 2.1 / 2.4 ms | 2.0 / 2.3 ms |
+
+The upload and mipmap rows are timed on the main-thread path with a 1-pixel read-back before and after each call, which waits for the GPU; in a worker the same GPU work happens off the page's thread, and the page itself spends only the capture. On a software GPU the main-thread path costs about 20 ms of main-thread time per change, one more reason to keep the default worker.
