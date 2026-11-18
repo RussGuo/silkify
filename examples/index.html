@@ -229,6 +229,15 @@
   const byId = new Map(CARDS.map((c) => [c.id, c]));
   const stageOf = (id) => grid.querySelector(`figure[data-id="${id}"] .stage`);
 
+  // the static tier never mounts the live-HTML card: its note says it stays plain HTML here, and why
+  const htmlNote = document.getElementById('html-note');
+  if (tier.tier === 'static' && !('plain' in htmlNote.dataset)) {
+    htmlNote.textContent = matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'Your system asks for reduced motion, so this card stays plain HTML: nothing on the page moves, and its words and link work as usual.'
+      : `This card is shown as plain HTML here (${tier.why}): its words and link work as usual.`;
+    htmlNote.dataset.plain = '';
+  }
+
   // the poster stays until someone reaches for the object; then the live renderer takes over
   if (tier.tier !== 'static' && !posterMode) {
     for (const id of [...byId.keys(), 'html']) {
