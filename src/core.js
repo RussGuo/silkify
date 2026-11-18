@@ -543,6 +543,32 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       return !!uv;
     },
     stats: () => ({ frames: drawCount, steps: solverSteps, mode: modeAt(performance.now()) }),
+    /**
+     * Live HTML (prototype, feat/live-html): print a picture of an HTML element into the albedo, where the picture
+     * placeholder was. `src` is the Element itself (main thread) or an ElementImage captured on the page (worker).
+     * The silhouette is centred in the square domain and 2 / side of its width, so the element's rectangle in domain
+     * texels follows from side and aspect; FLIP_Y turns the element's top-down rows into the domain's v-up rows.
+     */
+    html(src) {
+      if (SPHERE || dead) return false;
+      const gl = renderer.getContext();
+      if (typeof gl.texElementSubImage2D !== 'function') return false;
+      const D = grid.domain;
+      const w = Math.min(D, Math.round((2 * D) / side)), h = Math.min(D, Math.round((2 * D * aspect) / side));
+      const x0 = Math.round((D - w) / 2), y0 = Math.round((D - h) / 2);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, renderer.properties.get(albedoTex).__webglTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      try {
+        gl.texElementSubImage2D(gl.TEXTURE_2D, 0, x0, y0, src, { width: w, height: h });
+      } finally {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      }
+      gl.generateMipmap(gl.TEXTURE_2D);
+      renderer.resetState();   // three's cached GL state no longer matches what was bound here
+      wake();
+      return true;
+    },
     wake,
     dispose() {
       dead = true;
@@ -556,7 +582,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 /* ============================================
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
  * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
- * stats, dispose. Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode },
+ * stats, dispose, html (live HTML prototype: an Element or ElementImage to print on the albedo). Messages out: ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode },
  * fail { reason, fatal, picture, svg }. `fatal` means another thread would fail the same way (an HTTP error, or
  * nothing in the picture is opaque); `picture` that the picture could not be decoded here, which another thread may
  * still manage; `svg` that the picture is an SVG the page must rasterise.
@@ -602,6 +628,7 @@ export function serve(post, loadThree) {
       return post({ t: 'fail', reason: `the picture has nothing opaque in it (no pixel above threshold ${m.options.threshold}): use a PNG whose subject is visible`, fatal: true });
     }
     for (const t of latest.touches.splice(0)) silk.touch(t.x, t.y, t);
+    if (latest.html) { silk.html(latest.html); latest.html = null; }
     post({ t: 'ready', tier: tier.tier, software: opened.software, ...silk.info });   // the first frame is already drawn
   }
 
@@ -618,6 +645,7 @@ export function serve(post, loadThree) {
       case 'still': latest.still = m.still; silk?.setStill(m.still); break;
       case 'options': if (silk) silk.setOptions(m.patch); else Object.assign(latest.options, m.patch); break;
       case 'wake': silk?.wake(); break;
+      case 'html': if (silk) silk.html(m.img); else latest.html = m.img; break;
       case 'dispose': dead = true; silk?.dispose(); silk = null; break;
     }
   };

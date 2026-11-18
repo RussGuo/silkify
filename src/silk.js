@@ -20,6 +20,9 @@
  * mode 'failed' with `handle.reason` and one console.warn — the only console output of the library. SVG pictures
  * are rasterised here, on the page (workers cannot decode SVG), and handed to the renderer as a bitmap.
  *
+ * Live HTML (prototype, feat/live-html): `silkify(canvas, { element })` prints a real element on the silk with
+ * HTML-in-Canvas (Chrome 157+); the element stays selectable, clickable and editable. See liveHtml() below.
+ *
  * Peer dependency: three (tested with 0.152.2), resolved through the page's import map or bundler.
  */
 import { pickTier, TIERS } from './tier.js';
@@ -169,6 +172,32 @@ function sized(canvas, signal) {
   });
 }
 
+/* ---- live HTML (prototype, feat/live-html): HTML-in-Canvas, detected by the feature itself, never by browser name ---- */
+let liveSupport;
+function canLive() {
+  if (liveSupport !== undefined) return liveSupport;
+  try {
+    const c = document.createElement('canvas');
+    c.setAttribute('content', 'drawable');
+    const P = HTMLCanvasElement.prototype;
+    liveSupport = c.content === 'drawable' && 'requestPaint' in P && 'updateElementGeometry' in P
+      && typeof WebGL2RenderingContext !== 'undefined' && 'texElementSubImage2D' in WebGL2RenderingContext.prototype;
+  } catch {
+    liveSupport = false;
+  }
+  return liveSupport;
+}
+/** A stand-in picture with the element's proportions: the dome is built from it, then the element is printed over it. */
+function placeholder(el) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(2, Math.round(el.offsetWidth * 2));
+  c.height = Math.max(2, Math.round(el.offsetHeight * 2));
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, c.width, c.height);
+  return c;
+}
+
 const describe = (x) => (x === null ? 'null' : x === undefined ? 'undefined' : x?.constructor?.name || typeof x);
 
 /**
@@ -194,7 +223,9 @@ export function silkify(canvasIn, options = {}) {
   }
   const o = resolveOptions(options);
   const kind = o.shape;
-  if (!o.image) throw new Error('silkify: options.image is required');
+  const element = typeof o.element === 'string' ? document.querySelector(o.element) : o.element || null;
+  if (o.element && !(element instanceof Element)) throw new TypeError(`silkify: options.element matched nothing (${o.element})`);
+  if (!o.image && !element) throw new Error('silkify: options.image (or options.element) is required');
   owner.get(canvasIn)?.dispose();   // one renderer per canvas: the newer call wins, the older one is disposed
 
   const reduceMq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -203,6 +234,7 @@ export function silkify(canvasIn, options = {}) {
 
   let canvas = canvasIn;
   let send = () => {};
+  let live = null;           // live HTML (options.element): see liveHtml()
   let worker = null, disposed = false, inView = true, staticPic = null, staticWhy = null, raster = null;
   const early = [];          // ripple() calls made before the renderer was ready: replayed by the renderer
   const asked = new Map();   // stats requests in flight: id → resolve
@@ -254,6 +286,7 @@ export function silkify(canvasIn, options = {}) {
       for (const resolve of asked.values()) resolve({ frames: 0, mode: 'disposed' });
       asked.clear();
       if (owner.get(canvas) === handle) owner.delete(canvas);
+      live?.restore();
     },
   };
   owner.set(canvas, handle);
@@ -277,7 +310,8 @@ export function silkify(canvasIn, options = {}) {
     send({ t: 'visible', visible: visible() });
   }, { rootMargin: '100px' });
   const ro = new ResizeObserver(() => {
-    if (handle.mode === 'static') paintStatic();
+    live?.place();
+    if (handle.mode === 'static') { if (!element) paintStatic(); }
     else send({ t: 'view', view: view() });
   });
   io.observe(canvas);
@@ -418,6 +452,48 @@ export function silkify(canvasIn, options = {}) {
     reduceMq?.addEventListener?.('change', () => send({ t: 'still', still: reduced() }), on);
   }
 
+  /* ---- live HTML: the element moves into the canvas, is printed on the albedo at every paint, and its hit geometry is
+   *      the affine map of the flat silhouette (orthographic camera, displacement only along the view axis) ---- */
+  function liveHtml() {
+    const home = { parent: element.parentNode, next: element.nextSibling };
+    let thread = null;
+    const onPaint = () => {
+      if (handle.mode !== 'webgl') return;
+      if (thread === 'worker') {
+        const img = canvas.captureElementImage(element);
+        send({ t: 'html', img }, [img]);
+      } else {
+        send({ t: 'html', img: element });   // the main-thread renderer uploads inside this paint event
+      }
+    };
+    return {
+      adopt(onWorker) {
+        thread = onWorker ? 'worker' : 'main';
+        canvas.setAttribute('content', 'drawable');
+        element.setAttribute('drawable', '');
+        canvas.append(element);
+        if (!o.image) o.image = placeholder(element);
+      },
+      start() {
+        canvas.addEventListener('paint', onPaint, { signal: ctl.signal });
+        this.place();
+        canvas.requestPaint();
+      },
+      place() {
+        if (handle.mode !== 'webgl' || !element.isConnected) return;
+        const cw = canvas.clientWidth, ch = canvas.clientHeight, ew = element.offsetWidth, eh = element.offsetHeight;
+        if (!cw || !ch || !ew || !eh) return;
+        const aspect = eh / ew, halfH = Math.max(o.fit * aspect, o.fit / (cw / ch));
+        const k = ch / halfH / ew;                      // 2 world units across the element, ch / (2 halfH) px per unit
+        canvas.updateElementGeometry(element, { canvasTransform: new DOMMatrix([k, 0, 0, k, (cw - k * ew) / 2, (ch - k * eh) / 2]) });
+      },
+      restore() {
+        element.removeAttribute('drawable');
+        if (home.parent) home.parent.insertBefore(element, home.next && home.next.parentNode === home.parent ? home.next : null);
+      },
+    };
+  }
+
   handle.ready = mount().catch((e) => {   // ready never rejects: anything unexpected is a failure with its reason
     if (!disposed) fail(`unexpected error (${e?.message || e})`);
     return handle;
@@ -425,6 +501,14 @@ export function silkify(canvasIn, options = {}) {
   async function mount() {
     await sized(canvas, ctl.signal);
     if (disposed) return handle;
+    if (element) {
+      // live HTML needs the feature and a live tier; otherwise the element simply stays where it is, as plain HTML
+      if (tier.tier === 'static' || !canLive()) {
+        Object.assign(handle, { mode: 'static', tier: 'static', reason: tier.why || 'HTML-in-Canvas is not supported here: the element stays plain HTML' });
+        return handle;
+      }
+      live = liveHtml();
+    }
     let why = handle.reason, pictureError = null;
     if (tier.tier !== 'static') {
       // without an import map or threeUrl, the worker imports 'three' itself, which works where a bundler built it
@@ -436,11 +520,13 @@ export function silkify(canvasIn, options = {}) {
         const onWorker = tries[i];
         try {
           if (claimed.has(canvas)) freshCanvas();
+          live?.adopt(onWorker);
           const info = await attempt(onWorker, threeUrl);
           if (disposed) { send({ t: 'dispose' }); worker?.terminate(); return handle; }
           early.length = 0;
           Object.assign(handle, { mode: 'webgl', thread: onWorker ? 'worker' : 'main', tier: info.tier, info, reason: null });
           listen();
+          live?.start();
           return handle;
         } catch (e) {
           worker?.terminate();
@@ -458,6 +544,7 @@ export function silkify(canvasIn, options = {}) {
       }
     }
     Object.assign(handle, { mode: 'static', tier: 'static', thread: null, info: null, reason: why || 'no live renderer' });
+    if (live) { live.restore(); return handle; }   // the element goes back to the page as plain HTML
     if (!(await paintStatic()) && !disposed) {
       fail(pictureError || staticWhy || 'nothing could be drawn on this canvas');
     }
