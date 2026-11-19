@@ -9,6 +9,7 @@ English | [简体中文](README.zh-CN.md)
 <p>
   <a href="https://russguo.github.io/silkify/examples/"><b>Live gallery →</b></a> &nbsp;·&nbsp;
   <a href="https://russguo.github.io/silkify/examples/lab.html">Lab</a> &nbsp;·&nbsp;
+  <a href="https://russguo.github.io/silkify/examples/how-it-works.html">How it works</a> &nbsp;·&nbsp;
   <a href="#one-line-install">Install in your agent</a> &nbsp;·&nbsp;
   <a href="SKILL.md">SKILL.md</a> &nbsp;·&nbsp;
   <a href="CHANGELOG.md">v0.3.0</a> &nbsp;·&nbsp;
@@ -217,7 +218,8 @@ React and Next.js: `SilkHtml` in [examples/react](examples/react/src/SilkHtml.js
 - [Performance](references/performance.md): tiers, when the loop sleeps, many objects on a page, measurements
 - [Troubleshooting](references/troubleshooting.md): symptom, cause and fix
 - [Live HTML](SKILL.md#step-5-optional-live-html-instead-of-a-picture): the rules, in SKILL.md step 5
-- [How it works](references/how-it-works.md): from a picture to silk, and what it costs
+- [How it works](https://russguo.github.io/silkify/examples/how-it-works.html): the long read, with figures to touch: the Poisson dome, the Moon's light, silk only where it ripples (the short version is [references/how-it-works.md](references/how-it-works.md))
+- [Use cases](examples/demos/): four pages to start from, each one HTML file: [a product hero](https://russguo.github.io/silkify/examples/demos/hero.html), [a logo wall](https://russguo.github.io/silkify/examples/demos/logo-wall.html), [a full-bleed sheet of fabric](https://russguo.github.io/silkify/examples/demos/fabric.html), [a 404](https://russguo.github.io/silkify/examples/demos/404.html)
 - [Contributing](CONTRIBUTING.md): the rules for a change, and the repository's layout
 - [Changelog](CHANGELOG.md): what changed in each release, and what a version tag promises
 

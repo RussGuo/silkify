@@ -4,6 +4,8 @@
 
 # silkify 的原理
 
+带图、能上手摸的长文在网站上：[silkify 是怎么做成的](https://russguo.github.io/silkify/examples/how-it-works.zh.html)。这一页是短的版本。
+
 <!-- byline -->作者：<a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline -->
 
 ## 从一张图到一块丝绸

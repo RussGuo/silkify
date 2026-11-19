@@ -21,6 +21,10 @@ Processing for every image except the ink drop:
 | `carriera.webp` | *Portrait of a Man*, Rosalba Carriera, c. 1710, ivory. The Metropolitan Museum of Art, Rogers Fund, 1949 | https://www.metmuseum.org/art/collection/search/435854 (file: https://images.metmuseum.org/CRDImages/ep/original/DT200586.jpg) | Public domain (Met Open Access, CC0) |
 | `parrot.webp` | *Bird Figure*, possibly 18th century, gold, enamel and gemstones. Cooper Hewitt, Smithsonian Design Museum, 1996-19-1 | https://commons.wikimedia.org/wiki/File:Bird_Figure,_possibly_18th_century_(CH_18653379).jpg | Public domain (PD-old-100-1923); photo CC0 per Smithsonian Open Access |
 
+## Demo pages and the long read
+
+The posters under `examples/demos/posters/` and `examples/how/posters/` are still frames rendered by silkify itself. `hero` and the figures of the long read use the pictures credited above, under the same terms (the pomegranate, the hare, the teapot and the Mona Lisa are public domain or CC0). The marks of the logo wall (`mark-*`) and the numerals of the 404 page are plain shapes and letters drawn for these pages, MIT like the code. The companies named on the demo pages are made up.
+
 ## Cut-out commands
 
 These are the exact commands used. The source files are the ones linked above: for Commons, the 1920 px rendition; for the Met, the original. Each PNG was then converted to WebP.

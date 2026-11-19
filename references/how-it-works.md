@@ -4,6 +4,8 @@ English | [简体中文](how-it-works.zh-CN.md)
 
 # How silkify works
 
+The long read, with figures you can touch, is on the site: [How silkify works](https://russguo.github.io/silkify/examples/how-it-works.html). This page is the short version.
+
 <!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline -->
 
 ## From a picture to silk

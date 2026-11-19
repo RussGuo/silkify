@@ -9,6 +9,7 @@
 <p>
   <a href="https://russguo.github.io/silkify/examples/"><b>在线画廊 →</b></a> &nbsp;·&nbsp;
   <a href="https://russguo.github.io/silkify/examples/lab.html">Lab 调参页</a> &nbsp;·&nbsp;
+  <a href="https://russguo.github.io/silkify/examples/how-it-works.zh.html">原理</a> &nbsp;·&nbsp;
   <a href="#一句话安装">装进你的 Agent</a> &nbsp;·&nbsp;
   <a href="SKILL.md">SKILL.md</a> &nbsp;·&nbsp;
   <a href="CHANGELOG.md">v0.3.0</a> &nbsp;·&nbsp;
@@ -217,7 +218,8 @@ React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `Si
 - [性能](references/performance.md)：分档、什么时候停止渲染、一页多个物体、实测数据（英文）
 - [常见问题](references/troubleshooting.md)：症状、原因与解决办法（英文）
 - [活 HTML](SKILL.md#step-5-optional-live-html-instead-of-a-picture)：完整规则在 SKILL.md 第 5 步（英文）
-- [原理](references/how-it-works.zh-CN.md)：一张图怎么变成丝绸，以及要花多少性能
+- [原理](https://russguo.github.io/silkify/examples/how-it-works.zh.html)：一篇长文，图可以直接上手摸：Poisson 穹面、月亮的光、只在起涟漪的地方出现的缎光（短的版本在 [references/how-it-works.zh-CN.md](references/how-it-works.zh-CN.md)）
+- [用例](examples/demos/)：四个可以直接拿去改的页面，每个都是一个 HTML 文件：[产品首屏](https://russguo.github.io/silkify/examples/demos/hero.html)、[Logo 墙](https://russguo.github.io/silkify/examples/demos/logo-wall.html)、[整幅绸面](https://russguo.github.io/silkify/examples/demos/fabric.html)、[404 页](https://russguo.github.io/silkify/examples/demos/404.html)
 - [参与贡献](CONTRIBUTING.zh-CN.md)：改动要守的规矩，以及仓库结构
 - [更新日志](CHANGELOG.md)：每个版本改了什么，以及版本 tag 承诺什么（英文）
 

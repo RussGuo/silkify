@@ -29,10 +29,15 @@
   h1 em { font-style: italic; color: var(--accent); }
   .lede { margin: 18px 0 0; max-width: 34em; font-size: 17px; color: var(--muted); }
   .lede b { color: var(--ink); font-weight: 500; }
+  /* where it is used: pages to start from. Hidden in poster mode, so the cards stay where their posters were rendered. */
+  .uses { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+  .uses a { color: inherit; white-space: nowrap; }
+  .poster-mode .uses { display: none; }
   .meta { text-align: right; font-size: 13px; color: var(--muted); }
   .meta a { color: inherit; }
   .meta a.lab { display: inline-block; margin-top: 10px; color: var(--accent); font-size: 15px; text-decoration: none; }
   .meta a.lab:hover { text-decoration: underline; }
+  .meta a.lab + a.lab { margin-left: 16px; }
   /* copies the one-line install sentence (README "One-line install"); the sentence itself is written by build-integrations.mjs */
   .meta .install {
     display: inline-block; margin-top: 12px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 999px;
@@ -102,8 +107,9 @@
       <h1>silk<em>ify</em></h1>
       <p class="lede"><b>Everything can be silk.</b> Each object below is matte and still — until the pointer touches it.
         Then it dents, ripples, and catches the light like satin.</p>
+      <p class="uses">In use: <a href="demos/hero.html">a product hero</a> · <a href="demos/logo-wall.html">a logo wall</a> · <a href="demos/fabric.html">a sheet of fabric</a> · <a href="demos/404.html">a 404</a> · <a href="text.html">a word</a></p>
     </div>
-    <div class="meta">万物皆可丝绸化<br><a href="https://github.com/RussGuo/silkify">github.com/RussGuo/silkify</a><br><a class="lab" href="lab.html">Lab →</a><br><button id="install" class="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
+    <div class="meta">万物皆可丝绸化<br><a href="https://github.com/RussGuo/silkify">github.com/RussGuo/silkify</a><br><a class="lab" href="lab.html">Lab →</a><a class="lab" href="how-it-works.html">How it works →</a><br><button id="install" class="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
   </header>
   <script>
     /* Plain script, not the module below: copying the sentence must work even where WebGL never loads. */
