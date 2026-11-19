@@ -47,7 +47,7 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | File | What it is |
 |---|---|
 | `src/silk.js` | The entry point. `silkify(canvas, options)` returns a handle. It picks a tier, then renders in a Web Worker, on the main thread, or as a still frame. |
-| `src/core.js`, `src/shaders.js` | The renderer (no DOM) and its GLSL. |
+| `src/core.js`, `src/serve.js`, `src/shaders.js` | The renderer (no DOM), its message endpoint (loading, a lost context), and its GLSL. |
 | `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js`, `src/tier.js`, `src/shape.js` | The worker entry, device tiers, and silhouette → dome geometry. |
 | `src/pointer.js` | One set of window pointer listeners shared by every object on the page; a canvas's position is read only when it is near the viewport. |

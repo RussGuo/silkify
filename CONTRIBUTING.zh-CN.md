@@ -25,7 +25,8 @@ SKILL.md            Agent Skill：取得代码（拷贝 src/，或走 CDN）、�
 references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节；how-it-works 是写给人看的原理
 CHANGELOG.md        每个版本改了什么，以及版本 tag 承诺什么（看重完整性时钉 commit）
 src/silk.js         入口：分档，Worker → 主线程 → 静态图三级退路，转发指针事件
-src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
+src/core.js         渲染器本体（一个场景），不碰 DOM（peer 依赖：three ≥ 0.152.2）
+src/serve.js        渲染器的消息端：加载、场景建好前到达的消息、上下文丢失、重建圆顶
 src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
 src/worker.js       Web Worker 入口
 src/presets.js      material 与 feel 预设：纯参数片段

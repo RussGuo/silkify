@@ -177,6 +177,6 @@ What `silk.js` exports by name (`silkify` is also the default export). The handl
 | Export | What it is |
 |---|---|
 | `silkify(canvas, options)` | Mounts one object; returns the handle. |
-| `prewarm(options)` | Does the slow, shared part of a mount ahead of time: starts one worker and has it import three.js (on the main-thread path: imports core.js and three), so the next `silkify()` only builds its scene. Pass the options the objects will use (`tier`, `reducedMotion`, `worker`, `threeUrl`). Nothing in the static tier. A promise of `true` once warm, `false` if it could not be; never rejects. Call it when the page is idle, on a page that mounts objects on their first touch ([performance.md](performance.md)). |
+| `prewarm(options)` | Does the slow, shared part of a mount ahead of time: starts one worker and has it import three.js (on the main-thread path: imports the renderer and three), so the next `silkify()` only builds its scene. Pass the options the objects will use (`tier`, `reducedMotion`, `worker`, `threeUrl`). Nothing in the static tier. A promise of `true` once warm, `false` if it could not be; never rejects. Call it when the page is idle, on a page that mounts objects on their first touch ([performance.md](performance.md)). |
 | `resolveOptions(options)` | The options silkify will actually use, presets merged (the Lab prints only what differs from it). |
 | `MATERIALS`, `FEELS`, `PUFF` | The presets and the puff heights, as plain objects. |

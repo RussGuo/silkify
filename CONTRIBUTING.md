@@ -25,7 +25,8 @@ SKILL.md            the Agent Skill: get the code (copy src/, or the CDN), cut-o
 references/         parameters, performance, troubleshooting: the detail SKILL.md points to; how-it-works, for people
 CHANGELOG.md        what changed in each release, and what a version tag promises (pin a commit when integrity matters)
 src/silk.js         the entry point: tiers, Worker / main-thread / still-frame fallback, pointer forwarding
-src/core.js         the renderer, DOM-free (peer dependency: three ≥ 0.152.2)
+src/core.js         the renderer of one scene, DOM-free (peer dependency: three ≥ 0.152.2)
+src/serve.js        the renderer's message endpoint: loading, messages kept until the scene is up, a lost context, a rebuilt dome
 src/shaders.js      the GLSL: wave solver and object shader (one source, two shapes)
 src/worker.js       the Web Worker entry
 src/presets.js      material and feel presets: plain option fragments

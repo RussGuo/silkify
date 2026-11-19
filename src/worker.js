@@ -7,7 +7,7 @@
  * resolved (`import.meta.resolve('three')`, or the `threeUrl` option); the comments keep bundlers from trying to
  * resolve that URL at build time. With a bundler there is no URL: `import('three')` is bundled into this worker.
  */
-import { serve } from './core.js';
+import { serve } from './serve.js';
 
 const loadThree = (url) => (url ? import(/* @vite-ignore */ /* webpackIgnore: true */ /* turbopackIgnore: true */ url) : import('three'));
 const handle = serve((m) => self.postMessage(m), loadThree);

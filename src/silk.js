@@ -14,11 +14,12 @@
  *
  * This file is the page side. It picks a tier (tier.js), then renders in a Web Worker on an OffscreenCanvas,
  * or on the main thread where workers cannot render, or, in the static tier, draws `poster` (or the picture)
- * once without loading three.js. The renderer itself is core.js; the dome is built by shape.js.
+ * once without loading three.js. The renderer itself is core.js, behind its message endpoint serve.js; the dome is
+ * built by shape.js.
  *
  * Failing loudly: a picture that cannot be loaded or decoded, or one with nothing opaque in it, ends in
  * mode 'failed' with `handle.reason` and one console.warn — the only console output of the library. So does code that
- * cannot be loaded (no import map for three, a worker.js or core.js that is not served), whatever it ends in: a worker
+ * cannot be loaded (no import map for three, a worker.js, serve.js or core.js that is not served), whatever it ends in: a worker
  * that did not start but a main thread that did, or a still frame. A missing feature (no WebGL2, the static tier, no
  * HTML-in-Canvas) is not a mistake and stays quiet. SVG pictures
  * are rasterised here, on the page (workers cannot decode SVG), and handed to the renderer as a bitmap.
@@ -151,7 +152,7 @@ const workerFirst = (o) => o.worker !== false && canWorker() && location.protoco
 
 /* ---- prewarm: one spare worker that has already started and imported three.js, taken by the next mount ---- */
 let spare = null;          // { worker, threeUrl, ok: undefined (warming) | true | false, ready: Promise<boolean> }
-let warmMain = null;       // the main-thread path: core.js and three, imported once
+let warmMain = null;       // the main-thread path: serve.js (with core.js) and three, imported once
 function warmWorker(threeUrl) {
   const s = { worker: spawnWorker(), threeUrl, ok: undefined };
   s.ready = new Promise((resolve) => {
@@ -175,8 +176,8 @@ const idle = (f) => (typeof requestIdleCallback === 'function' ? requestIdleCall
 
 /**
  * prewarm(options) → Promise<boolean>: do the slow, shared part of a mount before anyone touches an object, so that a
- * later silkify() only builds its scene. In a worker: start one and have it import three.js (and core.js); the next
- * mount takes it, and another is warmed when the page is idle. On the main thread: import core.js and three. Nothing
+ * later silkify() only builds its scene. In a worker: start one and have it import three.js (and serve.js); the next
+ * mount takes it, and another is warmed when the page is idle. On the main thread: import serve.js and three. Nothing
  * in the static tier. Pass the options the objects will use (tier, reducedMotion, worker, threeUrl). Idempotent;
  * resolves true once warm, false if it could not be (the mount then says why, as usual). Never rejects.
  */
@@ -188,7 +189,7 @@ export function prewarm(options = {}) {
     if (!spare || spare.threeUrl !== threeUrl) { spare?.worker.terminate(); spare = warmWorker(threeUrl); }
     return spare.ready;
   }
-  return (warmMain ??= Promise.all([import('./core.js'), import('three')]).then(() => true, () => false));
+  return (warmMain ??= Promise.all([import('./serve.js'), import('three')]).then(() => true, () => false));
 }
 
 function loadImage(src) {
@@ -485,14 +486,14 @@ export function silkify(canvasIn, options = {}) {
         msg.canvas = offscreen;
         send(msg, [offscreen, ...(picture instanceof ImageBitmap ? [picture] : [])]);
       } else {
-        import('./core.js').then((core) => {
+        import('./serve.js').then(({ serve }) => {
           // three is imported only after the renderer has found WebGL2 on this canvas
-          const endpoint = core.serve((m) => queueMicrotask(() => receive(m)), () => import('three'));
+          const endpoint = serve((m) => queueMicrotask(() => receive(m)), () => import('three'));
           send = endpoint;
           msg.canvas = canvas;
           claimed.add(canvas);
           endpoint(msg);
-        }, (e) => reject(Object.assign(new Error(`core.js could not be loaded (${e?.message || e})`), { code: true })));
+        }, (e) => reject(Object.assign(new Error(`serve.js could not be loaded (${e?.message || e})`), { code: true })));
       }
     });
   }
