@@ -445,7 +445,7 @@ async function verifyLab() {
   // drag the exposure slider: setTheme must reach the renderer and change the frame
   const r = await stageRect();
   const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
-  const s = await evaluate(`(() => { const i = ${labRow('exposure')}.querySelector('input[type=range]'); i.scrollIntoView({ block: 'center' });
+  const s = await evaluate(`(() => { const i = ${labRow('exposure')}.querySelector('input[type=range]'); i.closest('details.advanced').open = true; i.scrollIntoView({ block: 'center' });
     const b = i.getBoundingClientRect(); return { x: b.left, y: b.top + b.height / 2, w: b.width }; })()`);
   await mouse('mousePressed', s.x + s.w * 0.15, s.y, { button: 'left', clickCount: 1 });
   for (let k = 1; k <= 8; k++) { await mouse('mouseMoved', s.x + s.w * (0.15 + 0.08 * k), s.y, { button: 'left', buttons: 1 }); await sleep(40); }
