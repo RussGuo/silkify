@@ -119,7 +119,7 @@ silk.dispose();
 | <img src="docs/shots/lab/material-wet.jpg" width="400" alt="湿润的石榴，静止与刚被触碰"> | <img src="docs/shots/lab/feel-jelly.jpg" width="400" alt="果冻手感的石榴，触碰后 0.15 秒与 0.9 秒"> |
 | `material: 'wet'` | `feel: 'jelly'`，触碰后 0.15 秒和 0.9 秒 |
 
-**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片，或者干脆打几个字（Object → Words，系统字体或 Google Fonts 都行，有中文字体）；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里，silk.js 和 three.js 从 jsDelivr 加载）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
+**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片，或者干脆打几个字（Object → Words，系统字体或 Google Fonts 都行，有中文字体）；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里，silk.js 和 three.js 从 jsDelivr 加载）。**Record** 能录一段 3 秒或 5 秒的短片拿去发：方形或 9:16，按浏览器存成 MP4 或 WebM，角落有个小小的 silkify 标记，点一下就能去掉。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
 

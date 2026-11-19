@@ -35,6 +35,8 @@
  *          a still frame (or plain HTML) at once with mode 'static', and a working object again after restoreContext().
  *          Then the Lab's words (Object → Words): they mount and ripple, the link restores every control and the text,
  *          the printed call and Download HTML carry text, font, colour and line height, and the page runs from file://.
+ *          Then the Lab's Record: a 3 s clip, square and 9:16, must come back as a non-empty video/mp4 or video/webm
+ *          of the frame's shape.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -438,6 +440,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   if (!only || only === 'text') await verifyText();
   if (!only || only === 'lost') await verifyLost();
   if (!only || only === 'lab') await verifyLabWords();
+  if (!only || only === 'lab') await verifyRecord();
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */
@@ -814,6 +817,20 @@ async function verifyLabWords() {
       return new Promise((r) => setTimeout(r, 600)).then(() => h.stats()).then((s1) => ({ mode: h.mode, frames: s1.frames - s0.frames })); }))`);
   if (w.mode !== 'webgl' || !(w.frames > 5)) problems.push(`lab words: the downloaded page from file:// is ${w.mode} (${w.frames} frames after a ripple)`);
   console.log('words ', `Download HTML: ${(html.length / 1024).toFixed(1)} KB, from file:// ${w.mode}, ${w.frames} frames after ripple()`);
+}
+
+/* ---- verify, part 7: the Lab's Record (MediaRecorder on the canvas's stream; lab-record.js) ---- */
+async function verifyRecord() {
+  await openLab('?tier=low');
+  const shown = await evaluate(`!document.getElementById('record').hidden`);
+  for (const frame of ['square', 'story']) {
+    const c = await evaluate(`window.__lab.record({ frame: '${frame}', seconds: 3, motion: 'stroke' }).catch((e) => ({ error: e.message }))`);
+    const shape = c.width / c.height, want = frame === 'square' ? 1 : 9 / 16;
+    const ok = shown && !c.error && c.size > 20000 && /^video\/(mp4|webm)/.test(c.type) && Math.abs(shape - want) < 0.03 && c.seconds >= 2.9;
+    if (!ok) problems.push(`lab record ${frame}: ${JSON.stringify(c)} (button shown: ${shown})`);
+    console.log('record', frame, c.error || `${c.type}, ${(c.size / 1024).toFixed(0)} KB, ${c.width}×${c.height}, ${c.seconds} s`, ok ? '' : 'FAILED');
+  }
+  await evaluate('window.__lab.recorder.close()');
 }
 
 ws.close();

@@ -72,6 +72,23 @@
     background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(6px);
   }
   .still button { margin-left: 6px; color: var(--accent); border-color: var(--accent); }
+  /* Record (lab-record.js): its panel takes the place of the stage's bottom row, and the canvas takes the clip's shape */
+  .stage.recording .foot, .rec[hidden] { display: none; }
+  .rec {
+    position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 12px;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px;
+  }
+  .rec button { background: color-mix(in srgb, var(--paper) 78%, transparent); backdrop-filter: blur(6px); }
+  .rec .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
+  .rec .seg button { border: 0; border-radius: 0; backdrop-filter: none; }
+  .rec .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .rec .mark { display: inline-flex; gap: 6px; align-items: center; color: var(--fine); }
+  .rec .go { border-color: var(--accent); color: var(--accent); }
+  .rec .go::before { content: "\25CF\00a0"; color: #b23a2e; }
+  .rec-note { flex-basis: 100%; margin: 0; text-align: center; font-size: 12px; color: var(--fine); }
+  .rec-note button { margin-left: 4px; padding: 2px 9px; }
+  .rec-note a { color: inherit; }
+  .rec-mark { position: absolute; z-index: 1; pointer-events: none; white-space: nowrap; line-height: 1; }
   aside { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--rule); background: var(--paper); }
   .controls { flex: 1; overflow-y: auto; padding: 8px 20px 24px; }
   /* the look (object, material, feel) on top, open; Advanced below it, and inside it one fold per group */
@@ -168,6 +185,7 @@
     <div class="foot">
       <span class="drop-hint">drop or paste an image or a URL · hold to press deeper · hold B to compare</span>
       <div class="acts">
+        <button id="record" title="a 3 or 5 s clip of this object, square or 9:16, saved as a video" hidden>Record</button>
         <button id="touch" title="handle.ripple() in the middle of the object">Touch</button>
         <button id="stroke" title="a line of handle.ripple() drops across the object">Stroke</button>
         <button id="compare" title="hold (or hold the B key): the same object with silkify's defaults">Hold to compare</button>
@@ -199,12 +217,13 @@
    * The panel opens on the look (object, material, feel); every other option is under Advanced, each with a plain
    * name and one line from references/parameters.md (lab-help.js). lab.html?debug shows the renderer's readout.
    * Object → Words sets text instead of a picture (lab-text.js: the fonts, and a Google Font's stylesheet once picked).
-   * Download HTML's page is lab-export.js.
+   * Record films the stage as a short clip (lab-record.js); Download HTML's page is lab-export.js.
    */
   import { silkify, resolveOptions, PUFF } from '../src/silk.js';
   import { MATERIALS, FEELS, keysOf } from '../src/presets.js';
   import { HELP } from './lab-help.js';              // one line per option, from references/parameters.md
   import { pageHtml } from './lab-export.js';         // Download HTML: the page around the printed call
+  import { recorder } from './lab-record.js';         // Record: a clip of the stage, square or 9:16
   import { TEXT_START, TEXT_KEYS, LINE_HEIGHT, wordRows, stylesheetOf, useStylesheet, quote } from './lab-text.js';
 
   /* ============================================
@@ -314,6 +333,7 @@
   function mountNow() {
     comparing = false;
     stage.classList.remove('compare');
+    rec.stop();                                         // a recording ends with the renderer it records
     handle?.dispose();
     handle?.canvas.remove();
     const canvas = document.createElement('canvas');
@@ -329,6 +349,8 @@
       read.textContent = e.message;
       return null;
     }
+    rec.reframe();                                      // Record: the new canvas takes the clip's shape too
+    handle.ready.then(() => rec.reframe());
     stillNote.hidden = !(reduceMq.matches && !playAnyway && (state.set.reducedMotion ?? 'auto') === 'auto');
     lastFrames = null;
     return handle.ready;
@@ -703,6 +725,12 @@
     }, 50);
   };
 
+  /* Record (lab-record.js): the Stroke and Touch buttons are its scripted motion */
+  const rec = recorder({ stage, button: document.getElementById('record'), handle: () => handle, bg: () => state.bg, name: fileName,
+    stroke: () => document.getElementById('stroke').click(), touch: () => handle?.ripple(0.5, 0.5, { hold: 300 }),
+    playAnyway: () => document.getElementById('play').click() });
+  let clip = null;                                      // the last clip made through window.__lab.record (shoot.mjs)
+
   /* Compare: the live options of silkify's defaults for this object (the gallery card's own options, or nothing for
    * your picture), then back. Scene options cannot change live and stay as they are, so the picture never jumps. */
   const SCENE = new Set([...REBUILD, 'image', 'bump', 'dpr', 'reducedMotion', 'threeUrl', 'poster', 'onHover', 'material', 'feel', 'interactive']);
@@ -744,7 +772,8 @@
   sync();
   writeHash();
   window.__lab = {                                      // hooks for scripts/shoot.mjs
-    get handle() { return handle; }, get state() { return state; }, readHash, compare, exportHtml,
+    get handle() { return handle; }, get state() { return state; }, readHash, compare, exportHtml, recorder: rec, get clip() { return clip; },
+    record: (o) => rec.record(o, { save: false }).then((c) => { clip = c.blob; return { ...c, blob: undefined }; }),
     ready: () => new Promise((r) => setTimeout(r, 200)).then(() => mounting).then(() => handle.ready),
   };
   mount();
