@@ -12,7 +12,7 @@
   <a href="https://russguo.github.io/silkify/examples/how-it-works.zh.html">原理</a> &nbsp;·&nbsp;
   <a href="#一句话安装">装进你的 Agent</a> &nbsp;·&nbsp;
   <a href="SKILL.md">SKILL.md</a> &nbsp;·&nbsp;
-  <a href="CHANGELOG.md">v0.3.0</a> &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">v0.4.0</a> &nbsp;·&nbsp;
   <a href="LICENSE">MIT</a>
 </p>
 
@@ -26,7 +26,7 @@
 
 <!-- install: written by scripts/build-integrations.mjs; change it there -->
 ```text
-安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
+安装 silkify 这个 Agent Skill：用 git clone --depth 1 --branch v0.4.0 https://github.com/RussGuo/silkify 把它克隆到你读取 skill 的目录里，文件夹就叫 silkify（Claude Code 是 ~/.claude/skills，Codex、Cursor、GitHub Copilot、Gemini CLI 和大多数其他 Agent 是 ~/.agents/skills），然后读一遍它的 SKILL.md，告诉我装好没有。
 ```
 
 装好之后，跟它说「把这张图丝绸化」就行。Skill 会把 `src/` 拷进你的项目，页面不依赖任何外部服务；实在没有地方放文件，也可以改走 CDN。要是你的 Agent 装不了 skill，也照样能用：把 [SKILL.md](SKILL.md) 原文贴给它，或者让它去读 [llms.txt](llms.txt)。
@@ -71,10 +71,10 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md
 </script>
 ```
 
-没地方放文件（比如 CodePen、只有一个 HTML 文件）？那就改成从 `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js` 引入，`three` 映射到 `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`；这样页面就得靠 jsDelivr 了（细节见 [SKILL.md](SKILL.md#get-the-code)）。
+没地方放文件（比如 CodePen、只有一个 HTML 文件）？那就改成从 `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.4.0/src/silk.js` 引入，`three` 映射到 `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`；这样页面就得靠 jsDelivr 了（细节见 [SKILL.md](SKILL.md#get-the-code)）。
 
 - **图片没有透明底？** 运行 `python3 scripts/cutout.py photo.jpg out.png` 抠掉纯色背景；或者保留整张矩形，让 silkify 把它做成软垫。
-- **想用文字而不是图片？** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` 就能把一个词、一行标题或一个 emoji 变成丝绸，不用抠图。可以打开 [examples/text.html](examples/text.html) 试试，参数见 [references/parameters.md](references/parameters.md#text-words-as-the-object)（英文）。这是 `main` 上的新功能：在 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html) 里把物体（Object）选成 Words 就能试。
+- **想用文字而不是图片？** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` 就能把一个词、一行标题或一个 emoji 变成丝绸，不用抠图。可以打开 [examples/text.html](examples/text.html) 试试，参数见 [references/parameters.md](references/parameters.md#text-words-as-the-object)（英文）。在 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html) 里把物体（Object）选成 Words 就能试。
 - **在 Agent 里用？** 见[一句话安装](#一句话安装)。
 
 **用 React**（Next.js 也一样）：画布在 effect 里自己创建，不交给 React 渲染，因为 silkify 可能把它转交给 Worker。

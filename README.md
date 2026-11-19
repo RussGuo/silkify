@@ -12,7 +12,7 @@ English | [简体中文](README.zh-CN.md)
   <a href="https://russguo.github.io/silkify/examples/how-it-works.html">How it works</a> &nbsp;·&nbsp;
   <a href="#one-line-install">Install in your agent</a> &nbsp;·&nbsp;
   <a href="SKILL.md">SKILL.md</a> &nbsp;·&nbsp;
-  <a href="CHANGELOG.md">v0.3.0</a> &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">v0.4.0</a> &nbsp;·&nbsp;
   <a href="LICENSE">MIT</a>
 </p>
 
@@ -26,7 +26,7 @@ Copy this sentence into your coding agent (Claude Code, Codex, Cursor, Copilot, 
 
 <!-- install: written by scripts/build-integrations.mjs; change it there -->
 ```text
-Install the silkify agent skill: git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
+Install the silkify agent skill: git clone --depth 1 --branch v0.4.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.
 ```
 
 Then ask it to "silkify" a picture. The skill copies `src/` into your project, so the page depends on no outside service; where there is nowhere to put files, it can import silk.js from the CDN instead. An agent that cannot install skills can still use it: paste [SKILL.md](SKILL.md) into the chat, or point it at [llms.txt](llms.txt).
@@ -71,10 +71,10 @@ Copy `src/` into your project as `silk/` and run `npm i three`, then:
 </script>
 ```
 
-Nowhere to put files (a CodePen, one HTML file)? Import `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js` instead and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`; the page then depends on jsDelivr ([SKILL.md](SKILL.md#get-the-code) has the details).
+Nowhere to put files (a CodePen, one HTML file)? Import `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.4.0/src/silk.js` instead and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`; the page then depends on jsDelivr ([SKILL.md](SKILL.md#get-the-code) has the details).
 
 - **No transparent background?** Run `python3 scripts/cutout.py photo.jpg out.png` to key out a plain backdrop, or keep the rectangle and let silkify make a cushion.
-- **Words instead of a picture?** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` makes a word, a headline or an emoji the object, no cut-out needed: try [examples/text.html](examples/text.html), options in [references/parameters.md](references/parameters.md#text-words-as-the-object). New on `main`: in the [Lab](https://russguo.github.io/silkify/examples/lab.html), pick Words as the object.
+- **Words instead of a picture?** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` makes a word, a headline or an emoji the object, no cut-out needed: try [examples/text.html](examples/text.html), options in [references/parameters.md](references/parameters.md#text-words-as-the-object). In the [Lab](https://russguo.github.io/silkify/examples/lab.html), pick Words as the object.
 - **From an agent?** See [One-line install](#one-line-install).
 
 **React** (and Next.js): the canvas is made in the effect, never by React, because silkify may hand it to a worker.

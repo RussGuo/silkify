@@ -20,7 +20,7 @@ npx serve .            # or: python3 -m http.server
 
 ## Releasing
 
-1. On the release commit, set `version` in `package.json` and run `npm run build:integrations`: it moves SKILL.md, the marketplace entry, every CDN URL, `examples/cdn.html` and every clone line to the new tag (`--check` names any it cannot).
+1. On the release commit, set `version` in `package.json`, then move by hand what names the tag: `metadata.version` and the tag in `SKILL.md`, the entry in `.claude-plugin/marketplace.json`, the CDN URLs in both READMEs and `examples/lab.html`, the default ref in `examples/cdn.html`, the placeholder in the bug template, and `CHANGELOG.md` (its `Unreleased` heading becomes the version and the date; the examples at its top follow). `npm run build:integrations` then rewrites the generated files and the install sentence, and `--check` fails on a SKILL.md, a marketplace entry, a CDN URL, a `cdn.html` or a clone line still on another tag.
 2. Point what follows `main` between releases at the tag (a CDN URL `@main`, a README line that calls something "new on main"), then run `node scripts/build-integrations.mjs --release`: `--check` plus a gate that fails on any of them. `--check` alone lets them pass, so `main` can carry them between releases.
 3. `node scripts/shoot.mjs`, `--posters` (then `git status` is clean), `--browsers` and `scripts/frameworks.mjs` pass on that commit; then tag it. `--check` also fails on a tracked file at the root that is not in its list, and on a tracked log or debugging leftover anywhere, so neither reaches a tag.
 

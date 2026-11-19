@@ -26,7 +26,7 @@
 <main class="lab">
   <section class="stage" id="stage">
     <div class="top">
-      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
+      <div class="brand"><h1><a href="./">silk<em>ify</em></a> Lab</h1><button id="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.4.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
       <div class="read" id="read" aria-live="polite">loading…</div>
     </div>
     <span class="badge" id="badge">defaults</span>
@@ -470,9 +470,7 @@
    * to put src/), and the file and the button say so: a real page copies src/ (SKILL.md). Nothing leaves the
    * browser: the file is made here, and its markup is lab-export.js.
    * ============================================ */
-  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js';
-  // words are new on main, after v0.3.0: their page takes main until a release has them, then this tag line goes
-  const SILK_CDN_WORDS = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@main/src/silk.js';
+  const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.4.0/src/silk.js';
   const dataUrl = (blob) => new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
@@ -489,7 +487,7 @@
       bump: o?.bump ? await dataUrl(await fetched(o.bump)) : null,
       lines: [...(text ? textLines() : ['image: PICTURE']), ...(o?.bump ? ['bump: BUMP'] : []), ...optionLines()],
       sheet: text ? stylesheetOf(state.set.font) : null,   // a Google Font: the same <link>, and the page waits for it
-      silk: text ? SILK_CDN_WORDS : SILK_CDN, background: state.bg, credit: { name: by.textContent, href: by.href }, mark: state.obj === 'ink-drop',
+      silk: SILK_CDN, background: state.bg, credit: { name: by.textContent, href: by.href }, mark: state.obj === 'ink-drop',
     });
   }
   const fileName = () => (state.obj === 'custom' ? 'picture' : isText() ? 'words' : state.obj) + (state.material !== 'silk' ? `-${state.material}` : '');

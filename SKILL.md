@@ -4,7 +4,7 @@ description: Turn a picture into a touchable silk object on a web page. At rest 
 license: MIT
 compatibility: A web page over http(s) with ES modules and import maps. Live rendering needs WebGL2 and createImageBitmap imageOrientation (Chrome 112, Firefox 111, Safari 16.4), the worker OffscreenCanvas WebGL2 and module workers (Chrome 80, Firefox 114, Safari 17); else one still frame. Live HTML (element) needs HTML-in-Canvas (Chrome 157+); elsewhere the element stays plain HTML. three.js 0.152.2+. Tools - Python 3, Pillow, numpy for cutout.py; Node 22+, Chrome, Pillow for shoot.mjs.
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
   repository: "https://github.com/RussGuo/silkify"
 ---
 
@@ -28,7 +28,7 @@ The library is the `src/` folder beside this SKILL.md. Copy it into the project 
    cp -R <the folder this SKILL.md is in>/src <project>/silk
    ```
 
-   If you were given only this file, not its folder, get the folder first: `git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify`.
+   If you were given only this file, not its folder, get the folder first: `git clone --depth 1 --branch v0.4.0 https://github.com/RussGuo/silkify`.
 
 2. **Give the project three.js**, the one peer dependency (tested with 0.152.2 and 0.187.0): `npm i three`.
    - With a bundler (Vite, webpack, Next.js) that is all; see "Bundlers" in step 4.
@@ -39,10 +39,10 @@ The library is the `src/` folder beside this SKILL.md. Copy it into the project 
 **Only when there is nowhere to put files** (a CodePen, a single HTML file, the Lab's Download HTML), import silk.js from jsDelivr instead, pinned to a release tag, and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`:
 
 ```
-https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js
+https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.4.0/src/silk.js
 ```
 
-The page then depends on jsDelivr. Pin a release tag (`@v0.3.0`), never `@main`, which follows the repository and changes under you; where integrity matters, pin a commit (`@<40-character SHA>`; see [CHANGELOG.md](CHANGELOG.md) on versions). The rest of `src/` loads from the same place, and the renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, the CDN way needs the CDN and `blob:` allowed (the line is in [references/troubleshooting.md](references/troubleshooting.md)).
+The page then depends on jsDelivr. Pin a release tag (`@v0.4.0`), never `@main`, which follows the repository and changes under you; where integrity matters, pin a commit (`@<40-character SHA>`; see [CHANGELOG.md](CHANGELOG.md) on versions). The rest of `src/` loads from the same place, and the renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, the CDN way needs the CDN and `blob:` allowed (the line is in [references/troubleshooting.md](references/troubleshooting.md)).
 
 The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it from there. What else is in the folder:
 
