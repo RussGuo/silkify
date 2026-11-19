@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found — Alder Hill</title>
+<meta name="description" content="A silkify use-case demo: a 404 page with something soft to poke.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
+<!--
+  404.html — a not-found page whose "404" is a soft object to poke. Copy this file as a starting point:
+    1. Copy src/ into your project and fix the import paths at the bottom ('../../src/…').
+    2. The numerals are an SVG written in this file (NUMERALS): round strokes, inflated by silkify into tubes.
+       Change the colour or the shapes there, then render a new poster (1x and 2x WebP, the page with ?poster=1).
+  A server serves this file with status 404 for any missing path. Keep the links absolute ("/") when you do:
+  the page answers at every depth. Here they point at the demo's own pages.
+  Alder Hill is made up.
+-->
+<style>
+  :root {
+    --paper: #f3efe7; --ink: #1f1d1a; --muted: #6f695f; --rule: #d9d2c4; --accent: #8a6d3b;
+    --cta: #6b1f1a; --cta-ink: #fbf7ef;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --ink: #ece7dd; --muted: #9a9488; --rule: #2c2a26; --accent: #c9a96b;
+            --cta: #e2c58f; --cta-ink: #1a1712; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr);
+    background: var(--paper); color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: inherit; }
+  .bar { width: 100%; max-width: 1240px; margin: 0 auto; padding: 28px 28px 0; display: flex; justify-content: space-between; align-items: baseline; }
+  .brand { font: 400 22px/1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; text-decoration: none; }
+  .code { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  main { display: grid; align-content: center; justify-items: center; text-align: center; padding: 24px 16px 64px; }
+  .stage { position: relative; width: min(760px, 92vw); aspect-ratio: 2; touch-action: pan-y; cursor: crosshair; }
+  .stage img, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .stage img, .stage canvas { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
+  .stage img { pointer-events: none; }
+  .stage canvas { opacity: 0; transition: opacity 0.4s; }
+  .stage.live canvas { opacity: 1; }
+  .stage.live img { opacity: 0; transition: opacity 0.4s 0.1s; }
+  h1 {
+    margin: 8px 0 0; font: 400 clamp(32px, 4.4vw, 52px)/1.05 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    letter-spacing: -0.015em; text-wrap: balance;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .lede { margin: 18px auto 0; max-width: 26em; font-size: 17px; color: var(--muted); text-wrap: pretty; }
+  .actions { margin-top: 36px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 14px 28px; }
+  .cta {
+    display: inline-block; padding: 14px 26px; border-radius: 999px; background: var(--cta); color: var(--cta-ink);
+    text-decoration: none; transition: transform 0.15s;
+  }
+  .cta:hover { transform: translateY(-1px); }
+  .more { text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
+  .more:hover { border-color: var(--ink); }
+  .cta:focus-visible, .more:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  footer { width: 100%; max-width: 1240px; margin: 0 auto; padding: 20px 28px 32px; font-size: 13px; color: var(--muted); text-align: center; }
+
+  @media (max-width: 640px) {
+    .bar { padding: 20px 16px 0; }
+    main { padding: 32px 16px 48px; }
+    footer { padding: 20px 16px 28px; }
+  }
+
+  /* ?poster=1 renders the still frame: the stage alone, fixed size, transparent */
+  .poster-mode, .poster-mode body { background: transparent; }
+  .poster-mode .stage { width: 760px; }
+  .poster-mode .stage img { display: none; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="hero.html">Alder Hill</a>
+  <span class="code">Error 404</span>
+</header>
+
+<main>
+  <div class="stage" id="stage">
+    <img src="posters/404.webp" srcset="posters/404.webp 1x, posters/404@2x.webp 2x"
+         width="760" height="380" fetchpriority="high" decoding="async" draggable="false" alt="404">
+  </div>
+  <h1>This page has <em>fallen off the tree.</em></h1>
+  <p class="lede">The link may be old, or the address mistyped. The numbers are soft, by the way: give them a poke.</p>
+  <div class="actions">
+    <a class="cta" href="hero.html">Back to the orchard</a>
+    <a class="more" href="mailto:hello@example.com?subject=Broken%20link">Tell us about the link</a>
+  </div>
+</main>
+
+<footer>A <a href="../index.html">silkify</a> demo. Alder Hill is made up.</footer>
+
+<script type="module">
+  import { silkify } from '../../src/silk.js';
+  import { pickTier } from '../../src/tier.js';
+
+  /* "404" in round strokes, in a 300 × 150 box (the stage is 2:1); silkify rasterises it and inflates each stroke */
+  const NUMERALS = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150" width="1024" height="512"
+      fill="none" stroke="#9e2b22" stroke-width="21" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M70 32 L28 96 H92 M72 62 V122"/>
+    <ellipse cx="150" cy="77" rx="29" ry="44"/>
+    <path d="M250 32 L208 96 H272 M252 62 V122"/>
+  </svg>`;
+  const OPTIONS = {
+    image: `data:image/svg+xml,${encodeURIComponent(NUMERALS)}`,
+    puff: 'dome', fit: 1.12, feel: 'jelly', sheen: 0.55, sheenPower: 12, floor: 0.5,
+  };
+  const POSTER = 'posters/404.webp';
+
+  const stage = document.getElementById('stage');
+  const posterMode = new URLSearchParams(location.search).has('poster');
+  if (posterMode) document.documentElement.classList.add('poster-mode');
+
+  let silk = null;
+  function mount(extra = {}) {
+    if (silk) return silk.ready;
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    stage.append(canvas);
+    silk = silkify(canvas, { ...OPTIONS, poster: POSTER, ...extra });
+    return silk.ready.then((h) => {
+      if (h.mode === 'webgl') stage.classList.add('live');
+      return h;
+    });
+  }
+  // one object on the page: it mounts once the page is idle; the static tier keeps the poster
+  if (!posterMode && pickTier().tier !== 'static') {
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
+    const start = () => idle(() => mount(), { timeout: 1500 });
+    document.readyState === 'complete' ? start() : addEventListener('load', start, { once: true });
+  }
+
+  window.__demo = {
+    ids: ['404'], stageOf: () => stage, activate: (id, extra) => mount(extra),
+    release: () => { silk?.dispose(); silk?.canvas.remove(); silk = null; stage.classList.remove('live'); },
+    state: () => silk && { mode: silk.mode, tier: silk.tier, thread: silk.thread },
+  };
+</script>
+</body>
+</html>
