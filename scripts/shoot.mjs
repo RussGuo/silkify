@@ -128,7 +128,7 @@ on('Runtime.exceptionThrown', (p) => problems.push(`exception: ${p.exceptionDeta
 on('Runtime.consoleAPICalled', (p) => {
   if (p.type === 'error' || p.type === 'warning') problems.push(`console.${p.type}: ${p.args.map((a) => a.value ?? a.description).join(' ')}`);
 });
-const EXPECTED_404 = /\/test\/not-here\.png$/;   // test/edge.html asks for a missing picture on purpose
+const EXPECTED_404 = /\/test\/(not-here\.png|no-such-font-7f3a\.woff2)$/;   // test/edge.html and test/text.html ask for a missing picture and font on purpose
 on('Log.entryAdded', (p) => { if (p.entry.level === 'error' && !EXPECTED_404.test(p.entry.url || '')) problems.push(`log: ${p.entry.text} ${p.entry.url || ''}`); });
 
 await send('Runtime.enable');
@@ -762,8 +762,8 @@ async function verifyText() {
   await sleep(500);
   const [diff] = await diffOf(before, (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) })).data);
   if (!(diff > 0.3)) problems.push(`text: the word did not ripple (Δ ${diff.toFixed(2)})`);
-  console.log('text  ', ['one', 'lines', 'emoji', 'cjk', 'webfont', 'missing', 'still', 'reduced'].map((k) => `${k} ${out[k].mode}`).join(', '),
-    `| ${Object.keys(out.errors).length} mistakes throw, ${out.warned.length} warning | ripple Δ ${diff.toFixed(2)}`, `${out.problems.length} problem(s)`);
+  console.log('text  ', ['one', 'lines', 'emoji', 'cjk', 'webfont', 'fallback', 'gone', 'missing', 'still', 'reduced'].map((k) => `${k} ${out[k].mode}`).join(', '),
+    `| ${Object.keys(out.errors).length} mistakes throw, ${out.warned.length} warnings, missing font behind serif ${out.fallbackMs} ms | ripple Δ ${diff.toFixed(2)}`, `${out.problems.length} problem(s)`);
 }
 
 /* ---- a lost WebGL context (test/lost.html checks itself): a still frame at once, a working object after the restore ---- */

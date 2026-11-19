@@ -9,9 +9,10 @@
  *   fonts      the canvas draws only fonts that are already loaded, so setText() waits for document.fonts.load()
  *              (FONT_MS at most). A family that still does not render is measured, not guessed: the text is drawn
  *              twice in each generic fallback, once behind the family; the same width both times means it is not
- *              there. When no family named in `font` renders, the text is drawn in the fallback and says so once
- *              (a missing font is a mistake in the page, like a missing import map); when one of them does, a font
- *              stack is working as in CSS, and nothing is said.
+ *              there. Only what the page's author can fix is said, once: a web font the page declared (@font-face,
+ *              or a <link>'s stylesheet) that failed or did not arrive, or a stack with no generic family (serif,
+ *              sans-serif, system-ui…) none of whose fonts renders. A system font missing on the visitor's machine
+ *              in a stack that ends in a generic family is the stack working, as in CSS: nothing is said.
  *   emoji, CJK the browser falls back glyph by glyph, as in the page: colour emoji keep their own colours.
  *   size       the font's own size only sets proportions: the lines are drawn TEXT_PX on the long side, whatever the
  *              size, so a 16px font inflates as well as a 200px one. The box is the glyphs' ink, not their advance.
@@ -108,25 +109,39 @@ function renders(family, style, sample) {
   });
 }
 
+/** The @font-face rules the page declared for `family` (its own CSS and its stylesheets' land in document.fonts too). */
+const declared = (family) => [...(document.fonts ?? [])].filter((f) => f.family.replace(/^(["'])(.*)\1$/, '$2').toLowerCase() === family.toLowerCase());
+const listed = (families) => families.map((f) => `"${f}"`).join(', ');
+
 /**
  * Wait for the font (FONT_MS at most). `asked`: the font came from the options (the default, the page's own family,
- * is never warned about). Null when a named family renders, else the sentence the warning says.
+ * is never warned about). Null when there is nothing the page could fix, else the sentence the warning says.
  */
 async function loadFont(font, text, asked) {
-  let late = false, timer;
+  let timer;
   await Promise.race([
     document.fonts?.load(font, text).catch(() => null),
-    new Promise((r) => { timer = setTimeout(() => { late = true; r(); }, FONT_MS); }),
+    new Promise((r) => { timer = setTimeout(r, FONT_MS); }),
   ]);
   clearTimeout(timer);
   if (!asked) return null;
   const { lead, families } = split(sized(font)(MEASURE_PX));   // measured large: small sizes round widths
   const named = families.filter((f) => !GENERIC.test(f));
-  if (!named.length) return null;   // generic families only: there is nothing that could be missing
   const sample = `mmmmmmmmmmlli0WQ@${text}`;
-  if (named.some((f) => renders(f, lead, sample))) return null;
-  const list = named.map((f) => `"${f}"`).join(', ');
-  return `the font ${list} ${late ? `did not load within ${FONT_MS / 1000} s` : 'is not available (not installed, and no @font-face that loads)'}: the text is drawn in the fallback font. Load it before silkify() (a <link> or @font-face), or name one that is installed`;
+  // a web font the page declared that is not here: its file failed, or it is still on its way after FONT_MS
+  const lost = named.filter((f) => {
+    const faces = declared(f);
+    return faces.length && !faces.some((x) => x.status === 'loaded') && !renders(f, lead, sample);
+  });
+  if (lost.length) {
+    const slow = lost.some((f) => declared(f).some((x) => x.status === 'loading'));
+    return `the web font ${listed(lost)} ${slow ? `did not load within ${FONT_MS / 1000} s` : 'failed to load (its @font-face source could not be fetched or read)'}: the text is drawn in the next font of the stack. Check the @font-face src or the <link>`;
+  }
+  // a stack with no generic family to fall back on, and none of its fonts here
+  if (named.length === families.length && !named.some((f) => renders(f, lead, sample))) {
+    return `none of the fonts ${listed(named)} is available and the stack has no generic family: the text is drawn in the browser's default font. Load the font before silkify() (a <link> or @font-face), or end the stack with serif, sans-serif or system-ui`;
+  }
+  return null;   // a system font missing in a stack with a generic family: the stack is working, as in CSS
 }
 
 /* ============================================

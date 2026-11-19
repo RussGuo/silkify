@@ -9,14 +9,17 @@
   text.html — `silkify(canvas, { text })`, run by scripts/shoot.mjs. It checks itself: window.__text is set once
   every case has settled, with `problems` (empty when all is well); the canvases stay on the page so the script can
   photograph #one before and after a ripple. ?silk=<url> loads another build of silk.js.
-  Cases: one line, several lines, an emoji, CJK, a web font that loads (@font-face from local()), a font that is not
-  there (drawn in the fallback, one console.warn), the static tier and reduced motion (the words drawn flat), and the
-  mistakes that throw at once (text with image or element, an empty text, an unreadable font, colour or lineHeight,
-  a sphere). setText() itself is checked for proportions and colours. console.warn is captured, so the one expected
-  warning is checked instead of failing the run.
+  Cases: one line, several lines, an emoji, CJK, a web font that loads (the repository's Fraunces subset), and the
+  fonts that are not there, each with a made-up family name so no machine's installed fonts matter: a system font
+  missing in a stack that ends in a generic family (quiet, and not waited for), a declared @font-face whose file is
+  not there (one console.warn), a stack with no generic family (one console.warn); the static tier and reduced
+  motion (the words drawn flat), and the mistakes that throw at once (text with image or element, an empty text, an
+  unreadable font, colour or lineHeight, a sphere). setText() itself is checked for proportions and colours.
+  console.warn is captured, so the two expected warnings are checked instead of failing the run.
 -->
 <style>
-  @font-face { font-family: "Silk Test Serif"; src: local("Georgia Bold"), local("Georgia-Bold"), local("Times New Roman Bold"), local("DejaVu Serif Bold"), local("Liberation Serif Bold"), local("Noto Serif Bold"); font-weight: 800; }
+  @font-face { font-family: "Silk Test Serif"; src: url(../examples/fonts/fraunces-silk.woff2) format("woff2"); font-weight: 900; }
+  @font-face { font-family: "Silk Gone 7f3a"; src: url(no-such-font-7f3a.woff2) format("woff2"); }
   body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; color: #6b2737; }
   .grid { display: grid; grid-template-columns: repeat(4, 200px); gap: 12px; }
   canvas { width: 200px; aspect-ratio: 1; display: block; background: #ebe6dc; }
@@ -28,7 +31,8 @@
 <body>
 <div class="grid">
   <canvas id="one"></canvas><canvas id="lines"></canvas><canvas id="emoji"></canvas><canvas id="cjk"></canvas>
-  <canvas id="webfont"></canvas><canvas id="missing"></canvas><canvas id="still"></canvas><canvas id="reduced"></canvas>
+  <canvas id="webfont"></canvas><canvas id="fallback"></canvas><canvas id="gone"></canvas><canvas id="missing"></canvas>
+  <canvas id="still"></canvas><canvas id="reduced"></canvas>
 </div>
 <script type="module">
   const warned = [];
@@ -65,6 +69,11 @@
   const han = inkOf((await setText({ text: '丝绸' }, canvas)).picture);
   const big = inkOf((await setText({ text: 'silk', font: '800 200px serif' }, canvas)).picture);
   const tiny = inkOf((await setText({ text: 'silk', font: '800 9px serif' }, canvas)).picture);
+  // a system font that is not there, behind a generic family: not waited for (no @font-face to fetch)
+  const t0 = performance.now();
+  await setText({ text: 'silk', font: '800 200px "No Such Font 7f3b", serif' }, canvas);
+  out.fallbackMs = Math.round(performance.now() - t0);
+  expect(out.fallbackMs < 500, `a missing system font with a generic family: setText() took ${out.fallbackMs} ms`);
   out.pictures = { word, two, loose, apple, han, big, tiny };
   expect(Math.max(word.w, word.h) === 1024 && word.w > word.h * 1.5, `one word: ${word.w}×${word.h}, not 1024 wide`);
   expect(word.ink > 0.15 && word.other < 0.05, `one word: ${(word.ink * 100).toFixed(0)}% ink, ${(word.other * 100).toFixed(0)}% not in the canvas's CSS colour`);
@@ -97,13 +106,15 @@
     lines: silkify($('lines'), { text: 'soft\nsilk', font: '900 120px system-ui, sans-serif', lineHeight: 1, tier }),
     emoji: silkify($('emoji'), { text: '🍐', tier }),
     cjk: silkify($('cjk'), { text: '丝', font: '900 200px sans-serif', tier }),
-    webfont: silkify($('webfont'), { text: 'Ag', font: '800 200px "Silk Test Serif", serif', tier }),
+    webfont: silkify($('webfont'), { text: 'silk', font: '900 200px "Silk Test Serif", serif', tier }),
+    fallback: silkify($('fallback'), { text: 'Ag', font: '800 200px "No Such Font 7f3b", serif', tier }),
+    gone: silkify($('gone'), { text: 'Ag', font: '800 200px "Silk Gone 7f3a", serif', tier }),
     missing: silkify($('missing'), { text: 'Ag', font: '800 200px "No Such Font 7f3a"', tier }),
     still: silkify($('still'), { text: 'Ag', tier: 'static' }),
     reduced: silkify($('reduced'), { text: 'Ag', reducedMotion: true }),   // a forced tier would win over it
   };
   for (const [k, h] of Object.entries(handles)) out[k] = brief(await timeout(h.ready, 30000, h));
-  for (const k of ['one', 'lines', 'emoji', 'cjk', 'webfont', 'missing']) expect(out[k].mode === 'webgl', `${k}: ${out[k].mode} (${out[k].reason})`);
+  for (const k of ['one', 'lines', 'emoji', 'cjk', 'webfont', 'fallback', 'gone', 'missing']) expect(out[k].mode === 'webgl', `${k}: ${out[k].mode} (${out[k].reason})`);
   // the static tier and reduced motion draw the words flat, in the canvas's colour
   for (const k of ['still', 'reduced']) {
     let ink = { ink: 0, other: 1 };
@@ -111,9 +122,14 @@
     out[k].ink = ink;
     expect(out[k].mode === 'static' && ink.ink > 0.03 && ink.other < 0.2, `${k}: ${out[k].mode}, ${(ink.ink * 100).toFixed(1)}% ink (${out[k].reason})`);
   }
-  // exactly one warning: the font that is not there, by name; the web font that loaded is quiet
+  // the web font that loaded and the missing system font behind serif are quiet; the declared face whose file is not
+  // there and the stack with nothing to fall back on say so, once each, by name
   out.warned = warned;
-  expect(warned.length === 1 && /"No Such Font 7f3a" is not available/.test(warned[0]), `console.warn: ${JSON.stringify(warned)}`);
+  const says = (re) => warned.filter((w) => re.test(w)).length === 1;
+  expect(warned.length === 2 && says(/web font "Silk Gone 7f3a" failed to load/) && says(/none of the fonts "No Such Font 7f3a" is available and the stack has no generic family/),
+    `console.warn: ${JSON.stringify(warned)}`);
+  out.fonts = [...document.fonts].map((f) => `${f.family} ${f.status}`);
+  expect(out.fonts.includes('"Silk Test Serif" loaded') || out.fonts.includes('Silk Test Serif loaded'), `the web font: ${out.fonts}`);
 
   out.problems = problems;
   window.__text = { out, handles };
