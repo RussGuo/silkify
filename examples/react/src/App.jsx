@@ -11,7 +11,8 @@ export default function App() {
         <button id="toggle" onClick={() => setSrc((s) => (s === '/pomegranate.webp' ? '/parrot.webp' : '/pomegranate.webp'))}>Switch picture</button>{' '}
         <button id="hide" onClick={() => setShown((v) => !v)}>{shown ? 'Unmount' : 'Mount'}</button>
       </p>
-      {shown && <Silk src={src} options={{ material: 'satin' }} style={{ width: 420 }} onReady={(h) => { window.__silk = h; }} />}
+      {shown && <Silk src={src} options={{ material: 'satin' }} style={{ width: 420 }} onReady={(h) => { window.__silk = h; }}
+        onPress={() => { window.__presses = (window.__presses || 0) + 1; }} />}
     </main>
   );
 }

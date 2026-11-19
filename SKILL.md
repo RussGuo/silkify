@@ -180,7 +180,7 @@ export default function Silk({ src, options, className, style }) {
 }
 ```
 
-A new `src` is a remount, and so are StrictMode's mount → unmount → mount and an unmount: React only owns the `<div>`, so it never removes a node it did not make. In Next.js a server component can render `<Silk>` directly: silk.js touches the DOM only inside the effect, so no `next/dynamic` is needed. Import a static asset as a URL string (`import pear from './pear.png'`, then `src={pear.src ?? pear}`). Checked with React 19.3, three 0.186.1, Vite 8.3 (dev and build) and Next.js 16.4 with Turbopack (dev and build): every mount is `'webgl'` on `'worker'`. The projects are `examples/react` and `examples/next`; `node scripts/frameworks.mjs` runs all four.
+Events are props in the repository's version of this component (`examples/react/src/Silk.jsx`: `onPress`, `onReady` and the rest, always calling the newest prop, so a re-render never remounts). A new `src` is a remount, and so are StrictMode's mount → unmount → mount and an unmount: React only owns the `<div>`, so it never removes a node it did not make. In Next.js a server component can render `<Silk>` directly: silk.js touches the DOM only inside the effect, so no `next/dynamic` is needed. Import a static asset as a URL string (`import pear from './pear.png'`, then `src={pear.src ?? pear}`). Checked with React 19.3, three 0.186.1, Vite 8.3 (dev and build) and Next.js 16.4 with Turbopack (dev and build): every mount is `'webgl'` on `'worker'`. The projects are `examples/react` and `examples/next`; `node scripts/frameworks.mjs` runs all four.
 
 ### The handle
 

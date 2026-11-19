@@ -9,7 +9,8 @@
  * It copies examples/react and examples/next (with src/ and two pictures, as their `npm run silk` does) into a
  * temporary folder, installs their pinned dependencies there (network), starts each server and drives the page in
  * Chrome through Playwright (see harness.mjs): mount, switch the picture three times, unmount, mount again. Every
- * mount must be mode 'webgl' on thread 'worker', ripple under a pointer stroke, and the console must stay clean.
+ * mount must be mode 'webgl' on thread 'worker', ripple under a pointer stroke, and call the component's onPress prop
+ * once for one press (the events reach React through the component); the console must stay clean.
  * Nothing is installed into the repository. CHROME=/path/to/chrome picks the browser (default: Playwright's).
  *
  * Then live HTML (SilkHtml: /?live in Vite, /live in Next.js): mount, switch to another card three times (a new
@@ -70,7 +71,7 @@ async function probe(url) {
     await page.waitForFunction(() => window.__silk?.mode === 'webgl' && window.__silk.canvas.isConnected, null, { timeout: 60000 }).catch(() => {});
     const h = await page.evaluate(() => ({ mode: window.__silk?.mode, thread: window.__silk?.thread, canvases: document.querySelectorAll('canvas').length }));
     const box = await page.evaluate(() => { const r = window.__silk?.canvas.getBoundingClientRect(); return r && { x: r.x, y: r.y, width: r.width, height: r.height }; });
-    let ripples = false;
+    let ripples = false, pressed = false;
     if (box?.width) {
       await sleep(800);
       const a = await page.screenshot({ clip: box });
@@ -78,10 +79,16 @@ async function probe(url) {
       await page.mouse.move(box.x + box.width - 10, box.y + box.height * 0.65, { steps: 20 });
       await sleep(150);
       ripples = !a.equals(await page.screenshot({ clip: box }));
+      // the component's onPress prop hears a press (the page counts them in window.__presses)
+      const p0 = await page.evaluate(() => window.__presses || 0);
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.up();
+      pressed = (await page.evaluate(() => window.__presses || 0)) === p0 + 1;
       await page.mouse.move(2, 2);
     }
-    const ok = h.mode === 'webgl' && h.thread === 'worker' && h.canvases === 1 && ripples;
-    steps.push(`${label} ${ok ? 'ok' : `FAIL (${h.mode}/${h.thread}, ${h.canvases} canvas, ${ripples ? 'ripples' : 'no ripple'})`}`);
+    const ok = h.mode === 'webgl' && h.thread === 'worker' && h.canvases === 1 && ripples && pressed;
+    steps.push(`${label} ${ok ? 'ok' : `FAIL (${h.mode}/${h.thread}, ${h.canvases} canvas, ${ripples ? 'ripples' : 'no ripple'}, ${pressed ? 'onPress' : 'no onPress'})`}`);
     return ok;
   };
   let ok = await mounted('mount');

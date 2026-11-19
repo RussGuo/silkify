@@ -10,18 +10,22 @@
  * HTML-in-Canvas the card simply stays in the stage as plain HTML, centred where the live one would be drawn (1:1).
  *
  * Style the card through cardStyle / cardClassName: its own background and border-radius are the silk's outline.
+ * Events are props, as in Silk; a press on a link or a button inside the card is that control's, not an onPress.
  */
 import { useEffect, useRef } from 'react';
 import { silkify } from '../lib/silk/silk.js';   // src/ copied to lib/silk (npm run silk); `three` comes from npm
 
-export default function SilkHtml({ children, options, className, style, cardClassName, cardStyle, onReady }) {
-  const box = useRef(null), card = useRef(null);
+const EVENTS = ['onPress', 'onRelease', 'onStroke', 'onHover', 'onReady', 'onFail'];
+
+export default function SilkHtml({ children, options, className, style, cardClassName, cardStyle, ...props }) {
+  const box = useRef(null), card = useRef(null), on = useRef({});
+  useEffect(() => { on.current = props; });   // the newest handlers (see Silk)
   useEffect(() => {
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
     box.current.prepend(canvas);
-    const silk = silkify(canvas, { element: card.current, ...options });
-    silk.ready.then((h) => h.mode !== 'disposed' && onReady?.(h));
+    const relays = Object.fromEntries(EVENTS.map((name) => [name, (e) => (on.current[name] ?? options?.[name])?.(e)]));
+    const silk = silkify(canvas, { element: card.current, ...options, ...relays });
     return () => { silk.dispose(); silk.canvas.remove(); };
   }, []);   // options are read once: change them live with handle.setTheme() (from onReady)
   return (

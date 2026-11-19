@@ -5,18 +5,25 @@
  * in a fresh clone (a canvas can be transferred only once), so React must never hold a ref to it. React owns the
  * <div>; every mount gets a new canvas, and the cleanup disposes the renderer and removes whatever canvas it ended
  * with. StrictMode's mount → unmount → mount and a changing `src` are both a plain remount.
+ *
+ * Events are props (onPress, onRelease, onStroke, onHover, onReady, onFail: silkify's callbacks, see SKILL.md). The
+ * renderer is given relays that call the newest prop, so a parent that re-renders with a new arrow function never
+ * remounts the object, and a handler never sees a stale closure.
  */
 import { useEffect, useRef } from 'react';
 import { silkify } from './silk/silk.js';   // src/ copied here (npm run silk); `three` comes from npm
 
-export default function Silk({ src, options, className, style, onReady }) {
-  const box = useRef(null);
+const EVENTS = ['onPress', 'onRelease', 'onStroke', 'onHover', 'onReady', 'onFail'];
+
+export default function Silk({ src, options, className, style, ...props }) {
+  const box = useRef(null), on = useRef({});
+  useEffect(() => { on.current = props; });   // the newest handlers, before any event can reach them
   useEffect(() => {
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'display:block;width:100%;height:100%';
     box.current.append(canvas);
-    const silk = silkify(canvas, { image: src, ...options });
-    silk.ready.then((h) => h.mode !== 'disposed' && onReady?.(h));
+    const relays = Object.fromEntries(EVENTS.map((name) => [name, (e) => (on.current[name] ?? options?.[name])?.(e)]));
+    const silk = silkify(canvas, { image: src, ...options, ...relays });
     return () => { silk.dispose(); silk.canvas.remove(); };
   }, [src]);   // options are read once: change them live with handle.setTheme() (from onReady)
   return <div ref={box} className={className} style={{ aspectRatio: '1', touchAction: 'pan-y', ...style }} aria-hidden />;
