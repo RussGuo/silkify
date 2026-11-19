@@ -162,7 +162,7 @@ td code { white-space: nowrap; }
   position: relative; width: min(340px, calc(100% - 48px)); padding: 22px 24px 20px; border-radius: 20px;
   background: #fbf7ef; color: #2a2620; font: 16px/1.55 var(--serif); text-align: left;
 }
-#how-card h4 { margin: 0 0 8px; font: 600 22px/1.2 var(--serif); color: #6b1f1a; }
+#how-card h3 { margin: 0 0 8px; font: 600 22px/1.2 var(--serif); color: #6b1f1a; }
 #how-card p { margin: 0 0 10px; }
 #how-card p:last-child { margin: 0; font-size: 14px; }
 #how-card a { color: #6b1f1a; }
@@ -177,7 +177,7 @@ td code { white-space: nowrap; }
 .no-hic .hic-missing { display: block; }
 
 /* ---- the end ---- */
-.next { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0 0; }
+.next { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 32px 0 0; }
 .next a { display: block; padding: 18px 18px 16px; border: 1px solid var(--rule); border-radius: 14px; text-decoration: none; }
 .next a:hover { border-color: var(--accent); }
 .next b { display: block; font: 400 21px/1.2 var(--serif); margin-bottom: 4px; }
