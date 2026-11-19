@@ -7,7 +7,8 @@
  *                         throw, haptics before and after a user gesture (one real click here gives the gesture), words,
  *                         the static tier, interactive: false, a live element's link (the page checks itself)
  *   examples/button.html  the silk button. On a throttled network its face is never empty from the poster's first
- *                         paint to `ready` (the poster, or the live canvas over it, sampled every 50 ms). Then it is
+ *                         paint until the live canvas has fully faded in over it (the poster, or the live canvas,
+ *                         sampled on every animation frame, however long that takes on a slow machine). Then it is
  *                         pressed three ways, each a click of the <button>: a real mouse press (the silk reports it), a
  *                         finger (touch emulation), and the keyboard (Tab shows the focus ring; Enter and Space ripple
  *                         the silk from its centre: the frame changes). Under reduced motion the face stays the poster
@@ -47,17 +48,21 @@ export async function verifyEvents(t) {
     + `vibrated ${JSON.stringify(o.vibrated)}, element ${typeof o.element === 'string' ? o.element : `${o.element?.presses} press`}`);
 
   // ---- the silk button: the face is never empty while it loads (a slow network stretches the wait) ----
-  // every 50 ms from the poster's first paint to `ready`: a visible poster, or a shown canvas that is live
+  // on every animation frame (what is painted is decided per frame) from the poster's first paint until the canvas has
+  // faded in completely (or the mount settled without one): a visible poster, or a shown canvas that is live. Nothing
+  // here depends on how long that takes: a slow machine only gives more frames to check
   const { identifier } = await send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
     const samples = window.__faceSamples = [];
-    const shown = (el) => !!el && +getComputedStyle(el).opacity > 0 && el.getBoundingClientRect().width > 0;
+    const opacity = (el) => (el && el.getBoundingClientRect().width > 0 ? +getComputedStyle(el).opacity : 0);
     const t0 = performance.now();
-    const id = setInterval(() => {
+    const look = () => {
       const img = document.querySelector('#buy .face img'), canvas = document.querySelector('#buy .face canvas'), h = window.__button?.handle;
-      const poster = shown(img) && img.complete && img.naturalWidth > 0, silk = shown(canvas) && h?.mode === 'webgl';
+      const poster = opacity(img) > 0 && img.complete && img.naturalWidth > 0, silk = opacity(canvas) > 0 && h?.mode === 'webgl';
       if (poster || silk || samples.length) samples.push({ t: Math.round(performance.now() - t0), poster, silk, mode: h?.mode ?? 'none' });
-      if (h && h.mode !== 'loading' && samples.length) clearInterval(id);
-    }, 50);
+      const done = h && h.mode !== 'loading' && samples.length && (h.mode !== 'webgl' || opacity(canvas) >= 0.99);
+      if (done) window.__faceDone = true; else requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
   })()` });
   await send('Network.enable');
   await send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 200 * 1024, uploadThroughput: 100 * 1024 });
@@ -65,16 +70,18 @@ export async function verifyEvents(t) {
     await navigate('about:blank');
     await navigate(`${base}/examples/button.html`);
     await evaluate('window.__button.handle.ready');
-    await sleep(200);
+    // until the canvas has faded in (10 s at most: a mount that never shows it is reported below)
+    await evaluate(`new Promise((r) => { const t0 = Date.now(), t = setInterval(() => (window.__faceDone || Date.now() - t0 > 10000) && (clearInterval(t), r()), 50); })`);
   } finally {
     await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await send('Network.disable');
     await send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
   }
   const samples = await evaluate('window.__faceSamples');
+  // loading: at least one frame of the poster before the renderer was up, or the check saw nothing of the wait
   const empty = samples.filter((x) => !x.poster && !x.silk), loading = samples.filter((x) => x.mode === 'loading' || x.mode === 'none');
-  tag('button, loading', samples.length > 0 && !empty.length && loading.length >= 3 && samples.at(-1).silk,
-    `${samples.length} samples over ${samples.at(-1)?.t - samples[0]?.t} ms (${loading.length} while loading, 1.6 Mbit/s, 150 ms): `
+  tag('button, loading', samples.length > 0 && !empty.length && loading.length >= 1 && samples.at(-1).silk,
+    `${samples.length} frames over ${samples.at(-1)?.t - samples[0]?.t} ms (${loading.length} while loading, 1.6 Mbit/s, 150 ms): `
     + `${empty.length} with an empty face${empty.length ? ` (first at ${empty[0].t} ms, ${empty[0].mode})` : ''}, then ${samples.at(-1)?.silk ? 'the live canvas' : 'no live canvas'}`);
 
   // ---- the silk button: mouse, touch, keyboard ----

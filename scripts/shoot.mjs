@@ -484,12 +484,13 @@ async function verifyLab() {
   const shot = async () => (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
   await sleep(1500);
   for (const id of ['touch', 'stroke']) {
-    const a0 = await shot();
+    // watched until it moves (2 s at most), not sampled once: a slow frame must not read as no ripple
+    const a0 = await shot(), t0 = Date.now();
     await evaluate(`document.getElementById('${id}').click()`);
-    await sleep(id === 'stroke' ? 700 : 350);
-    const [d] = await diffOf(a0, await shot());
-    if (!(d > 0.3)) problems.push(`lab: the ${id} button did not move the object (Δ ${d.toFixed(2)})`);
-    console.log('lab   ', `${id} button: Δ ${d.toFixed(2)}`);
+    let d = 0;
+    for (let k = 0; !(d > 0.3) && Date.now() - t0 < 2000; k++) { await sleep(k ? 100 : 250); [d] = await diffOf(a0, await shot()); }
+    if (!(d > 0.3)) problems.push(`lab: the ${id} button did not move the object (Δ ${d.toFixed(2)} in 2 s)`);
+    console.log('lab   ', `${id} button: Δ ${d.toFixed(2)} after ${((Date.now() - t0) / 1000).toFixed(2)} s`);
   }
   await sleep(2500);
   const c0 = await shot();
