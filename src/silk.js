@@ -339,7 +339,7 @@ export function silkify(canvasIn, options = {}) {
     mode: 'loading',          // → 'webgl' | 'static' | 'failed' | 'disposed'
     tier: tier.tier,          // may become 'low' once the renderer finds a software rasteriser, 'static' on a fallback
     thread: null,             // 'worker' | 'main' when live
-    info: null,               // { sim, steps, mesh, texture, software } when live
+    info: null,               // { tier, software, sim, steps, mesh, texture, ratioCap } when live
     reason: tier.why || null, // why it is static or failed, in words
     element,                  // live HTML: the element printed on the silk (null for a picture)
     ready: null,
@@ -512,7 +512,7 @@ export function silkify(canvasIn, options = {}) {
       // never answer: the attempt ends here, so `ready` settles with mode 'disposed'
       ctl.signal.addEventListener('abort', () => resolve(null), { once: true });
       const receive = (m) => {
-        if (m.t === 'ready') resolve(m);
+        if (m.t === 'ready') { const { t, ...info } = m; resolve(info); }   // handle.info: what the renderer built
         else if (m.t === 'hover') emit('onHover', m.on);
         else if (m.t === 'stats') { const { t, id, ...st } = m; asked.get(id)?.(st); asked.delete(id); }
         else if (m.t === 'uv') { uvs.get(m.id)?.(m.uv); uvs.delete(m.id); }

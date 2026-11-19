@@ -346,7 +346,9 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   const breezing = () => o.breeze > 0 && !still
     && !(o.breezeIdle > 0 && performance.now() - Math.max(breezeFrom, lastHit, interactive() ? lastMove : -1e9) >= o.breezeIdle);
 
+  let touchCount = 0;   // touches made since the mount (stats().touches): ripple(), autoplay's drops, a quick tap
   function addTouch(uv, { depth = o.pressDepth, radius = o.pressRadius, hold = 120 } = {}) {
+    touchCount++;
     if (touches.length >= TOUCH_MAX) touches.shift();
     // the hold is counted in 60 Hz solver steps, not wall time, so a slow device presses as deep as a fast one
     touches.push({ uv, depth, radius: toUv(radius), left: Math.max(1, Math.round(hold / (1000 / 60))) });
@@ -588,7 +590,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     // own schedule never sees this mode: snapshots are drawn by the paint event, not by the loop)
     stats: () => {
       const now = performance.now(), mode = modeAt(now);
-      return { frames: drawCount, steps: solverSteps, mode: mode === 'rest' && now - lastSnapshot < HTML_MS ? 'html' : mode, ...(o.html ? { snapshots } : {}) };
+      return { frames: drawCount, steps: solverSteps, touches: touchCount, mode: mode === 'rest' && now - lastSnapshot < HTML_MS ? 'html' : mode, ...(o.html ? { snapshots } : {}) };
     },
     /**
      * Live HTML: print a picture of an HTML element into the albedo, over the stand-in the dome was built from.

@@ -10,8 +10,9 @@
  *                           page checks itself, for a pointer over a picture and over the words)
  *   the gallery, cold card  one real stroke across a card that is still a poster: it mounts and visibly ripples
  *   the gallery, a phone    375 px with touch: the hint shows without hover, a card in view mounts and ripples on its
- *                           own, one quick tap on a cold card visibly dents it (against the same card untouched), so
- *                           does a tap down and up in one task on a live card, a scroll
+ *                           own, one quick tap on a cold card visibly dents it (against the same card untouched), a
+ *                           tap down and up in one task on a live card is answered with one touch (stats().touches;
+ *                           the pointer merely passing, none), a scroll
  *                           greets every card with at most 3 live; in the static tier no hint and nothing mounts
  */
 
@@ -120,22 +121,28 @@ export async function verifyTouch(t) {
     const untouched = (await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data;
     let dent = 0;
     for (const f of tapped) dent = Math.max(dent, (await diffOf(untouched, f))[0]);
-    // the same card, now live and at rest: the quickest tap there is, down and up in one task (no frame between). The
-    // pointer alone turns the fill light, so the tap is measured against a glance (in and out in one task) too
+    // the same card, now live and at rest: the quickest tap there is, down and up in one task (no frame between). No
+    // frame ever sees that finger down, so the renderer answers it with one touch as deep as a held press: its own
+    // count of touches (stats().touches) says whether it did, whatever the speed of the machine (a pixel difference
+    // against the fill light turning, which the pointer alone does, left too little margin on a slow one). A glance (in
+    // and out in one task) must make none. The pixels are measured too, for the log.
     const after = async (js) => {
-      await evaluate(`(async () => {
+      const n = await evaluate(`(async () => {
         const h = window.__gallery.live.get('${id}').handle;
         for (let t = 0; t < 80 && (await h.stats()).mode !== 'rest'; t++) await new Promise((r) => setTimeout(r, 100));
+        const n0 = (await h.stats()).touches;
         const at = { clientX: ${r.x}, clientY: ${r.y}, pointerType: 'touch', bubbles: true };
         ${js}
+        await new Promise((r) => setTimeout(r, 50));
+        return (await h.stats()).touches - n0;   // stats() is answered after the pointer's messages, in order
       })()`);
       let d = 0;
       for (let k = 0; k < 4; k++) { await sleep(80); d = Math.max(d, (await diffOf(untouched, (await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data))[0]); }
-      return d;
+      return { n, d };
     };
     const glance = await after(`window.dispatchEvent(new PointerEvent('pointermove', at)); window.dispatchEvent(new PointerEvent('pointercancel', at));`);
     const quick = await after(`window.dispatchEvent(new PointerEvent('pointerdown', at)); window.dispatchEvent(new PointerEvent('pointerup', at));`);
-    tag('quick tap', quick > glance + 2, `${id} live: down and up in one task → Δ ${quick.toFixed(2)} around the tap (the pointer passing alone: Δ ${glance.toFixed(2)})`);
+    tag('quick tap', quick.n === 1 && glance.n === 0, `${id} live: down and up in one task → ${quick.n} touch, Δ ${quick.d.toFixed(2)} around the tap (the pointer passing alone: ${glance.n} touch, Δ ${glance.d.toFixed(2)})`);
     tag('one tap', r.cold && tap.mode === 'webgl' && tap.loop === 'active' && !tap.greeted && calm.loop === 'rest' && dent > 1,
       `${id} cold ${r.cold} → ${tap.mode}, loop ${tap.loop} after one tap, Δ ${dent.toFixed(2)} around the tap against the same card untouched (${calm.loop})`);
 

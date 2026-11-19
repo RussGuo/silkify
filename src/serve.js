@@ -20,7 +20,7 @@
  * answered with uv { id, uv }), dispose (init carries the pointer of the loading time,
  * pointer { x, y, down } | null and trail [{ x, y }]: see replayPointer); for live HTML also html { img } (an Element or
  * ElementImage to print on the albedo) and shape { picture, patch } (the element changed size). Messages out:
- * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
+ * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, touches, snapshots? },
  * html { ok, empty }, shaped, lost and restored (the WebGL context was taken back, and given back: the page shows a
  * still frame, then rebuilds), fail { reason, fatal, picture, svg, code, lost }. `lost`: the context went while the scene
  * was being built, so there is none (the page shows a still frame and rebuilds on `restored`, as for a loss once live).
@@ -42,7 +42,8 @@ export function serve(post, loadThreeOnce) {
   // crossed), replayed once the scene is up
   const latest = { options: {}, touches: [], at: null, down: false, trail: [] };
   let scene = null;                                   // what a rebuilt dome needs: THREE, the renderer, tier, options
-  const before = { frames: 0, steps: 0, snapshots: 0 };   // counts from scenes a rebuild replaced
+  const before = { frames: 0, steps: 0, snapshots: 0, touches: 0 };   // counts from scenes a rebuild replaced
+  const carry = (s) => { for (const k of Object.keys(before)) before[k] += s[k] || 0; };
   let reshaping = Promise.resolve();
   const watch = new AbortController();               // the canvas's context-loss listeners, removed on dispose
 
@@ -66,8 +67,7 @@ export function serve(post, loadThreeOnce) {
     m.canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();   // without it the browser would never restore the context
       if (silk) {
-        const s = silk.stats();
-        before.frames += s.frames; before.steps += s.steps; before.snapshots += s.snapshots || 0;
+        carry(silk.stats());
         silk.dispose(true);
         silk = null;
       } else lostEarly = true;
@@ -119,8 +119,7 @@ export function serve(post, loadThreeOnce) {
   async function reshape(m) {
     const picture = await loadBitmap(m.picture);
     if (dead || !silk) return picture.close?.();
-    const s = silk.stats();
-    before.frames += s.frames; before.steps += s.steps; before.snapshots += s.snapshots || 0;
+    carry(silk.stats());
     silk.dispose(true);
     Object.assign(scene.o, m.patch);
     silk = make(picture);
@@ -145,7 +144,7 @@ export function serve(post, loadThreeOnce) {
   const stats = () => {
     if (!silk) return { frames: 0, mode: 'loading' };
     const s = silk.stats();
-    return { ...s, frames: s.frames + before.frames, steps: s.steps + before.steps, ...('snapshots' in s ? { snapshots: s.snapshots + before.snapshots } : {}) };
+    return { ...s, frames: s.frames + before.frames, steps: s.steps + before.steps, touches: s.touches + before.touches, ...('snapshots' in s ? { snapshots: s.snapshots + before.snapshots } : {}) };
   };
 
   return (m) => {
