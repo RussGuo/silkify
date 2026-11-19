@@ -9,7 +9,7 @@
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
  *   node scripts/shoot.mjs --browsers      # WebKit and Firefox (browsers.mjs; needs Playwright, see harness.mjs)
  *   node scripts/shoot.mjs --shots         # verify, and also rewrite docs/shots/<id>-rest.jpg
- *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live)
+ *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
@@ -31,6 +31,8 @@
  *          note, in a Chrome without HTML-in-Canvas.
  *          Then test/text.html: words as the object (one line, lines, emoji, CJK, a web font, a missing font with its
  *          one warning, the static tier, the mistakes that throw); it checks itself, and one word must ripple.
+ *          Then test/lost.html: WEBGL_lose_context on a picture (worker, poster, main thread), words and a live element:
+ *          a still frame (or plain HTML) at once with mode 'static', and a working object again after restoreContext().
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -432,6 +434,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
     clearTimeout(timer);
   }
   if (!only || only === 'text') await verifyText();
+  if (!only || only === 'lost') await verifyLost();
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */
@@ -754,6 +757,15 @@ async function verifyText() {
   if (!(diff > 0.3)) problems.push(`text: the word did not ripple (Δ ${diff.toFixed(2)})`);
   console.log('text  ', ['one', 'lines', 'emoji', 'cjk', 'webfont', 'missing', 'still', 'reduced'].map((k) => `${k} ${out[k].mode}`).join(', '),
     `| ${Object.keys(out.errors).length} mistakes throw, ${out.warned.length} warning | ripple Δ ${diff.toFixed(2)}`, `${out.problems.length} problem(s)`);
+}
+
+/* ---- a lost WebGL context (test/lost.html checks itself): a still frame at once, a working object after the restore ---- */
+async function verifyLost() {
+  await navigate('about:blank');
+  await navigate(`${base}/test/lost.html`);
+  const { out, problems: ps } = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__lost && (clearInterval(t), r(window.__lost)), 100); })`);
+  for (const p of ps) problems.push(`lost: ${p}`);
+  console.log('lost  ', Object.entries(out).map(([k, r]) => `${k}: still in ${r.lostMs} ms, ${r.restored} in ${r.restoredMs} ms, ${r.after}`).join(' | '), `${ps.length} problem(s)`);
 }
 
 ws.close();

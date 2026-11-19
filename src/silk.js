@@ -37,6 +37,9 @@
  * so a page of many objects can mount each one on its first touch and still answer that touch quickly. The window's
  * pointer listeners are shared by every object on the page (pointer.js), so twenty objects cost what one does.
  *
+ * A lost WebGL context (a background tab, a GPU reset, too many contexts): the object shows its still frame at once,
+ * mode 'static', and is rebuilt when the browser restores the context (see lost()).
+ *
  * Peer dependency: three (tested with 0.152.2), resolved through the page's import map or bundler.
  */
 import { pickTier, TIERS } from './tier.js';
@@ -85,6 +88,7 @@ const ELEMENT_DEFAULTS = { puff: 'cushion' };
 const ELEMENT_FIXED = { matte: 'alpha', threshold: 0.5, corner: 0, albedo: null, grain: 0, poster: undefined, html: true };
 
 const SVG_PX = 1024;   // an SVG picture is rasterised to this long side
+const LOST = 'the WebGL context was lost (the browser took it back): a still frame until it is restored';
 const TRAIL = 32;      // points of the pointer's path kept while the renderer loads (see `ptr`)
 
 /* ============================================
@@ -460,6 +464,8 @@ export function silkify(canvasIn, options = {}) {
         else if (m.t === 'hover') o.onHover?.(m.on);
         else if (m.t === 'stats') { const { t, id, ...st } = m; asked.get(id)?.(st); asked.delete(id); }
         else if (m.t === 'html' || m.t === 'shaped') live?.received(m);
+        else if (m.t === 'lost') lost();
+        else if (m.t === 'restored') restored();
         else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, picture: !!m.picture, svg: !!m.svg, code: !!m.code }));
       };
       if (onWorker) {
@@ -543,6 +549,45 @@ export function silkify(canvasIn, options = {}) {
     return handle;
   }
 
+  /* ---- a lost WebGL context: the browser took it back (a background tab, a GPU reset, more contexts than it allows).
+   *      A still frame at once: the poster or the picture on a fresh canvas (the old one would keep its last frame,
+   *      frozen, or go blank), or the live element back in the page as plain HTML; mode 'static' with the reason.
+   *      When the browser gives the context back, the renderer is rebuilt on a new canvas, the still frame staying
+   *      behind it (its CSS background) until the first new frame is up, and the mode is 'webgl' again. ---- */
+  let lostEarly = false;
+  function lost() {
+    if (disposed) return;
+    if (handle.mode === 'loading') { lostEarly = true; return; }
+    if (handle.mode !== 'webgl') return;
+    for (const resolve of asked.values()) resolve({ frames: 0, mode: 'static' });
+    asked.clear();
+    Object.assign(handle, { mode: 'static', thread: null, info: null, reason: LOST });
+    if (live) {
+      live.restore();
+      freshCanvas();   // the transferred canvas still shows its last frame over the element
+      passThrough ??= canvas.style.pointerEvents;
+      canvas.style.pointerEvents = 'none';
+    } else {
+      paintStatic();
+    }
+  }
+  async function restored() {
+    if (disposed || handle.mode !== 'static' || handle.reason !== LOST) return;
+    send({ t: 'dispose' });
+    worker?.terminate();
+    worker = null;
+    send = () => {};
+    let still = null;
+    if (!live && canvas.width) { try { still = canvas.toDataURL(); } catch { /* a tainted canvas: no still frame behind */ } }
+    freshCanvas();
+    const was = { backgroundImage: canvas.style.backgroundImage, backgroundSize: canvas.style.backgroundSize, backgroundRepeat: canvas.style.backgroundRepeat };
+    if (still) Object.assign(canvas.style, { backgroundImage: `url("${still}")`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' });
+    if (passThrough !== null) { canvas.style.pointerEvents = passThrough; passThrough = null; }
+    handle.mode = 'loading';
+    await goLive();
+    if (still) Object.assign(canvas.style, was);
+  }
+
   handle.ready = mount().catch((e) => {   // ready never rejects: anything unexpected is a failure with its reason
     if (!disposed) fail(`unexpected error (${e?.message || e})`);
     return handle;
@@ -566,6 +611,11 @@ export function silkify(canvasIn, options = {}) {
         canvas: () => canvas, send: (m, transfer) => send(m, transfer), o, fitAuto: options.fit === undefined, visible,
       });
     }
+    return goLive();
+  }
+  /** Start the renderer (a worker first, then the main thread), or fall back to a still frame / plain HTML. Run once by
+   *  mount(), and again when a lost WebGL context has been restored. */
+  async function goLive() {
     let why = handle.reason, pictureError = null, codeError = null;
     // code that could not be loaded is said once, whatever the mount ends in
     const loudly = () => { if (codeError && !disposed) console.warn(`silkify: ${codeError}. Check the import map for three (or threeUrl) and that every file of silk.js is served.`); };
@@ -594,6 +644,7 @@ export function silkify(canvasIn, options = {}) {
           Object.assign(handle, { mode: 'webgl', thread: onWorker ? 'worker' : 'main', tier: info.tier, info, reason: null });
           if (codeError) codeError = `${codeError}: rendering on the main thread`;
           loudly();
+          if (lostEarly) { lostEarly = false; lost(); }   // the context went while the scene was being built
           return handle;
         } catch (e) {
           worker?.terminate();

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify lost context</title>
+<link rel="icon" href="data:,">
+<!--
+  lost.html — a WebGL context that is lost and restored (issue #6), run by scripts/shoot.mjs. Browsers take contexts
+  back when a mobile tab goes to the background, when the GPU driver resets, or when a page holds more contexts than
+  they allow. Each case mounts an object, loses its context with WEBGL_lose_context (in a worker through
+  test/lost-worker.js, which stands in for src/worker.js), and checks:
+    lost       within 300 ms the handle says mode 'static' with a reason, and the canvas shows a still frame (the
+               poster or the picture, drawn in 2D: its middle is opaque), not the frozen or blank WebGL one; a live
+               element is back in the page as plain HTML instead.
+    restored   restoreContext() brings it back: mode 'webgl' on the same thread, the still frame stays on screen (as the
+               new canvas's background) until the first new frame is up, and the object answers ripple() again.
+  Cases: a picture in a worker, the same with a poster, a picture on the main thread, words, and (with HTML-in-Canvas) a
+  live element. window.__lost = { out, problems } at the end. Low tier.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
+  .grid { display: grid; grid-template-columns: repeat(5, 160px); gap: 24px; }
+  canvas { width: 160px; aspect-ratio: 1; display: block; background: #ebe6dc; }
+  .stage { position: relative; width: 160px; height: 160px; display: grid; place-items: center; background: #ebe6dc; }
+  .stage canvas { position: absolute; inset: 0; }
+  .card { width: 120px; height: 100px; border-radius: 14px; background: #fbf7ef; font: 13px Georgia, serif; padding: 8px; box-sizing: border-box; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid">
+  <canvas id="worker"></canvas><canvas id="poster"></canvas><canvas id="main"></canvas><canvas id="text"></canvas>
+  <div class="stage"><canvas id="element"></canvas><article class="card" id="card">A card, live on the silk.</article></div>
+</div>
+<script type="module">
+  // silk.js's worker is swapped for test/lost-worker.js, which can lose its context; the newest one is the case's
+  const workers = [];
+  window.Worker = class extends Worker {
+    constructor(url, opts) {
+      super(String(url).endsWith('/src/worker.js') ? new URL('lost-worker.js', location.href) : url, opts);
+      workers.push(this);
+    }
+  };
+  const { silkify } = await import('../src/silk.js');
+  const { liveSupport } = await import('../src/live.js');
+  const PEAR = '../examples/images/pomegranate.webp';
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (id) => document.getElementById(id);
+  const until = async (f, ms) => { const t0 = performance.now(); while (!f() && performance.now() - t0 < ms) await new Promise(requestAnimationFrame); return Math.round(performance.now() - t0); };
+  const out = {}, problems = [];
+
+  const cases = {
+    worker: { image: PEAR },
+    poster: { image: PEAR, poster: '../examples/posters/pomegranate.webp' },
+    main: { image: PEAR, worker: false },
+    text: { text: 'H', font: '800 120px Georgia, serif', color: '#7a2a1c' },   // a letter whose middle is ink
+  };
+  if (liveSupport().main) cases.element = { element: '#card' };
+
+  for (const [id, options] of Object.entries(cases)) {
+    const h = silkify($(id), { ...options, tier: 'low' });
+    await h.ready;
+    const r = out[id] = { before: `${h.mode}/${h.thread}` };
+    if (h.mode !== 'webgl') { problems.push(`${id}: did not go live (${h.mode}: ${h.reason})`); continue; }
+    const thread = h.thread, frozen = h.canvas;
+    // in a worker, through lost-worker.js; on the main thread, the canvas's own context
+    const ext = thread === 'main' ? frozen.getContext('webgl2').getExtension('WEBGL_lose_context') : null;
+    const lose = () => (ext ? ext.loseContext() : workers.at(-1).postMessage({ t: 'test-lose' }));
+    const restore = () => (ext ? ext.restoreContext() : workers.at(-1).postMessage({ t: 'test-restore' }));
+
+    lose();
+    r.lostMs = await until(() => h.mode === 'static', 1000);
+    r.lost = `${h.mode}: ${h.reason}`;
+    if (h.mode !== 'static' || !h.reason) problems.push(`${id}: after loseContext() the mode is ${h.mode} (${h.reason})`);
+    else if (r.lostMs > 300) problems.push(`${id}: the still frame took ${r.lostMs} ms`);
+    if (options.element) {
+      if (!$('card').isConnected || $('card').parentNode instanceof HTMLCanvasElement) problems.push(`${id}: the element is not back in the page`);
+      if (h.canvas === frozen) problems.push(`${id}: the frozen canvas still covers the element`);
+    } else {
+      await until(() => h.canvas !== frozen && h.canvas.width > 0, 1000);   // the picture or poster may still be decoding
+      await sleep(100);
+      const c = h.canvas, a = h.canvas === frozen ? null : c.getContext('2d')?.getImageData(c.width / 2, c.height / 2, 1, 1).data[3];
+      r.stillAlpha = a;
+      if (!(a > 0)) problems.push(`${id}: no still frame on the canvas after the context was lost (alpha ${a})`);
+    }
+
+    restore();
+    let shown = '';
+    r.restoredMs = await until(() => { if (h.mode === 'loading') shown ||= h.canvas.style.backgroundImage; return h.mode === 'webgl'; }, 10000);
+    r.restored = `${h.mode}/${h.thread}`;
+    if (h.mode !== 'webgl') { problems.push(`${id}: not live again after restoreContext() (${h.mode}: ${h.reason})`); continue; }
+    if (h.thread !== thread) problems.push(`${id}: restored on the ${h.thread} thread, not the ${thread} one`);
+    if (!options.element && !shown.startsWith('url(')) problems.push(`${id}: no still frame behind the canvas while the renderer was rebuilt`);
+    if (h.canvas.style.backgroundImage) problems.push(`${id}: the still frame stayed behind the live canvas`);
+    if (options.element && $('card').parentNode !== h.canvas) problems.push(`${id}: the element did not move back into the canvas`);
+    h.ripple(0.5, 0.5);
+    await sleep(200);
+    const st = await h.stats();
+    r.after = `${st.mode}, ${st.frames} frames`;
+    if (st.mode !== 'active') problems.push(`${id}: ripple() after the restore leaves the loop '${st.mode}'`);
+    h.dispose();
+  }
+  window.__lost = { out, problems };
+</script>
+</body>
+</html>

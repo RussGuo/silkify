@@ -641,7 +641,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
  * HTML also html { img } (an Element or ElementImage to print on the albedo) and shape { picture, patch } (the
  * element changed size: a new dome from a new stand-in, the same context). Messages out:
  * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
- * html { ok, empty }, shaped, fail { reason, fatal, picture, svg, code }. `code`: the code could not be loaded (three.js),
+ * html { ok, empty }, shaped, lost and restored (the WebGL context was taken back, and given back: the page shows a
+ * still frame, then rebuilds), fail { reason, fatal, picture, svg, code }. `code`: the code could not be loaded (three.js),
  * a mistake in the page rather than a missing feature, so the page says so. `fatal` means another thread would fail the same
  * way (an HTTP error, or nothing in the picture is opaque); `picture` that the picture could not be decoded here,
  * which another thread may still manage; `svg` that the picture is an SVG the page must rasterise.
@@ -658,6 +659,7 @@ export function serve(post, loadThreeOnce) {
   let scene = null;                                   // what a rebuilt dome needs: THREE, the renderer, tier, options
   const before = { frames: 0, steps: 0, snapshots: 0 };   // counts from scenes a rebuild replaced
   let reshaping = Promise.resolve();
+  const watch = new AbortController();               // the canvas's context-loss listeners, removed on dispose
 
   const make = (picture) => createSilk(scene.THREE, scene.opened, { picture }, scene.o, scene.tier, {
     view: latest.view, visible: latest.visible, still: latest.still,
@@ -675,6 +677,20 @@ export function serve(post, loadThreeOnce) {
     const THREE = await loadThree(m.threeUrl).catch((e) => { throw Object.assign(new Error(`three.js could not be loaded (${e?.message || e})`), { code: true }); });
     const opened = openRenderer(THREE, m.canvas, gl);
     if (!opened) return post({ t: 'fail', reason: 'three.js could not start a WebGL2 renderer' });
+    // the browser can take the context back (a background tab, a GPU reset, too many contexts on the page): the scene
+    // stops and the page shows a still frame; once the context is back, the page rebuilds the renderer. A context that
+    // is lost and never restored stays lost: the still frame is the answer then
+    m.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();   // without it the browser would never restore the context
+      if (silk) {
+        const s = silk.stats();
+        before.frames += s.frames; before.steps += s.steps; before.snapshots += s.snapshots || 0;
+        silk.dispose(true);
+        silk = null;
+      }
+      post({ t: 'lost' });
+    }, { signal: watch.signal });
+    m.canvas.addEventListener('webglcontextrestored', () => post({ t: 'restored' }), { signal: watch.signal });
     // a software rasteriser cannot afford the high tier, unless the caller forced it
     const tier = opened.software && m.tier.tier === 'high' && !m.forced ? m.lowTier : m.tier;
     const sphere = m.options.shape === 'sphere';
@@ -756,7 +772,7 @@ export function serve(post, loadThreeOnce) {
       case 'wake': silk?.wake(); break;
       case 'html': post({ t: 'html', ...(silk ? silk.html(m.img) : { ok: false }) }); break;
       case 'shape': reshaping = reshaping.then(() => reshape(m)).catch((e) => post({ t: 'fail', reason: `could not rebuild the dome (${e?.message || e})` })); break;
-      case 'dispose': dead = true; silk?.dispose(); silk = null; break;
+      case 'dispose': dead = true; watch.abort(); if (silk) silk.dispose(); else scene?.opened.renderer.dispose(); silk = null; break;
     }
   };
 }
