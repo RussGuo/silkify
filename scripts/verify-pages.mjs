@@ -19,6 +19,9 @@
  *                   more than 3), no sideways scroll at 375 px, and with reduced motion no canvas and nothing mounted
  *   words           examples/text.html: live, a word ripples, no sideways scroll at 375 px, still with reduced motion
  *   button          examples/button.html, when there is one: it loads clean, at 1440 px, 375 px and with reduced motion
+ *   contrast        the gallery, the Lab, the long read in both languages, text, button and live, light and dark: every
+ *                   piece of text set on a plain colour reads at 4.5:1 or better (3:1 from 24 px, or 18.66 px bold), as WCAG
+ *                   AA asks. Text over a picture or a gradient (the stages) is left to the eye
  * Every case also fails on a console error or warning (shoot.mjs's own listeners) and on any response of 400 or more.
  */
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -46,6 +49,7 @@ export async function verifyPages(t) {
     await checkDemos(c);
     await checkText(c);
     if (existsSync(path.join(ROOT, 'examples/button.html'))) await checkButton(c);
+    await checkContrast(c);
   } finally {
     watching = null;
     await send('Network.disable');
@@ -391,6 +395,57 @@ async function checkButton(c) {
       const x = await overflow(c);
       expect(c, label, x <= 0, `${x} px of sideways scroll`);
       return `${x} px sideways`;
+    });
+  }
+}
+
+/* ============================================
+ * Contrast: text on a plain colour, light and dark (the stages' gradients and pictures are not measured)
+ * ============================================ */
+const CONTRAST_PAGES = ['examples/index.html', 'examples/lab.html', 'examples/how-it-works.html', 'examples/how-it-works.zh.html',
+  'examples/text.html', 'examples/button.html', 'examples/live.html'];
+const CONTRAST = `(() => {
+  const rgb = (c) => {   // 'rgb(a)(…)', or 'color(srgb r g b / a)' (what color-mix() computes to), channels 0–1
+    const k = c.startsWith('color(') ? 255 : 1, m = c.replace('color(srgb', '').match(/[\\d.]+/g)?.map(Number) || [0, 0, 0, 0];
+    return { r: m[0] * k, g: m[1] * k, b: m[2] * k, a: m.length > 3 ? m[3] : 1 };
+  };
+  const lum = ({ r, g, b }) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+    .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const over = (f, b) => ({ r: f.r * f.a + b.r * (1 - f.a), g: f.g * f.a + b.g * (1 - f.a), b: f.b * f.a + b.b * (1 - f.a), a: 1 });
+  const bad = [];
+  for (const el of document.querySelectorAll('body *')) {
+    if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+    const cs = getComputedStyle(el), box = el.getBoundingClientRect();
+    if (!box.width || cs.visibility === 'hidden' || +cs.opacity === 0 || el.closest('[hidden], [aria-hidden="true"], canvas, .stage, svg')) continue;
+    let bg = null, fade = 1;
+    for (let e = el; e; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      fade *= +s.opacity;
+      if (s.backgroundImage !== 'none') { bg = 'image'; break; }
+      const b = rgb(s.backgroundColor);
+      if (b.a > 0) { bg = bg ? over(bg, b) : b; if (bg.a >= 1 || b.a >= 1) break; }
+    }
+    if (bg === 'image' || fade < 1) continue;
+    bg = bg && bg.a >= 1 ? bg : over(bg || { r: 0, g: 0, b: 0, a: 0 }, rgb(getComputedStyle(document.documentElement).backgroundColor).a ? rgb(getComputedStyle(document.documentElement).backgroundColor) : { r: 255, g: 255, b: 255, a: 1 });
+    const fg = over(rgb(cs.color), bg), [l1, l2] = [lum(fg), lum(bg)].sort((a, b) => b - a), ratio = (l1 + 0.05) / (l2 + 0.05);
+    const px = parseFloat(cs.fontSize), large = px >= 24 || (px >= 18.66 && +cs.fontWeight >= 700);
+    if (ratio < (large ? 3 : 4.5) - 0.005) bad.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '') + ' ' + ratio.toFixed(2) + ' "' + el.textContent.trim().slice(0, 24) + '"');
+  }
+  return bad;
+})()`;
+async function checkContrast(c) {
+  for (const scheme of ['light', 'dark']) {
+    await scope(c, `contrast ${scheme}`, async () => {
+      const out = [];
+      for (const file of CONTRAST_PAGES) {
+        await open(c, file);
+        await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }, { name: 'prefers-reduced-motion', value: 'no-preference' }] });
+        await c.sleep(300);
+        const bad = await c.evaluate(CONTRAST);
+        expect(c, `contrast ${scheme}`, !bad.length, `${file}: ${bad.slice(0, 6).join('; ')}`);
+        out.push(`${file.replace('examples/', '')} ${bad.length}`);
+      }
+      return `below AA: ${out.join(', ')}`;
     });
   }
 }

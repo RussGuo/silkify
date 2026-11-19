@@ -3,7 +3,8 @@
    reading column of about 36 em with figures that may run wider. Light and dark follow the system, as the gallery. */
 
 :root {
-  --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #7a746a; --rule: #d9d2c4; --accent: #8a6d3b;
+  --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #6f695f; --rule: #d9d2c4; --accent: #8a6d3b;
+  --accent-text: #7a5f30;   /* small type: muted and accent darkened to 4.9:1 and 5.2:1 on paper (the use-case pages' values) */
   --clay: #e4dacb; --cool: #4f6f86; --field: #e4dacb;
   --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, "Songti SC", "Noto Serif CJK SC", serif;
   --sans: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Noto Sans CJK SC", sans-serif;
@@ -12,7 +13,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b;
+    --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b; --accent-text: #c9a96b;
     --clay: #b9ad99; --cool: #7fa3bd; --field: #36322c; color-scheme: dark;
   }
 }
@@ -35,7 +36,7 @@ sub, sup { line-height: 0; }
 .top a { text-decoration: none; }
 .top a:hover { color: var(--ink); }
 .top .brand { font: 400 20px/1 var(--serif); color: var(--ink); }
-.top .brand em { color: var(--accent); }
+.top .brand em { color: var(--accent-text); }
 
 /* ---- title ---- */
 h1 { margin: 0; font: 400 clamp(46px, 8vw, 92px)/0.98 var(--serif); letter-spacing: -0.02em; }
@@ -49,9 +50,9 @@ h1 em { font-style: italic; color: var(--accent); }
 article p { margin: 0 0 1.15em; }
 article p.lead { font-size: 19px; }
 h2 { margin: 120px 0 28px; font: 400 clamp(30px, 4.4vw, 40px)/1.15 var(--serif); letter-spacing: -0.01em; }
-h2 .n { display: block; margin-bottom: 14px; font: 500 13px/1 var(--mono); letter-spacing: 0.08em; color: var(--accent); }
+h2 .n { display: block; margin-bottom: 14px; font: 500 13px/1 var(--mono); letter-spacing: 0.08em; color: var(--accent-text); }
 h3 { margin: 44px 0 10px; font: 600 17px/1.4 var(--sans); }
-.see { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.see { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-text); margin-bottom: 6px; }
 :lang(zh) .see { text-transform: none; letter-spacing: 0.12em; }
 .formula { margin: 28px 0; padding: 18px 22px; border-left: 2px solid var(--accent); font: 18px/1.6 var(--serif); }
 .formula small { display: block; margin-top: 4px; font: 14px/1.5 var(--sans); color: var(--muted); }
@@ -61,8 +62,8 @@ ul.plain li { margin-bottom: 0.4em; }
 .toc { margin: 56px 0 0; padding: 0; list-style: none; counter-reset: toc; border-top: 1px solid var(--rule); }
 .toc li { counter-increment: toc; border-bottom: 1px solid var(--rule); }
 .toc a { display: grid; grid-template-columns: 2.6em 1fr; padding: 12px 0; text-decoration: none; font-size: 16px; }
-.toc a::before { content: counter(toc, decimal-leading-zero); font: 500 13px/1.9 var(--mono); color: var(--accent); }
-.toc a:hover { color: var(--accent); }
+.toc a::before { content: counter(toc, decimal-leading-zero); font: 500 13px/1.9 var(--mono); color: var(--accent-text); }
+.toc a:hover { color: var(--accent-text); }
 
 /* ---- figures ---- */
 figure { margin: 48px auto 56px; }
@@ -98,7 +99,7 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .range input { flex: 1; accent-color: var(--accent); }
 .range output { min-width: 3em; font: 13px var(--mono); color: var(--ink); }
 button.pill {
-  padding: 6px 16px; border: 1px solid var(--accent); border-radius: 999px; background: transparent; color: var(--accent);
+  padding: 6px 16px; border: 1px solid var(--accent); border-radius: 999px; background: transparent; color: var(--accent-text);
   font: inherit; font-size: 14px; cursor: pointer;
 }
 button.pill:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
@@ -126,7 +127,7 @@ button.pill:hover { background: color-mix(in srgb, var(--accent) 10%, transparen
 .sleep { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
 .meter { font-size: 15px; }
 .meter [data-k="mode"] { display: block; font: 400 24px/1.3 var(--serif); color: var(--ink); min-height: 1.3em; }
-.meter[data-mode="rest"] [data-k="mode"] { color: var(--accent); }
+.meter[data-mode="rest"] [data-k="mode"] { color: var(--accent-text); }
 .meter [data-k="rate"], .meter [data-k="total"] { display: block; font: 13px/1.7 var(--mono); color: var(--muted); min-height: 1.7em; }
 .timeline { margin-top: 28px; }
 .timeline .bars { display: grid; grid-template-columns: 8fr 12fr 11fr 9fr; height: 34px; border-bottom: 1px solid var(--rule); }

@@ -19,11 +19,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <style>
   :root {
-    --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #7a746a; --rule: #d9d2c4; --accent: #8a6d3b;
+    --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #6f695f; --rule: #d9d2c4; --accent: #8a6d3b;
+    --accent-text: #7a5f30;   /* small type: muted and accent darkened to 4.9:1 and 5.2:1 on paper (the use-case pages' values) */
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b; color-scheme: dark; }
+    :root { --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b; --accent-text: #c9a96b; color-scheme: dark; }
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -46,13 +47,13 @@
   .poster-mode .uses { display: none; }
   .meta { text-align: right; font-size: 13px; color: var(--muted); }
   .meta a { color: inherit; }
-  .meta a.lab { display: inline-block; margin-top: 10px; color: var(--accent); font-size: 15px; text-decoration: none; }
+  .meta a.lab { display: inline-block; margin-top: 10px; color: var(--accent-text); font-size: 15px; text-decoration: none; }
   .meta a.lab:hover { text-decoration: underline; }
   .meta a.lab + a.lab { margin-left: 16px; }
   /* copies the one-line install sentence (README "One-line install"); the sentence itself is written by build-integrations.mjs */
   .meta .install {
     display: inline-block; margin-top: 12px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 999px;
-    background: transparent; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer;
+    background: transparent; color: var(--accent-text); font: inherit; font-size: 13px; cursor: pointer;
   }
   .meta .install:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 56px 32px; }
