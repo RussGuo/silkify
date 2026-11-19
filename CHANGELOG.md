@@ -25,6 +25,7 @@
 
 **Fixed**
 - **The first touch is no longer lost while an object mounts** (#1). silkify listens to the pointer from the call on, not from `ready`: a pointer still over the canvas when the renderer is up hovers and presses at once, and one that has already gone (a stroke across, a tap) gets one ripple where it first crossed the object. Before, everything the pointer did in the half second or more of loading was dropped, so in the gallery the first stroke across a card did nothing. `test/first-touch.html` checks a hover, a stroke, a tap and a held button made while loading.
+- **The gallery on a phone shows that its objects are alive** (#2). On a touch screen the hint (`touch · hold to press deeper`) stays visible instead of waiting for a hover that never comes; the first time a card is mostly in view it mounts and plays one ripple (not in the static tier, so not with reduced motion; still at most 3 live); in the static tier, whose posters do not move, the hint is not shown at all; and a first tap on a card that is still a poster dents it once it mounts, through the pointer kept while loading. Checked at 375 px with touch emulation: the tap is compared with the same card mounted untouched.
 
 Pictures look the same: the posters re-render byte for byte.
 

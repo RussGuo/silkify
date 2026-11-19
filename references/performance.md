@@ -39,6 +39,7 @@ A lifted finger, a cancelled touch, or a pointer leaving the window ends "hoveri
 - Show a **poster** first: an `<img loading="lazy">` WebP at 1x and 2x, rendered by `node scripts/shoot.mjs --posters`.
 - **Prewarm** once the page is idle: `prewarm({ tier })` (with the options the objects will use) starts one worker and has it import three.js, without a canvas and without a WebGL context. The next `silkify()` takes that worker, and another is warmed when the page is next idle; on the main-thread path it imports core.js and three instead, and in the static tier it does nothing. It holds one idle worker with three.js parsed, a few MB, for as long as the page is open.
 - Mount `silkify` on the first `pointerenter` or `pointerdown`, and fade the canvas in when `ready` resolves. silkify listens to the pointer from the call on, so the touch that mounted it is not lost: a pointer still over the canvas when the renderer is up hovers and presses at once, and one that already left (a stroke across, a tap) gets one ripple where it first crossed the object.
+- On a touch screen (`(hover: none)`) nothing hovers, so nothing would say the objects are alive: keep the hint visible, and the first time a card is mostly in view (60 %), mount it and play one `handle.ripple()` on the object. The static tier (reduced motion) never mounts, so it never moves; the cap below still holds while scrolling.
 - `dispose()` it when the card leaves the viewport.
 - Keep at most 3 live, releasing the least recently touched.
 

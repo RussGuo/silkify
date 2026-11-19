@@ -68,6 +68,10 @@
     opacity: 0; transition: opacity 0.4s;
   }
   .stage:hover .hint { opacity: 0.8; }
+  /* a touch screen has no hover: the hint stays, so a visitor sees at once that the objects can be touched */
+  @media (hover: none) { .stage .hint { opacity: 0.8; } }
+  /* the static tier (reduced motion, a slow device) shows posters that do not move: no hint promises otherwise */
+  .static-tier .stage .hint { display: none; }
   /* the live-HTML card: the stage centres a real <article>; live, silkify prints it on the silk at the same place and
      size (1:1), so nothing moves when it comes alive. Without HTML-in-Canvas it simply stays plain HTML */
   .stage.html { display: grid; place-items: center; cursor: auto; }
@@ -235,6 +239,7 @@
   const posterMode = qs.has('poster');
   if (posterMode) document.documentElement.classList.add('poster-mode');
   const tier = pickTier(forced);   // decided once; 'static' never mounts a renderer
+  if (tier.tier === 'static') document.documentElement.classList.add('static-tier');
   const MAX_LIVE = 3;              // WebGL contexts alive at once; the least recently touched one is released
 
   const grid = document.getElementById('grid');
@@ -299,6 +304,25 @@
     l.handle.canvas.remove();
   }
 
+  // a touch screen has no hover, so each card shows once that it is alive: the first time it is mostly in view it goes
+  // live and plays one ripple. The static tier (reduced motion among others) never mounts; MAX_LIVE still holds, the
+  // least recently used card is released. A first tap is answered too: silkify keeps it while the card mounts
+  const greeted = new Set();
+  if (matchMedia('(hover: none)').matches && tier.tier !== 'static' && !posterMode) {
+    const hello = new IntersectionObserver((es) => {
+      for (const e of es) {
+        const id = e.target.closest('figure').dataset.id;
+        if (!e.isIntersecting || greeted.has(id)) continue;
+        greeted.add(id);
+        hello.unobserve(e.target);
+        // where the stroke for this card would pass (its middle), else the centre: a point on the object
+        const [x0, y0, x1, y1] = (byId.get(id)?.stroke || '0.5,0.5,0.5,0.5').split(',').map(Number);
+        activate(id).then((h) => { if (h.mode === 'webgl') h.ripple((x0 + x1) / 2, (y0 + y1) / 2); });
+      }
+    }, { threshold: 0.6 });
+    grid.querySelectorAll('.stage').forEach((s) => hello.observe(s));
+  }
+
   // a card that scrolls out of view gives its WebGL context back
   const io = new IntersectionObserver((es) => {
     for (const e of es) if (!e.isIntersecting) release(e.target.dataset.id);
@@ -307,7 +331,7 @@
 
   // hooks for scripts/shoot.mjs
   window.__gallery = {
-    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm,
+    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm, greeted,
     stroke: (id) => byId.get(id)?.stroke || '',
   };
 </script>
