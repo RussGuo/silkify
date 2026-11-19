@@ -8,6 +8,8 @@
  *            restores every control and the text, the printed call and Download HTML carry text, font, colour and
  *            line height, and the downloaded page runs from file://
  *   record   Record: a 3 s clip, square and 9:16, comes back as a non-empty video/mp4 or video/webm of the frame's shape
+ *   controls the light disc answers the arrow keys and has x and y boxes; with reduced motion the stage's note is the one
+ *            place that says the object is still (no readout repeats it) and Touch and Stroke are not shown
  *   links    a link is anyone's to make: hashes that try to break out of a string (a closing quote, `</script>`, a
  *            template string, a line break, a javascript: picture) open the Lab without running anything, and the
  *            printed call and Download HTML's script, run as they are, change nothing in the page and carry no foreign key
@@ -20,6 +22,7 @@ export async function verifyLabExtras(t) {
   await verifyLabWords(t);
   await verifyRecord(t);
   await verifyLinks(t);
+  await verifyControls(t);
 }
 
 /* ---- verify, part 6: the Lab's words (Object → Words), with a system font (no network) ---- */
@@ -112,5 +115,34 @@ async function verifyLinks(t) {
     const clean = r.title === 'silkify Lab' && typeof r.printed === 'object' && typeof r.exported === 'object' && !r.closings && !foreign.length;
     if (!clean) problems.push(`lab link ${name}: ${JSON.stringify(r).slice(0, 400)}`);
     console.log('link  ', name.padEnd(9), clean ? `nothing ran; printed ${keys(r.printed).join(' ')}` : 'INJECTED');
+  }
+}
+
+/* ---- verify, part 9: the light disc from the keyboard; reduced motion says it once and hides what cannot move ---- */
+async function verifyControls(t) {
+  const { send, evaluate, openLab, problems } = t;
+  await openLab('', { obj: 'pomegranate', url: null, material: 'silk', feel: 'silk', bg: 'stage', set: { puff: 'dome', light: [0, 0, 1] } });
+  const disc = await evaluate(`(async () => {
+    const row = [...document.querySelectorAll('#controls .row')].find((r) => r.dataset.key === 'light');
+    row.closest('details.advanced').open = true;
+    const d = row.querySelector('.disc'); d.focus();
+    for (const key of ['ArrowRight', 'ArrowRight', 'ArrowUp']) d.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    const boxes = [...row.querySelectorAll('.xy input')].map((n) => n.getAttribute('aria-label'));
+    return { light: window.__lab.state.set.light, focus: document.activeElement === d, name: d.getAttribute('aria-label'), boxes };
+  })()`);
+  const okDisc = disc.focus && disc.name && disc.boxes.length === 2 && JSON.stringify(disc.light) === '[0.04,0.02,1]';
+  if (!okDisc) problems.push(`lab controls: the light disc from the keyboard ${JSON.stringify(disc)}`);
+  console.log('lab   ', `light disc: keys → ${JSON.stringify(disc.light)}, x and y boxes ${disc.boxes.length}`, okDisc ? '' : 'FAILED');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  try {
+    await openLab();
+    await new Promise((r) => setTimeout(r, 1300));   // past a readout tick
+    const rm = await evaluate(`({ mode: window.__lab.handle.mode, note: !document.getElementById('still').hidden, read: document.getElementById('read').textContent,
+      touch: document.getElementById('touch').hidden, stroke: document.getElementById('stroke').hidden })`);
+    const ok = rm.mode === 'static' && rm.note && !rm.read && rm.touch && rm.stroke;
+    if (!ok) problems.push(`lab controls: reduced motion ${JSON.stringify(rm)}`);
+    console.log('lab   ', `reduced motion: ${rm.mode}, the note once, readout "${rm.read}", Touch and Stroke hidden ${rm.touch && rm.stroke}`, ok ? '' : 'FAILED');
+  } finally {
+    await send('Emulation.setEmulatedMedia', { features: [] });
   }
 }

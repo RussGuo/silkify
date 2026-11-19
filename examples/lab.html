@@ -45,14 +45,13 @@
   <aside>
     <div class="controls" id="controls"></div>
     <div class="out">
+      <p class="out-h">The call <span>what this page runs, to copy into yours</span></p>
       <pre><code id="code"></code></pre>
       <div class="bar">
         <button id="copy">Copy options</button><button id="link">Copy link</button><button id="download" title="this object and these options as one HTML file that opens with a double-click. The file loads silk.js and three.js from jsDelivr, so it depends on that CDN; for a page you publish, copy src/ into your project as SKILL.md says">Download HTML</button><button id="reset">Reset</button>
-        <a href="how-it-works.html" style="margin-left:auto;align-self:center;color:var(--fine)">How it works</a>
-        <a href="./" style="align-self:center;color:var(--fine)">← Gallery</a>
       </div>
-      <p class="credit"><span id="byline"><!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></span> · <a href="https://github.com/RussGuo/silkify">silkify on GitHub</a></p>
     </div>
+    <p class="credit"><a href="./">← Gallery</a> · <a href="how-it-works.html">How it works</a> · <span id="byline"><!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></span> · <a href="https://github.com/RussGuo/silkify">GitHub</a></p>
   </aside>
 </main>
 
@@ -175,7 +174,12 @@
     }
     rec.reframe();                                      // Record: the new canvas takes the clip's shape too
     handle.ready.then(() => rec.reframe());
-    stillNote.hidden = !(reduceMq.matches && !playAnyway && (state.set.reducedMotion ?? 'auto') === 'auto');
+    stillNote.hidden = !(reduceMq.matches && !playAnyway);
+    // Touch and Stroke only show while the object can move: a still frame has nothing to ripple (the note says why)
+    const moving = (h) => { for (const id of ['touch', 'stroke']) document.getElementById(id).hidden = h !== handle || h.mode !== 'webgl'; };
+    moving(null);
+    const mine = handle;
+    mine.ready.then(() => moving(mine));
     lastFrames = null;
     return handle.ready;
   }
@@ -270,12 +274,25 @@
   }
   function direction(key) {
     const [r, box, main] = row(key);
-    const disc = el('div', { className: 'disc', title: 'drag: x right, y up' }), dot = el('i');
+    // the disc sets x and y: drag it, or focus it and use the arrow keys (Shift for bigger steps); the two boxes type them
+    const disc = named(el('div', { className: 'disc', tabIndex: 0, title: 'drag, or arrow keys: x right, y up' }), `${LABELS[key]}: x and y, arrow keys move it`);
+    const dot = el('i');
     disc.append(dot);
     const z = main(el('input', { type: 'range', min: 0.05, max: 1.5, step: 0.01 }));
+    const xy = ['x', 'y'].map((a) => named(el('input', { type: 'number', min: -1, max: 1, step: 0.01 }), `${LABELS[key]}: ${a}`));
     const out = el('span');
-    box.append(disc, el('div', { className: 'z' }, el('span', { textContent: 'z (towards you), drag the disc for x and y' }), z, out));
+    box.append(disc, el('div', { className: 'z' }, el('span', { textContent: 'z (towards you); x and y on the disc, or here' }), z,
+      el('div', { className: 'xy' }, ...xy), out));
     let cur = [0, 0, 1];
+    const clamp = (v) => round(Math.max(-1, Math.min(1, v)), 0.01);
+    xy.forEach((n, i) => { n.onchange = () => { if (Number.isFinite(+n.value) && n.value !== '') { const v = [...cur]; v[i] = clamp(+n.value); set(key, v); } else sync(); }; });
+    disc.onkeydown = (e) => {
+      const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      const k = e.shiftKey ? 0.1 : 0.02;
+      set(key, [clamp(cur[0] + d[0] * k), clamp(cur[1] + d[1] * k), cur[2]]);
+    };
     const drag = (e) => {
       const b = disc.getBoundingClientRect();
       const x = Math.max(-1, Math.min(1, ((e.clientX - b.left) / b.width) * 2 - 1));
@@ -290,6 +307,8 @@
       dot.style.left = `${50 + 50 * Math.max(-1, Math.min(1, v[0]))}%`;
       dot.style.top = `${50 - 50 * Math.max(-1, Math.min(1, v[1]))}%`;
       z.value = v[2];
+      xy.forEach((n, i) => { if (document.activeElement !== n) n.value = v[i]; });
+      disc.setAttribute('aria-valuetext', `x ${v[0]}, y ${v[1]}`);
       out.textContent = `[${v.join(', ')}]`;
     } };
   }
@@ -361,7 +380,7 @@
     s.onchange = () => { custom = null; state = { ...fresh(s.value), material: state.material, feel: state.feel, bg: state.bg }; commit({ remount: true }); };
     w1.append(s);
     const [r2, w2, main2] = row('URL');
-    const url = main2(el('input', { type: 'text', placeholder: 'https://… (CORS)' }));
+    const url = main2(el('input', { type: 'text', placeholder: 'a picture’s web address' }));
     url.onchange = () => { if (!url.value.trim()) return; if (safeUrl(url.value)) useUrl(url.value.trim()); else { url.value = ''; url.placeholder = 'an http(s) address of a picture'; } };
     const file = el('input', { type: 'file', accept: 'image/*', hidden: true });
     file.onchange = () => file.files[0] && useBlob(file.files[0]);
@@ -590,6 +609,7 @@
     lastFrames = { frames: s.frames, at: now };
     const i = h.info || {};
     read.textContent = h.mode === 'webgl' ? !DEBUG ? '' : `${h.tier} · ${h.thread} · sim ${i.sim}×${i.steps} · mesh ${i.mesh} · ${fps.toFixed(0)} fps · ${s.mode}`
+      : !stillNote.hidden && !DEBUG ? ''                // the note on the stage already says why, in words
       : h.reason ? `${h.mode}: ${h.reason}` : h.mode;
     read.classList.toggle('bad', h.mode === 'failed');
   }, 1000);
