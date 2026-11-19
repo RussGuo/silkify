@@ -3,9 +3,10 @@
  * or `--only lab` with the rest of the Lab's checks). A module of its own so shoot.mjs stays one readable file; it gets
  * shoot.mjs's DevTools helpers in `t` and adds what it finds to `t.problems`.
  *
- *   words    Object → Words: they mount and ripple with a system font (no font request), the link restores every
- *            control and the text, the printed call and Download HTML carry text, font, colour and line height, and
- *            the downloaded page runs from file://
+ *   words    Object → Words: one word mounts and ripples under the Stroke with a system font (no font request; one
+ *            line, so the drops land on ink whatever font the machine falls back to), and with two lines the link
+ *            restores every control and the text, the printed call and Download HTML carry text, font, colour and
+ *            line height, and the downloaded page runs from file://
  *   record   Record: a 3 s clip, square and 9:16, comes back as a non-empty video/mp4 or video/webm of the frame's shape
  */
 import { writeFile } from 'node:fs/promises';
@@ -22,7 +23,9 @@ async function verifyLabWords(t) {
   const { send, evaluate, navigate, sleep, diffOf, clipOf, openLab, stageRect, base, profile, problems } = t;
   const words = { obj: 'text', url: null, material: 'satin', feel: 'silk', bg: 'stage',
     set: { text: 'Silk\nit\'s soft', font: '900 160px ui-serif, Georgia, "Times New Roman", serif', color: '#2f4f6b', lineHeight: 1.05, tier: 'low' } };
-  const h = await openLab('', words);
+  // the Stroke runs across the middle of the object, and two lines leave the middle a gap whose height is the font's
+  // (in a fallback serif, as on a machine without Georgia, every drop lands between the lines): it is measured on one
+  const h = await openLab('', { ...words, set: { ...words.set, text: 'Silk' } });
   await sleep(800);
   const st = await stageRect(), r = { ...st, x: st.x + st.w * 0.2, y: st.y + st.h * 0.3, w: st.w * 0.6, h: st.h * 0.4 };   // the words' band
   const shot = async () => (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
@@ -35,7 +38,8 @@ async function verifyLabWords(t) {
   if (!ok) problems.push(`lab words: ${h.mode}, stroke Δ ${d.toFixed(2)}, ${fonts} Google Fonts request(s) for a system font`);
   console.log('words ', `${h.mode} ${h.tier}/${h.thread}`, `stroke Δ ${d.toFixed(2)}`, `${fonts} font requests`);
 
-  // the link restores every control, the words included (the textarea), and the printed call
+  // the link restores every control, the words included (the textarea, two lines), and the printed call
+  await openLab('', words);
   const snap = `JSON.stringify([...document.querySelectorAll('#controls input, #controls select, #controls textarea')].map((i) => i.type === 'checkbox' ? i.checked : i.value)) + document.getElementById('code').textContent`;
   const [url, a] = [await evaluate('location.href'), await evaluate(snap)];
   await navigate('about:blank');
