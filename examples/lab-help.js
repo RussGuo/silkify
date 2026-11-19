@@ -58,7 +58,7 @@ export const HELP = {
   "dpr": "Device-pixel-ratio cap; the renderer lowers it further (2 → 1.5 → 1) if frames take > 28 ms",
   "reducedMotion": "Follows `prefers-reduced-motion`, which selects the static tier; `true` or `false` to force",
   "stepPerFrame": "One solver step per drawn frame instead of 60 per second: for frame-exact recordings (`shoot.mjs --gif`), never for pages",
-  "poster": "A still frame of this canvas, shown in the static tier (default: the picture, drawn flat)",
+  "poster": "A still frame of this canvas, shown in the static tier (reduced motion among others) and while a lost WebGL context is away (default: the picture, drawn flat).",
   "onPress": "`({ x, y, pointerType }) => {}`: a pointer went down on the canvas (x, y from 0 to 1, top left)",
   "onRelease": "`({ x, y, over, held, pointerType }) => {}`: that press ended; `over` is false when it was lifted off the canvas or cancelled",
   "onStroke": "`({ x, y, dx, dy, pressed, pointerType }) => {}`: the pointer moving on the canvas, at most every 100 ms",

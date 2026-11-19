@@ -12,6 +12,8 @@
               sit exactly on the threshold, so nothing was inside and the mount failed); corner 0.06 still rounds them
     cover     fit: 'cover' in the static tier: the picture covers the whole canvas, wide and tall, without a remount;
               a fit that is neither a number above 0 nor 'cover' throws; element mode with 'cover' throws
+    poster    a poster that is a canvas, a function (called with the canvas's device-pixel size, again on a resize), an
+              async function, and one that returns nothing usable (mode 'failed', a reason, one warning)
   The live canvases for verify-options.mjs: #cover-wide and #contain-wide (a square opaque picture in a 3:1 canvas).
   window.__options = { out, problems, handles } at the end. Low tier: no idle sweep.
 -->
@@ -29,7 +31,7 @@
 </head>
 <body>
 <div class="row"><canvas id="cover-wide" class="wide"></canvas><canvas id="contain-wide" class="wide"></canvas><canvas id="corner0" class="sq"></canvas></div>
-<div class="row"><canvas id="static-cover" class="wide"></canvas></div>
+<div class="row"><canvas id="static-cover" class="wide"></canvas><canvas id="p-canvas" class="sq"></canvas><canvas id="p-fn" class="sq"></canvas><canvas id="p-async" class="sq"></canvas><canvas id="p-bad" class="sq"></canvas></div>
 <script type="module">
   import { silkify } from '../src/silk.js';
   import { buildShape } from '../src/shape.js';
@@ -84,6 +86,32 @@
     const throws = (o) => { try { silkify(document.createElement('canvas'), o); return null; } catch (e) { return e instanceof TypeError ? e.message : `not a TypeError: ${e}`; } };
     out.cover.errors = { word: throws({ image: pic, fit: 'contain' }), zero: throws({ image: pic, fit: 0 }), element: throws({ element: document.body, fit: 'cover' }) };
     for (const [k, v] of Object.entries(out.cover.errors)) if (!v || v.startsWith('not')) problems.push(`cover: fit ${k} should throw a TypeError (${v})`);
+  }
+
+  // ---- poster: a canvas, a function, an async function, a function that returns nothing ----
+  {
+    const green = [0x3c, 0x8a, 0x4a, 255];
+    const calls = [];
+    const fn = ({ width, height }) => { calls.push([width, height]); return solid(width, height, '#3c8a4a'); };
+    const hs = {
+      canvas: silkify($('p-canvas'), { image: solid(64, 64, '#000'), poster: solid(50, 50, '#3c8a4a'), tier: 'static' }),
+      fn: silkify($('p-fn'), { image: solid(64, 64, '#000'), poster: fn, tier: 'static' }),
+      async: silkify($('p-async'), { image: solid(64, 64, '#000'), poster: async ({ width }) => { await sleep(30); return solid(width, width, '#3c8a4a'); }, tier: 'static' }),
+    };
+    await Promise.all(Object.values(hs).map((h) => h.ready));
+    out.poster = Object.fromEntries(Object.entries(hs).map(([k, h]) => [k, `${h.mode} ${near(at(h.canvas, 0.5, 0.5), green) ? 'poster' : 'NOT THE POSTER'}`]));
+    for (const [k, v] of Object.entries(out.poster)) if (v !== 'static poster') problems.push(`poster ${k}: ${v}`);
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    if (!calls.length || calls[0][0] !== Math.round(120 * dpr)) problems.push(`poster fn: called with ${JSON.stringify(calls[0])}, not the canvas's device-pixel size`);
+    hs.fn.canvas.style.width = '90px';
+    await sleep(200);
+    out.poster.calls = calls.length;
+    if (calls.length < 2 || calls.at(-1)[0] !== Math.round(90 * dpr)) problems.push(`poster fn: not called again at the new size (${JSON.stringify(calls)})`);
+    const bad = silkify($('p-bad'), { image: solid(64, 64, '#000'), poster: () => null, tier: 'static' });
+    await bad.ready;
+    out.poster.bad = `${bad.mode}: ${bad.reason}`;
+    if (bad.mode !== 'failed' || !/poster/.test(bad.reason) || warned.filter((w) => /poster/.test(w)).length !== 1) problems.push(`poster bad: ${out.poster.bad}, warnings ${JSON.stringify(warned)}`);
+    for (const h of Object.values(hs)) h.dispose();
   }
 
   console.warn = warn;

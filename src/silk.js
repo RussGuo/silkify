@@ -400,10 +400,23 @@ export function silkify(canvasIn, options = {}) {
   }
 
   /* ---- static: no three.js; the poster (a rendered frame of this canvas) or the picture, drawn once.
+   *      A poster that is a function is the page drawing the frame itself: it is called with this canvas's size in device
+   *      pixels on every paint (a resize too), and only the newest answer is drawn.
    *      False when there is nothing to draw (the picture did not load, or it is empty). ---- */
-  async function paintStatic() {
+  let painting = 0, newest = null;   // newest: the latest paint, which a superseded one waits for (so `ready` does)
+  function paintStatic() { return (newest = paintOnce()); }
+  async function paintOnce() {
     if (disposed) return true;
-    if (!staticPic) {
+    const drawn = typeof o.poster === 'function', n = ++painting;
+    if (drawn) {
+      const k = Math.min(window.devicePixelRatio || 1, o.dpr ?? 2), size = { width: Math.round(canvas.clientWidth * k), height: Math.round(canvas.clientHeight * k) };
+      if (!size.width || !size.height) return true;   // drawn when it gets a size (the ResizeObserver calls again)
+      let pic = await Promise.resolve().then(() => o.poster(size)).catch(() => null);
+      if (typeof HTMLImageElement !== 'undefined' && pic instanceof HTMLImageElement && !pic.complete) await pic.decode().catch(() => {});
+      if (n !== painting) return newest;
+      if (!(pic && (pic.naturalWidth || pic.width) > 0)) { staticWhy = `the poster function returned ${describe(pic)}, not a canvas or an image`; pic = null; }
+      staticPic = pic;
+    } else if (!staticPic) {
       const src = o.poster || o.image, name = typeof src === 'string' ? src : describe(src);
       staticPic = !o.poster && raster ? raster : await (isSvg(src) ? rasterize(src) : loadImage(src)).catch(() => null);
       if (!staticPic) staticWhy = `could not load the ${o.poster ? 'poster' : 'picture'} ${name}`;

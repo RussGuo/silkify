@@ -22,7 +22,8 @@
     1. Copy src/ into your project and fix the import paths at the bottom ('../../src/…').
     2. Change the cloth: drawCloth() paints it (colours and folds) on a canvas, so there is no picture to load.
        The same painting is the section's CSS background before the silk is up, and stays it where the silk never
-       comes (reduced motion, Save-Data, a very small device): there is no separate poster to keep in step.
+       comes (reduced motion, Save-Data, a very small device); it is also the silk's poster (a function: silkify asks
+       for it at the canvas's size when the browser takes the WebGL context back). No poster file to keep in step.
   The sheet is a picture inflated with matte: 'rect', corner: 0, fit: 'cover', a low puff: the cloth is painted once,
   at the section's proportions when the page loads, and the silk covers the section at any size after that, cropped
   like a CSS background-size: cover. The text sits above the canvas and stays ordinary HTML; the pointer ripples the silk under it.
@@ -203,7 +204,7 @@
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
     section.prepend(canvas);
-    silk = silkify(canvas, { ...SHEET, image: drawCloth(w, h) });
+    silk = silkify(canvas, { ...SHEET, image: drawCloth(w, h), poster: ({ width, height }) => drawCloth(width, height) });
     silk.ready.then((h) => { if (h.mode === 'webgl') section.classList.add('live'); });
   }
 

@@ -17,12 +17,13 @@
                new canvas's background) until the first new frame is up, and the object answers ripple() again.
     events     the page hears both without polling: onFail (mode 'static') when the context goes, onReady (mode 'webgl')
                again when the object is live once more.
-  Cases: a picture in a worker, the same with a poster, a picture on the main thread, words, and (with HTML-in-Canvas) a
+  Cases: a picture in a worker, the same with a poster, the same with a poster the page draws (a function: the still
+  frame must be its colour), a picture on the main thread, words, and (with HTML-in-Canvas) a
   live element. window.__lost = { out, problems } at the end. Low tier.
 -->
 <style>
   body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
-  .grid { display: grid; grid-template-columns: repeat(5, 160px); gap: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 160px); gap: 24px; }
   canvas { width: 160px; aspect-ratio: 1; display: block; background: #ebe6dc; }
   .stage { position: relative; width: 160px; height: 160px; display: grid; place-items: center; background: #ebe6dc; }
   .stage canvas { position: absolute; inset: 0; }
@@ -34,7 +35,7 @@
 </head>
 <body>
 <div class="grid">
-  <canvas id="worker"></canvas><canvas id="poster"></canvas><canvas id="main"></canvas><canvas id="text"></canvas>
+  <canvas id="worker"></canvas><canvas id="poster"></canvas><canvas id="drawn"></canvas><canvas id="main"></canvas><canvas id="text"></canvas>
   <div class="stage"><canvas id="element"></canvas><article class="card" id="card">A card, live on the silk.</article></div>
 </div>
 <script type="module">
@@ -57,6 +58,7 @@
   const cases = {
     worker: { image: PEAR },
     poster: { image: PEAR, poster: '../examples/posters/pomegranate.webp' },
+    drawn: { image: PEAR, poster: ({ width, height }) => { const g = Object.assign(document.createElement('canvas'), { width, height }).getContext('2d'); g.fillStyle = '#3c8a4a'; g.fillRect(0, 0, width, height); return g.canvas; } },
     main: { image: PEAR, worker: false },
     text: { text: 'H', font: '800 120px Georgia, serif', color: '#7a2a1c' },   // a letter whose middle is ink
   };
@@ -88,7 +90,10 @@
       await sleep(100);
       const c = h.canvas, a = h.canvas === frozen ? null : c.getContext('2d')?.getImageData(c.width / 2, c.height / 2, 1, 1).data[3];
       r.stillAlpha = a;
-      if (!(a > 0)) problems.push(`${id}: no still frame on the canvas after the context was lost (alpha ${a})`);
+      const green = h.canvas === frozen ? null : [...c.getContext('2d').getImageData(c.width / 2, c.height / 2, 1, 1).data].join();
+      if (id === 'drawn') {   // the poster function filled its canvas with #3c8a4a
+        if (green !== '60,138,74,255') problems.push(`${id}: the still frame is not the drawn poster (${green})`);
+      } else if (!(a > 0)) problems.push(`${id}: no still frame on the canvas after the context was lost (alpha ${a})`);
     }
 
     restore();

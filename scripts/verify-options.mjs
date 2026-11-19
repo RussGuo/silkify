@@ -3,8 +3,8 @@
  * (`node scripts/shoot.mjs`, or `--only options` for these alone). A module of its own so shoot.mjs stays one readable
  * file; it gets shoot.mjs's DevTools helpers in `t` and adds what it finds to `t.problems`.
  *
- *   test/options.html   corner: 0 is a square, fit: 'cover' (also in the static tier, and the mistakes that throw)
- *                       (the page checks itself)
+ *   test/options.html   corner: 0 is a square, fit: 'cover' (also in the static tier, and the mistakes that throw), a
+ *                       poster that is a canvas or a function (the page checks itself)
  *   a screenshot        what the page cannot read back from a live canvas: fit: 'cover' leaves none of a 3:1 canvas
  *                       empty, fit: 1 (contain) leaves about two thirds, and a wide canvas turned tall stays covered
  */
