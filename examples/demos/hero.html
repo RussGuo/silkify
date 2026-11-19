@@ -109,7 +109,11 @@
     .hero { grid-template-columns: 1fr; gap: 28px; padding: 36px 16px 56px; min-height: 0; }
     .lede { font-size: 17px; margin-top: 20px; }
     .actions { margin-top: 28px; }
-    .object { width: min(100%, 420px); }
+    /* a phone sees the fruit first: the object above the words, smaller, so both share the first screen */
+    .object { order: -1; width: min(70%, 290px); }
+    .hero { padding-top: 12px; gap: 4px; }
+    .copy { margin-top: 18px; }
+    .hint { margin-top: -3%; }
     footer { padding: 20px 16px 32px; }
   }
 
@@ -124,6 +128,7 @@
 </head>
 <body>
 <header class="bar">
+  <!-- the links in this demo point at sections it does not have (#order, #press…): put your own pages there -->
   <a class="brand" href="#">Alder Hill</a>
   <nav aria-label="Main"><a href="#orchard">The orchard</a><a href="#press">How we press</a><a href="#order">Order</a></nav>
 </header>
