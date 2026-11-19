@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify text</title>
+<link rel="icon" href="data:,">
+<!--
+  text.html — `silkify(canvas, { text })`, run by scripts/shoot.mjs. It checks itself: window.__text is set once
+  every case has settled, with `problems` (empty when all is well); the canvases stay on the page so the script can
+  photograph #one before and after a ripple. ?silk=<url> loads another build of silk.js.
+  Cases: one line, several lines, an emoji, CJK, a web font that loads (@font-face from local()), a font that is not
+  there (drawn in the fallback, one console.warn), the static tier and reduced motion (the words drawn flat), and the
+  mistakes that throw at once (text with image or element, an empty text, an unreadable font, colour or lineHeight,
+  a sphere). setText() itself is checked for proportions and colours. console.warn is captured, so the one expected
+  warning is checked instead of failing the run.
+-->
+<style>
+  @font-face { font-family: "Silk Test Serif"; src: local("Georgia Bold"), local("Georgia-Bold"), local("Times New Roman Bold"), local("DejaVu Serif Bold"), local("Liberation Serif Bold"), local("Noto Serif Bold"); font-weight: 800; }
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; color: #6b2737; }
+  .grid { display: grid; grid-template-columns: repeat(4, 200px); gap: 12px; }
+  canvas { width: 200px; aspect-ratio: 1; display: block; background: #ebe6dc; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid">
+  <canvas id="one"></canvas><canvas id="lines"></canvas><canvas id="emoji"></canvas><canvas id="cjk"></canvas>
+  <canvas id="webfont"></canvas><canvas id="missing"></canvas><canvas id="still"></canvas><canvas id="reduced"></canvas>
+</div>
+<script type="module">
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...a) => { if (String(a[0]).startsWith('silkify:')) warned.push(String(a[0])); else warn(...a); };
+
+  const silkUrl = new URLSearchParams(location.search).get('silk') || '../src/silk.js';
+  const { silkify, resolveOptions } = await import(silkUrl);
+  const { setText } = await import(new URL('text.js', new URL(silkUrl, location.href)).href);
+  const $ = (id) => document.getElementById(id);
+  const tier = new URLSearchParams(location.search).get('tier') || 'low';
+  const timeout = (p, ms, value) => Promise.race([p, new Promise((r) => setTimeout(() => r(value), ms))]);
+  const brief = (h) => ({ mode: h.mode, thread: h.thread, tier: h.tier, reason: h.reason });
+  const problems = [];
+  const expect = (ok, what) => { if (!ok) problems.push(what); };
+  const out = {};
+
+  /* ---- the picture setText() makes: its size, and how much of it is ink, and of which colour ---- */
+  function inkOf(c) {
+    const a = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let ink = 0, tinted = 0;
+    for (let i = 0; i < a.length; i += 4) {
+      if (a[i + 3] < 128) continue;
+      ink++;
+      if (Math.abs(a[i] - 0x6b) + Math.abs(a[i + 1] - 0x27) + Math.abs(a[i + 2] - 0x37) > 60) tinted++;   // not the CSS colour
+    }
+    return { w: c.width, h: c.height, ink: ink / (c.width * c.height), other: ink ? tinted / ink : 0 };
+  }
+  const canvas = $('one');   // its CSS colour (#6b2737) and family are the defaults
+  const word = inkOf((await setText({ text: 'silk' }, canvas)).picture);
+  const two = inkOf((await setText({ text: 'silk\nsilk' }, canvas)).picture);
+  const loose = inkOf((await setText({ text: 'silk\nsilk', lineHeight: 2 }, canvas)).picture);
+  const apple = inkOf((await setText({ text: '🍎' }, canvas)).picture);
+  const han = inkOf((await setText({ text: '丝绸' }, canvas)).picture);
+  const big = inkOf((await setText({ text: 'silk', font: '800 200px serif' }, canvas)).picture);
+  const tiny = inkOf((await setText({ text: 'silk', font: '800 9px serif' }, canvas)).picture);
+  out.pictures = { word, two, loose, apple, han, big, tiny };
+  expect(Math.max(word.w, word.h) === 1024 && word.w > word.h * 1.5, `one word: ${word.w}×${word.h}, not 1024 wide`);
+  expect(word.ink > 0.15 && word.other < 0.05, `one word: ${(word.ink * 100).toFixed(0)}% ink, ${(word.other * 100).toFixed(0)}% not in the canvas's CSS colour`);
+  const tall = (p) => p.h / p.w;
+  expect(tall(two) > tall(word) * 2 && tall(loose) > tall(two) * 1.2, `lines: ${word.w}×${word.h}, ${two.w}×${two.h}, at lineHeight 2 ${loose.w}×${loose.h}`);
+  expect(apple.ink > 0.3 && apple.other > 0.5, `emoji: ${(apple.ink * 100).toFixed(0)}% ink, ${(apple.other * 100).toFixed(0)}% in its own colours`);
+  expect(han.ink > 0.15, `CJK: ${(han.ink * 100).toFixed(0)}% ink`);
+  expect(Math.max(tiny.w, tiny.h) === 1024 && tiny.w === big.w && tiny.h === big.h, `a 9px font: ${tiny.w}×${tiny.h}, at 200px ${big.w}×${big.h} (the size only sets proportions)`);
+
+  /* ---- mistakes in the call throw at once ---- */
+  const thrown = (opts) => { try { silkify($('one'), opts).dispose(); return 'no error'; } catch (e) { return `${e.constructor.name}: ${e.message}`; } };
+  out.errors = {
+    image: thrown({ text: 'a', image: 'x.png' }),
+    element: thrown({ text: 'a', element: 'body' }),
+    empty: thrown({ text: '  ' }),
+    number: thrown({ text: 42 }),
+    font: thrown({ text: 'a', font: 'Georgia' }),
+    color: thrown({ text: 'a', color: 'not-a-colour' }),
+    lineHeight: thrown({ text: 'a', lineHeight: '2em' }),
+    sphere: thrown({ text: 'a', shape: 'sphere' }),
+  };
+  const shouldSay = { image: /image or options\.text, not both/, element: /element or options\.text, not both/, empty: /something to draw/, number: /something to draw/,
+    font: /font shorthand/, color: /CSS colour/, lineHeight: /multiple of the font size/, sphere: /sphere/ };
+  for (const [k, re] of Object.entries(shouldSay)) expect(/^TypeError/.test(out.errors[k]) && re.test(out.errors[k]), `${k}: ${out.errors[k]}`);
+  expect(resolveOptions({ text: 'a' }).matte === 'alpha' && resolveOptions({ image: 'a.png' }).matte === 'auto', 'resolveOptions: text has matte alpha, a picture keeps auto');
+
+  /* ---- live: one line, lines, emoji, CJK, a web font, a font that is not there ---- */
+  const handles = {
+    one: silkify($('one'), { text: 'silk', tier, material: 'satin' }),
+    lines: silkify($('lines'), { text: 'soft\nsilk', font: '900 120px system-ui, sans-serif', lineHeight: 1, tier }),
+    emoji: silkify($('emoji'), { text: '🍐', tier }),
+    cjk: silkify($('cjk'), { text: '丝', font: '900 200px sans-serif', tier }),
+    webfont: silkify($('webfont'), { text: 'Ag', font: '800 200px "Silk Test Serif", serif', tier }),
+    missing: silkify($('missing'), { text: 'Ag', font: '800 200px "No Such Font 7f3a"', tier }),
+    still: silkify($('still'), { text: 'Ag', tier: 'static' }),
+    reduced: silkify($('reduced'), { text: 'Ag', reducedMotion: true }),   // a forced tier would win over it
+  };
+  for (const [k, h] of Object.entries(handles)) out[k] = brief(await timeout(h.ready, 30000, h));
+  for (const k of ['one', 'lines', 'emoji', 'cjk', 'webfont', 'missing']) expect(out[k].mode === 'webgl', `${k}: ${out[k].mode} (${out[k].reason})`);
+  // the static tier and reduced motion draw the words flat, in the canvas's colour
+  for (const k of ['still', 'reduced']) {
+    let ink = { ink: 0, other: 1 };
+    try { ink = inkOf(handles[k].canvas); } catch (e) { out[k].error = e.message; }
+    out[k].ink = ink;
+    expect(out[k].mode === 'static' && ink.ink > 0.03 && ink.other < 0.2, `${k}: ${out[k].mode}, ${(ink.ink * 100).toFixed(1)}% ink (${out[k].reason})`);
+  }
+  // exactly one warning: the font that is not there, by name; the web font that loaded is quiet
+  out.warned = warned;
+  expect(warned.length === 1 && /"No Such Font 7f3a" is not available/.test(warned[0]), `console.warn: ${JSON.stringify(warned)}`);
+
+  out.problems = problems;
+  window.__text = { out, handles };
+</script>
+</body>
+</html>

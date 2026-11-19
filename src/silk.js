@@ -23,6 +23,10 @@
  * HTML-in-Canvas) is not a mistake and stays quiet. SVG pictures
  * are rasterised here, on the page (workers cannot decode SVG), and handed to the renderer as a bitmap.
  *
+ * Words: `silkify(canvas, { text, font, color, lineHeight })` sets the text in a 2D canvas once its font has loaded
+ * (text.js) and from then on treats it as any picture; mistakes in the call throw at once, a font that does not render
+ * warns once and draws the fallback.
+ *
  * Live HTML: `silkify(canvas, { element })` prints a real element on the silk with HTML-in-Canvas (Chrome 157+);
  * the element stays selectable, clickable and editable. Without the feature, in the static tier, or when no picture
  * of it comes, the element stays where it is as plain HTML (mode 'static'). The page side is live.js.
@@ -33,6 +37,7 @@ import { pickTier, TIERS } from './tier.js';
 import { PUFF } from './shape.js';
 import { MATERIALS, FEELS, keysOf } from './presets.js';
 import { liveSupport, resolveElement, liveElement } from './live.js';
+import { TEXT_DEFAULTS, checkText, setText } from './text.js';
 
 export { PUFF, MATERIALS, FEELS };
 
@@ -190,8 +195,9 @@ const describe = (x) => (x === null ? 'null' : x === undefined ? 'undefined' : x
 export function resolveOptions(options = {}) {
   const kind = options.shape === 'sphere' ? 'sphere' : 'image';
   const el = kind === 'image' && options.element;   // live HTML: element mode ignores the picture-only options
+  const words = kind === 'image' && options.text != null;   // text: the letters' alpha is the outline (text.js)
   return {
-    ...COMMON, ...DEFAULTS[kind], ...(el ? ELEMENT_DEFAULTS : {}), ...preset(MATERIALS, options.material), ...preset(FEELS, options.feel),
+    ...COMMON, ...DEFAULTS[kind], ...(el ? ELEMENT_DEFAULTS : {}), ...(words ? TEXT_DEFAULTS : {}), ...preset(MATERIALS, options.material), ...preset(FEELS, options.feel),
     ...options, ...(el ? ELEMENT_FIXED : {}), shape: kind,
   };
 }
@@ -212,14 +218,15 @@ export function silkify(canvasIn, options = {}) {
     if (options.image != null) throw new TypeError('silkify: pass options.image or options.element, not both');
     if (options.shape === 'sphere') throw new TypeError("silkify: options.element cannot be wrapped on a sphere (shape: 'sphere')");
   }
-  if ('element' in options && options.element == null && options.image == null) {
+  if (options.text != null) checkText(options);   // text with image or element, an unreadable font or colour: text.js
+  if ('element' in options && options.element == null && options.image == null && options.text == null) {
     // the usual cause: getElementById() or a ref read before the element was rendered
     throw new TypeError(`silkify: options.element is ${options.element}: call silkify() after the element is in the DOM`);
   }
   const o = resolveOptions(options);
   const kind = o.shape;
   const element = options.element != null ? resolveElement(options.element) : null;
-  if (!o.image && !element) throw new Error('silkify: options.image (or options.element) is required');
+  if (!o.image && !element && o.text == null) throw new Error('silkify: options.image (or options.element, or options.text) is required');
   owner.get(canvasIn)?.dispose();   // one renderer per canvas: the newer call wins, the older one is disposed
 
   const reduceMq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -484,6 +491,13 @@ export function silkify(canvasIn, options = {}) {
   async function mount() {
     await sized(canvas, ctl.signal);
     if (disposed) return handle;
+    if (o.text != null) {
+      // the words become the picture here, once their font has loaded; from now on they are any picture
+      const { picture, warning } = await setText(o, canvas);
+      if (disposed) return handle;
+      if (warning) console.warn(`silkify: ${warning}`);
+      o.image = picture;
+    }
     if (element) {
       // live HTML needs the feature and a live tier; otherwise the element simply stays where it is, as plain HTML.
       // Not an error, so no warning: the page reads as it would without silkify

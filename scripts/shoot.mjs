@@ -27,6 +27,8 @@
  *          one warning), dispose() putting the element back, test/live-edge.html (layouts that hold the stage open, an
  *          element larger than its canvas; it checks itself) and the gallery's live-HTML card. Skipped, with a
  *          note, in a Chrome without HTML-in-Canvas.
+ *          Then test/text.html: words as the object (one line, lines, emoji, CJK, a web font, a missing font with its
+ *          one warning, the static tier, the mistakes that throw); it checks itself, and one word must ripple.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -425,6 +427,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
       .catch((e) => problems.push(e.message));
     clearTimeout(timer);
   }
+  if (!only || only === 'text') await verifyText();
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */
@@ -729,6 +732,24 @@ async function verifyLive() {
   const gsel = await evaluate(`(() => { const p = document.querySelector('#html-card p'); const r = p.getBoundingClientRect(); return document.elementFromPoint(r.left + 20, r.top + 8) === p; })()`);
   tag('gallery card', g.mode === 'webgl' && g.thread === 'worker' && g.parent === 'CANVAS' && gsel, `${g.mode}/${g.thread}, its words hit-test where drawn: ${gsel}`);
   console.log('html  ', `canvas ${canvasBox.w}×${canvasBox.h}`);
+}
+
+/* ---- verify, part 5: test/text.html, words as the object (it checks itself), and a word that ripples ---- */
+async function verifyText() {
+  await send('Emulation.setDeviceMetricsOverride', { width: 900, height: 700, deviceScaleFactor: 1, mobile: false });
+  await navigate('about:blank');
+  await navigate(`${base}/test/text.html`);
+  const out = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__text && (clearInterval(t), r(window.__text.out)), 100); })`);
+  for (const p of out.problems) problems.push(`text: ${p}`);
+  await sleep(1000);
+  const r = await evaluate(`(() => { const b = window.__text.handles.one.canvas.getBoundingClientRect(); return { x: b.left + b.width * 0.15, y: b.top + b.height * 0.35, w: b.width * 0.7, h: b.height * 0.3, sx: 0, sy: 0 }; })()`);   // the word's band
+  const before = (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) })).data;
+  await evaluate(`[0.3, 0.42, 0.58, 0.7].forEach((x) => window.__text.handles.one.ripple(x, 0.5, { hold: 300 }))`);
+  await sleep(500);
+  const [diff] = await diffOf(before, (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 1) })).data);
+  if (!(diff > 0.3)) problems.push(`text: the word did not ripple (Δ ${diff.toFixed(2)})`);
+  console.log('text  ', ['one', 'lines', 'emoji', 'cjk', 'webfont', 'missing', 'still', 'reduced'].map((k) => `${k} ${out[k].mode}`).join(', '),
+    `| ${Object.keys(out.errors).length} mistakes throw, ${out.warned.length} warning | ripple Δ ${diff.toFixed(2)}`, `${out.problems.length} problem(s)`);
 }
 
 ws.close();
