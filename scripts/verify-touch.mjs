@@ -10,7 +10,8 @@
  *                           page checks itself, for a pointer over a picture and over the words)
  *   the gallery, cold card  one real stroke across a card that is still a poster: it mounts and visibly ripples
  *   the gallery, a phone    375 px with touch: the hint shows without hover, a card in view mounts and ripples on its
- *                           own, one tap on a cold card visibly dents it (against the same card untouched), a scroll
+ *                           own, one quick tap on a cold card visibly dents it (against the same card untouched), so
+ *                           does a tap down and up in one task on a live card, a scroll
  *                           greets every card with at most 3 live; in the static tier no hint and nothing mounts
  */
 
@@ -93,21 +94,22 @@ export async function verifyTouch(t) {
       scrollBy(0, b0.top - (innerHeight - b0.height * 0.55));   // its top 55 % in view: the centre, but under 60 %
       const b = s.getBoundingClientRect();
       return { x: b.left + b.width / 2, y: b.top + b.height / 2, cold: !window.__gallery.live.has('${id}') && !window.__gallery.greeted.has('${id}'),
-        clip: { x: b.left + scrollX, y: b.top + scrollY, width: b.width, height: innerHeight - b.top, scale: 0.5 } };   // its part in view
+        // around the tap, inside the part in view: where the dent is
+        clip: { x: b.left + b.width / 2 - 70 + scrollX, y: b.top + b.height / 2 - 110 + scrollY, width: 140, height: Math.min(130, innerHeight - b.top - b.height / 2 + 110), scale: 1 } };
     })()`);
     await sleep(300);
     await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
-    await sleep(60);
-    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });   // a quick tap: no wait between
     const tap = await evaluate(`(async () => {
       for (let t = 0; t < 100 && !window.__gallery.live.has('${id}'); t++) await new Promise((r) => setTimeout(r, 50));
       const h = await window.__gallery.live.get('${id}')?.handle.ready;
       if (!h) return { mode: 'not mounted' };
-      await new Promise((r) => setTimeout(r, 150));
       const s = await h.stats();
       return { mode: h.mode, loop: s.mode, greeted: window.__gallery.greeted.has('${id}') };
     })()`);
-    const tapped = (await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data;
+    // a few frames of the dent and its first ripple (when exactly depends on how fast the card mounted)
+    const tapped = [];
+    for (let k = 0; k < 4; k++) { tapped.push((await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data); await sleep(80); }
     // the same card mounted again where it is, untouched (still under 60 % in view, so not greeted): what a dent changes
     const calm = await evaluate(`(async () => {
       window.__gallery.release('${id}');
@@ -115,9 +117,27 @@ export async function verifyTouch(t) {
       await new Promise((r) => setTimeout(r, 150));
       return { mode: h.mode, loop: (await h.stats()).mode };
     })()`);
-    const [dent] = await diffOf((await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data, tapped);
-    tag('one tap', r.cold && tap.mode === 'webgl' && tap.loop === 'active' && !tap.greeted && calm.loop === 'rest' && dent > 0.3,
-      `${id} cold ${r.cold} → ${tap.mode}, loop ${tap.loop} after one tap, Δ ${dent.toFixed(2)} against the same card untouched (${calm.loop})`);
+    const untouched = (await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data;
+    let dent = 0;
+    for (const f of tapped) dent = Math.max(dent, (await diffOf(untouched, f))[0]);
+    // the same card, now live and at rest: the quickest tap there is, down and up in one task (no frame between). The
+    // pointer alone turns the fill light, so the tap is measured against a glance (in and out in one task) too
+    const after = async (js) => {
+      await evaluate(`(async () => {
+        const h = window.__gallery.live.get('${id}').handle;
+        for (let t = 0; t < 80 && (await h.stats()).mode !== 'rest'; t++) await new Promise((r) => setTimeout(r, 100));
+        const at = { clientX: ${r.x}, clientY: ${r.y}, pointerType: 'touch', bubbles: true };
+        ${js}
+      })()`);
+      let d = 0;
+      for (let k = 0; k < 4; k++) { await sleep(80); d = Math.max(d, (await diffOf(untouched, (await send('Page.captureScreenshot', { format: 'png', clip: r.clip })).data))[0]); }
+      return d;
+    };
+    const glance = await after(`window.dispatchEvent(new PointerEvent('pointermove', at)); window.dispatchEvent(new PointerEvent('pointercancel', at));`);
+    const quick = await after(`window.dispatchEvent(new PointerEvent('pointerdown', at)); window.dispatchEvent(new PointerEvent('pointerup', at));`);
+    tag('quick tap', quick > glance + 2, `${id} live: down and up in one task → Δ ${quick.toFixed(2)} around the tap (the pointer passing alone: Δ ${glance.toFixed(2)})`);
+    tag('one tap', r.cold && tap.mode === 'webgl' && tap.loop === 'active' && !tap.greeted && calm.loop === 'rest' && dent > 1,
+      `${id} cold ${r.cold} → ${tap.mode}, loop ${tap.loop} after one tap, Δ ${dent.toFixed(2)} around the tap against the same card untouched (${calm.loop})`);
 
     // a scroll through the whole page greets every card once, and never holds more than 3 live
     const tour = await evaluate(`(async () => {

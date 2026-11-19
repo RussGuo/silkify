@@ -16,6 +16,7 @@
  *   breeze  `breeze` > 0: the solver keeps stirring → 30 fps while visible (off by default)
  *   rest    nothing → no frames at all; with `autoplay`, one timer for the next drop
  * Programmatic touches (`ripple()`, `autoplay`) count as touches for these rules but never as hovering.
+ * A press that ends before a frame has drawn it (a quick tap: down and up within one frame) becomes such a touch.
  * Off-screen or hidden tab → stopped. A lifted touch or a pointer that left the window stops counting as hovering.
  * If full-speed frames average > 28 ms, the device-pixel ratio steps down 2 → 1.5 → 1.
  */
@@ -303,6 +304,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   const ndc = new THREE.Vector2(-10, -10);
   const raycaster = new THREE.Raycaster();
   let pointerDown = false, hovering = false, lifted = true, lastMove = -1e9, lastHit = -1e9;
+  let pressUnseen = false;   // pressed, and no frame has drawn it yet: a tap that lifts first is pressed as a touch
   const home = vec3(FILL_HOME);
   const target = home.clone(), vel = new THREE.Vector3(), tmp = new THREE.Vector3();
   const fill = U.uVolDir.value;
@@ -319,6 +321,14 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     return inside(u, v) ? new THREE.Vector2(u, v) : null;
   }
   const hitTest = () => (!interactive() || lifted ? null : uvAt(ndc));
+  /** A press that ends before any frame has drawn it (a quick tap: down and up in one frame) would leave nothing:
+   *  it becomes a programmatic touch where it was, as deep as a held press, so the tap still dents and ripples. */
+  function seenPress() {
+    if (!pressUnseen) return;
+    pressUnseen = false;
+    const uv = lifted ? null : uvAt(ndc);
+    if (uv) addTouch(uv, { depth: o.pressDepthHold });
+  }
 
   /* ---- programmatic touches (handle.ripple, autoplay): their own dents, never the pointer's, never hovering ---- */
   const touches = [];   // { uv, depth, radius (uv units), left: 60 fps frames still to press }
@@ -399,6 +409,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     const uv = hitTest();
     if (!!uv !== hovering) { hovering = !!uv; init.onHover?.(hovering); }
     if (uv) { lastHit = lastStir = now; simDirty = true; su.uMouse.value.copy(uv); }
+    if (uv && pointerDown) pressUnseen = false;
     su.uMouseActive.value = uv ? 1 : 0;
     su.uPressDepth.value = pointerDown ? o.pressDepthHold : o.pressDepth;
     touches.forEach((t, i) => su.uTouch.value[i].set(t.uv.x, t.uv.y, t.depth, t.radius));
@@ -528,8 +539,13 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       sweepUsed = 0;
       wake();
     },
-    press(down) { pointerDown = down && interactive(); wake(); },
-    lift() { lifted = true; pointerDown = false; wake(); },
+    press(down) {
+      if (down) pressUnseen = interactive();
+      else seenPress();
+      pointerDown = down && interactive();
+      wake();
+    },
+    lift() { seenPress(); lifted = true; pointerDown = false; wake(); },
     resize(v) { view = v; applyView(); },
     setVisible(v) { visible = v; if (v) wake(); else halt(); },
     setStill(s) {
