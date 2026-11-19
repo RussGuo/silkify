@@ -34,6 +34,7 @@ src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
 src/live.js         live HTML, the page side: feature detection, the element's stand-in, the place it keeps in the page, snapshots, hit geometry, the plain-HTML fallback
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html, live HTML), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
+scripts/verify-touch.mjs, scripts/verify-lab.mjs   parts of shoot.mjs's verify, in files of their own: the first touch and many objects; the Lab's words and Record
 scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence and the byline in both READMEs, the gallery and the Lab (--check for drift)
 scripts/browsers.mjs             shoot.mjs --browsers: WebKit and Firefox, same origin and cross-origin (Playwright)
 scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
