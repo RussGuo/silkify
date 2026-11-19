@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How silkify works</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
+<meta name="description" content="How a flat picture becomes silk you can press: a dome solved from its outline, the light of the Moon, satin only where it ripples, waves that bounce off the edge, a renderer that sleeps, and live HTML.">
+<meta name="author" content="Russ Guo">
+<link rel="alternate" hreflang="zh-CN" href="how-it-works.zh.html">
+<link rel="stylesheet" href="how/how.css">
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top">
+    <a class="brand" href="index.html">silk<em>ify</em></a>
+    <span><a href="index.html">Gallery</a> · <a href="lab.html">Lab</a> · <a href="https://github.com/RussGuo/silkify">GitHub</a> · <a href="how-it-works.zh.html" hreflang="zh-CN" lang="zh-CN">中文</a></span>
+  </nav>
+
+  <header class="col">
+    <h1>How silk<em>ify</em> works</h1>
+    <p class="dek">A flat picture becomes something you can press. Six ideas hold it together: a dome solved from an outline, the light of the Moon, satin that appears only where the surface moves, waves that bounce off the edge, a renderer that sleeps, and a piece of the page printed on silk.</p>
+    <p class="byline">By <a href="https://github.com/RussGuo">Russ Guo</a> · November 2026</p>
+  </header>
+
+  <figure class="wide">
+    <div class="stage hero" data-silk="hero">
+      <img class="poster" src="how/posters/hero.webp" srcset="how/posters/hero.webp 1x, how/posters/hero@2x.webp 2x" width="960" height="720" alt="A watercolour pomegranate, inflated into a soft dome" draggable="false">
+      <span class="hint"><span class="h-hover">move over it · hold to press deeper</span><span class="h-touch">touch it · hold to press deeper</span></span>
+    </div>
+    <figcaption>“Wonderful” pomegranate, watercolour by Amanda Almira Newton, 1920, for the USDA. <span class="only-static">Your system asks for reduced motion, so this is a still frame: nothing on this page moves by itself.</span></figcaption>
+  </figure>
+
+  <article>
+    <div class="col">
+      <p class="lead">Left alone, the pomegranate above is a picture: the watercolour’s own colours, lit softly from the upper left. Touch it and three things happen. The surface gives under the pointer. Rings spread from the dent, reach the edge of the fruit and come back. And wherever the surface moves, it turns glossy, like satin. Leave it, and the ripples die away; within about half a minute the page has stopped drawing it at all.</p>
+      <p>None of this needs a 3D model. silkify starts from a single picture and works out the rest. This page follows it through, in the order the computer does it. Each part says first what you see, then why it looks that way; the formulas are there for anyone who wants them, and can be skipped.</p>
+      <ol class="toc">
+        <li><a href="#dome">A dome from an outline</a></li>
+        <li><a href="#light">The light of the Moon</a></li>
+        <li><a href="#silk">Silk only where it ripples</a></li>
+        <li><a href="#waves">Waves that bounce off the edge</a></li>
+        <li><a href="#sleep">Asleep when nobody touches it</a></li>
+        <li><a href="#html">A piece of the page, on silk</a></li>
+      </ol>
+
+      <!-- ============================== 1 ============================== -->
+      <h2 id="dome"><span class="n">01</span>A dome from an outline</h2>
+      <p class="see">What you see</p>
+      <p>The object swells like a cushion. A round fruit becomes a ball; long, thin parts, such as a hare’s ears, stay low; and the surface is smooth everywhere, with no seam running down the middle.</p>
+      <p class="see">Why</p>
+      <p>A picture has no depth. All silkify gets from it is an outline: the picture’s transparency, or, for a picture with no transparent background, a rectangle with slightly rounded corners. It has to invent a height for every point inside that outline. (Words work the same way: given <code>text</code> instead of a picture, silkify first sets them in a canvas, and the shapes of the letters become the outline.)</p>
+      <p>The obvious answer is distance: the farther a point is from the nearest edge, the higher it stands. That works for a circle, but almost nothing else. Wherever two edges are equally close, the slope changes direction all at once, and the surface folds into a ridge, like the hip of a roof. Light catches the ridge, and the silk highlight would run along it like a seam.</p>
+      <p>silkify instead treats the outline like the rim of a drum skin, and pushes the skin up from below with the same pressure everywhere. A skin under even pressure cannot fold: each point sits at the average of its neighbours, plus the same small lift. In symbols, it solves Poisson’s equation:</p>
+      <div class="formula">∇²u = −1 inside the outline, u = 0 on it; height = 2√u
+        <small>For a disc of radius R this gives u = (R² − r²) / 4, so the height is √(R² − r²): exactly a hemisphere.</small></div>
+    </div>
+
+    <figure class="col" id="fig-dome">
+      <div class="wipe" aria-label="The same outline inflated two ways; drag to compare">
+        <canvas class="df" role="img" aria-label="Height from the distance to the edge"></canvas>
+        <canvas class="po" role="img" aria-label="Height from Poisson's equation, as silkify builds it"></canvas>
+      </div>
+      <div class="wipe-labels" aria-hidden="true"><span>← distance to the edge</span><span>Poisson →</span></div>
+      <div class="controls">
+        <div class="seg" role="radiogroup" aria-label="Outline">
+          <label><input type="radio" name="dome-shape" value="portrait" checked><span>Portrait</span></label>
+          <label><input type="radio" name="dome-shape" value="hare"><span>Hare</span></label>
+          <label><input type="radio" name="dome-shape" value="disc"><span>Disc</span></label>
+        </div>
+        <label class="range"><span>Compare</span><input type="range" min="0" max="100" value="50" aria-label="Where the two halves meet"></label>
+      </div>
+      <figcaption><b>Figure 1.</b> Drag across the picture. Right of the line is the dome silkify builds; left of it, height from the distance to the edge, given a round profile, √(d (2D − d)), so that a disc comes out as the very same hemisphere. Both use the same grid and the same smoothing, and both are lit as plain clay under one light. On the disc they agree. On the portrait’s rectangle the distance field folds ridges from every corner, and on the hare it folds one down each ear; Poisson stays smooth. The right half is computed by silkify’s own code (<a href="https://github.com/RussGuo/silkify/blob/main/src/shape.js">src/shape.js</a>).</figcaption>
+    </figure>
+
+    <div class="col">
+      <p>The solve runs once, when the object is set up, and by default inside a Web Worker, so the page never waits for it. It works coarse to fine: a quick pass on a grid of up to 61 × 61 points, then 121, then 241 across (300, 150 and 100 sweeps of successive over-relaxation, a standard way to solve this equation on a grid). Two light blurs round off the staircase where the outline meets the grid; the outline itself is still cut pixel by pixel from the picture’s own transparency when it is drawn.</p>
+      <p class="aside">The Moon in the <a href="index.html">gallery</a> skips all of this. It is already round, so it is wrapped on a real sphere.</p>
+
+      <!-- ============================== 2 ============================== -->
+      <h2 id="light"><span class="n">02</span>The light of the Moon</h2>
+      <p class="see">What you see</p>
+      <p>At rest the object looks like the picture it came from: its colours are not darkened towards the edges, and nothing about it looks like plastic. Yet light from the side still gives it a clean shadow edge.</p>
+      <p class="see">Why</p>
+      <p>The textbook way to light a surface, Lambert’s law, makes each point as bright as it faces the light. A dome lit that way darkens steadily towards its rim. Applied to a photograph, that reads as a painted plastic ball, and the picture stops looking like itself.</p>
+      <p>Look at a full Moon, though. It is a ball, but it looks like a flat, evenly bright disc: its edge is nearly as bright as its centre. Moon dust throws light back towards where it came from, and the law that describes it, worked out by Lommel and Seeliger in the nineteenth century, depends on two angles at once: the angle to the sun, and the angle to your eye.</p>
+      <div class="formula">brightness = 2μ₀ / (μ₀ + μ), at most 1
+        <small>μ₀ is how squarely the surface faces the light, μ how squarely it faces you (each the cosine of an angle).</small></div>
+      <p>When the light comes from roughly where you stand, μ₀ and μ are nearly equal and the brightness is close to 1 across the whole face: the picture keeps its own colours. Where the surface turns away from the light, brightness falls quickly to a crisp edge, the terminator. A floor keeps the far side from going black (0.55 of full brightness for pictures, and 0.05 by default for a sphere).</p>
+    </div>
+
+    <figure class="wide" id="fig-light">
+      <div class="panes">
+        <div><div class="stage"><canvas class="lambert" role="img" aria-label="Lit with Lambert's law"></canvas></div><p class="label">Lambert<span>brightness = μ₀</span></p></div>
+        <div><div class="stage"><canvas class="ls" role="img" aria-label="Lit with the Lommel–Seeliger law, as silkify does"></canvas></div><p class="label">Lommel–Seeliger, as silkify<span>brightness = 2μ₀ / (μ₀ + μ)</span></p></div>
+      </div>
+      <div class="controls">
+        <div class="seg" role="radiogroup" aria-label="Subject">
+          <label><input type="radio" name="light-subject" value="moon" checked><span>The Moon</span></label>
+          <label><input type="radio" name="light-subject" value="pomegranate"><span>The pomegranate</span></label>
+        </div>
+        <label class="range"><span>Sun</span><input type="range" min="0" max="150" value="0" aria-label="Angle between the sun and your line of sight, in degrees"><output>0°</output></label>
+      </div>
+      <figcaption><b>Figure 2.</b> The same ball or dome, picture, sun and floor; only the law differs. The slider moves the sun from behind you (0°) round to the side. At 0° Lambert turns the full Moon into a ball that fades towards its edge; Lommel–Seeliger keeps the flat, bright disc you know from the sky. On the pomegranate, Lambert dims the watercolour towards the rim. Both panes are worked out in JavaScript from the shader’s own formula (<a href="https://github.com/RussGuo/silkify/blob/main/src/shaders.js">src/shaders.js</a>), with silkify’s defaults, leaving out the ripples and the Moon’s relief. Moon: NASA’s Scientific Visualization Studio, CGI Moon Kit.</figcaption>
+    </figure>
+
+    <div class="col">
+      <p>One more light gives the object volume: a broad, soft gradient that follows the pointer. It moves on a critically damped spring, so it glides to where the pointer is without overshooting, and on a desktop it drifts slowly once while the object is idle.</p>
+
+      <!-- ============================== 3 ============================== -->
+      <h2 id="silk"><span class="n">03</span>Silk only where it ripples</h2>
+      <p class="see">What you see</p>
+      <p>The satin sheen appears where the surface moves and fades with the ripples. There is no line where matte picture ends and silk begins.</p>
+      <p class="see">Why</p>
+      <p>For every pixel, silkify measures how much the ripples are moving the surface there: how far it is pushed in or out, and how steeply it slopes. That gives one number between 0 and 1. It decides how much of a satin layer and a soft highlight are mixed into the picture, and only on the side that faces the light.</p>
+      <div class="formula">silk = 5 · |height| + 26 · |slope|, at most 1
+        <small>height and slope are the ripples’, not the dome’s, so they are zero at rest.</small></div>
+      <p>At rest that number is 0 everywhere, and every pixel is exactly the matte picture of the previous section. As the surface moves, the number rises smoothly, so the two materials blend instead of switching. The materials that are meant to shine at rest simply raise its floor: <code>satin</code> sets it to 0.6, <code>foil</code> to 1.</p>
+    </div>
+
+    <figure class="wide" id="fig-silk">
+      <div class="pair">
+        <div><div class="stage square" data-silk="mask-on">
+          <img class="poster" src="how/posters/mask-on.webp" srcset="how/posters/mask-on.webp 1x, how/posters/mask-on@2x.webp 2x" width="472" height="472" alt="Dürer’s young hare as a silk cushion, matte where it is still" draggable="false">
+        </div>
+        <p class="label">As silkify ships it<span>silk only where it ripples</span></p></div>
+        <div><div class="stage square" data-silk="mask-off">
+          <img class="poster" src="how/posters/mask-off.webp" srcset="how/posters/mask-off.webp 1x, how/posters/mask-off@2x.webp 2x" width="472" height="472" alt="The same hare with silk everywhere, a sheen over its fur" draggable="false">
+        </div>
+        <p class="label">Mask off<span><code>silkRest: 1</code>, silk everywhere</span></p></div>
+      </div>
+      <div class="controls only-live"><button class="pill drop-both" type="button">Drop one ripple on both</button><span>or touch either one</span></div>
+      <figcaption><b>Figure 3.</b> <i>Young Hare</i>, Albrecht Dürer, 1502, as a cushion. Left, silkify as it ships: untouched, it is the watercolour; touched, silk appears around the ripples and nowhere else. Right, the same object with the mask turned off (<code>silkRest: 1</code>), so every pixel on the lit side is silk all the time: the sheen sits on the fur whether or not anything moves, and the hare reads as a glossy toy rather than a painting. <span class="only-static">Your system asks for reduced motion, so these are still frames, taken just after a touch.</span></figcaption>
+    </figure>
+
+    <div class="col">
+      <!-- ============================== 4 ============================== -->
+      <h2 id="waves"><span class="n">04</span>Waves that bounce off the edge</h2>
+      <p class="see">What you see</p>
+      <p>Press, and rings run out from the dent, hit the outline, and come back in. The outline itself never moves.</p>
+      <p class="see">Why</p>
+      <p>The ripples live in a small grid of numbers on the graphics card, two per cell: how high the surface is there, and how fast it is moving. Each step, every cell is pulled towards the average of its four neighbours, which is all a wave equation is on a grid; then both numbers are multiplied by 0.996, so the waves slowly lose energy. The pointer presses a dent into the grid, deeper while it is held down.</p>
+      <p>Outside the outline, both numbers are set to zero on every step. To a wave that is a wall, so it bounces back, exactly like a wave in a bathtub. The surface is then pushed along the line of sight, towards or away from you, never sideways, so the edge of the object stays put and can never fold over.</p>
+    </div>
+
+    <figure class="col" id="fig-waves">
+      <div class="stage"><canvas role="img" aria-label="The ripple field inside the outline of a hare, seen from above"></canvas><span class="hint">move or press</span></div>
+      <div class="controls">
+        <label class="check"><input type="checkbox" checked><span>Zero the field outside the outline</span></label>
+        <button class="pill drop" type="button">Drop</button>
+      </div>
+      <figcaption><b>Figure 4.</b> The ripple grid seen from above, inside the outline of Dürer’s <i>Young Hare</i> (1502): warm where the surface rises, cool where it is pressed in. Untick the box and the field is no longer cleared outside the outline: the waves run straight out through the outline as if it were not there, and the hare’s rim would rise and fall with them. This is silkify’s own update rule and constants, run on a 128-cell grid in JavaScript instead of on the graphics card.<span class="only-static"> With reduced motion it shows one still frame, three quarters of a second after each touch.</span></figcaption>
+    </figure>
+
+    <div class="col">
+      <p>On the graphics card the grid is two small textures of half-precision numbers, one read while the other is written, swapped every step. The solver takes a fixed 60 steps a second, whatever the screen’s refresh rate, so ripples move at the same speed on a 60 Hz laptop and a 120 Hz phone; in Firefox with the display forced to 30, 60 and 120 Hz it measured 59.8, 60.7 and 59.7 steps a second. A small object gets a coarser grid, and takes several smaller steps for each of those, tuned so dents and waves keep the same size and speed on it. Twenty seconds after the last touch the waves are down to about 1% of their height, and the grid is cleared.</p>
+
+      <!-- ============================== 5 ============================== -->
+      <h2 id="sleep"><span class="n">05</span>Asleep when nobody touches it</h2>
+      <p class="see">What you see</p>
+      <p>Nothing, and that is the point. A page full of silkify objects costs almost nothing while nobody touches them.</p>
+    </div>
+
+    <figure class="wide" id="fig-sleep">
+      <div class="sleep">
+        <div class="stage square" data-silk="sleep">
+          <img class="poster" src="how/posters/sleep.webp" srcset="how/posters/sleep.webp 1x, how/posters/sleep@2x.webp 2x" width="464" height="464" alt="A teapot of lacquered tin and wicker, inflated" draggable="false">
+          <span class="hint">touch it, then wait</span>
+        </div>
+        <div>
+          <div class="meter only-live" aria-live="off"><span data-k="mode">a still poster for now: no frames at all</span><span data-k="rate"></span><span data-k="total"></span></div>
+          <p class="only-static aside">Your system asks for reduced motion, so this teapot is a still frame and the page draws nothing at all.</p>
+          <div class="timeline" aria-hidden="true">
+            <div class="labels"><span>every frame</span><span>12 a second</span><span>desktop only</span><span>none</span></div>
+            <div class="bars"><i class="a"></i><i class="t"></i><i class="s"></i><i></i></div>
+            <div class="axis"><span>0 s</span><span>8 s</span><span>20 s</span><span>≈ 31 s</span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Figure 5.</b> Teapot, England, c. 1800, tôle (lacquered tin) and wicker; Cooper Hewitt. <span class="only-live">The lines above the timeline are the teapot’s own report, read once a second.</span> Touch it and it draws every frame. Eight seconds after the last touch it drops to 12 frames a second while the ripples fade, and at 20 seconds they are cleared. On a desktop the soft fill light also makes one slow loop, which began when the pointer stopped moving and lasts about 29 seconds, so the last frame comes after about half a minute. On a phone, and in the low tier below, there is no loop: it stops at 20 seconds. After that, no frames at all.</figcaption>
+    </figure>
+
+    <div class="col">
+      <p>Only the pointer over the object counts. A pointer moving anywhere else on the page is never passed to it, so it never wakes up: in the Lab, three seconds of moving and holding the pointer over the control panel drew 0 frames. An object scrolled out of view, or in a hidden tab, stops entirely. Two options that keep it moving, <code>breeze</code> and <code>autoplay</code>, are off by default for exactly this reason.</p>
+
+      <h3>Off the page’s thread</h3>
+      <p>By default everything heavy happens in a Web Worker on an <code>OffscreenCanvas</code>: loading three.js, decoding the picture, the Poisson solve, compiling the shaders, and every frame. The page itself stays free to scroll and respond. Where a browser cannot render in a worker, silkify renders on the main thread instead; without WebGL2 it draws a still frame.</p>
+
+      <h3>Three tiers, chosen once</h3>
+      <table>
+        <thead><tr><th>Tier</th><th>Chosen when</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>high</code></td><td>desktop-class devices</td><td>pixel ratio up to 2; ripple grid up to 256 cells, mesh up to 240; one idle loop of the light, then sleep</td></tr>
+          <tr><td><code>low</code></td><td>touch-first, a screen under 1024 px on its long side, ≤ 4 cores, ≤ 4 GB, or a software GPU</td><td>pixel ratio 1; grid ≤ 128, mesh ≤ 120; frames only around a touch</td></tr>
+          <tr><td><code>static</code></td><td>reduced motion, Save-Data, 2G, a very small device, no WebGL2</td><td>three.js is never loaded; a still frame is drawn once</td></tr>
+        </tbody>
+      </table>
+      <p>It also leaves out what this picture does not need. The triangles never overlap on screen and the outline is cut per pixel, so there is no antialiasing buffer, depth buffer or stencil buffer: about 18 MB saved per object of 373 px at a pixel ratio of 2.</p>
+
+      <h3>From 69 to 99</h3>
+      <p>Nearly all of it came from one small call. Version 0.2.0 checked for WebGL2 by creating a throwaway WebGL context on the page as it loaded. On a real graphics card that costs 15 to 240 ms. On SwiftShader, the software graphics that headless Chrome uses (silkify’s own automated tests among them), it costs 2.5 seconds, all of it on the page’s own thread. Version 0.2.1 asks the canvas’s own context instead, inside the worker, before three.js is even downloaded.</p>
+    </div>
+
+    <figure class="col" id="fig-lh">
+      <div class="bars-lh">
+        <div><div class="m">Lighthouse performance score</div>
+          <div class="row"><span>v0.2.0</span><span class="bar" style="width: 69%"></span><span class="v">69</span></div>
+          <div class="row new"><span>v0.2.1</span><span class="bar" style="width: 99%"></span><span class="v">99</span></div></div>
+        <div><div class="m">Total blocking time</div>
+          <div class="row"><span>v0.2.0</span><span class="bar" style="width: 100%"></span><span class="v">9,744 ms</span></div>
+          <div class="row new"><span>v0.2.1</span><span class="bar" style="width: 0%"></span><span class="v">0 ms</span></div></div>
+        <div><div class="m">Main-thread work</div>
+          <div class="row"><span>v0.2.0</span><span class="bar" style="width: 100%"></span><span class="v">10.2 s</span></div>
+          <div class="row new"><span>v0.2.1</span><span class="bar" style="width: 1.6%"></span><span class="v">0.16 s</span></div></div>
+      </div>
+      <figcaption><b>Figure 6.</b> The gallery with nothing touched, on SwiftShader. Lighthouse 12.8.2, mobile preset (4× slower CPU), median of 3 runs, Chrome 156 on an Apple M1 Pro. On a real graphics card the score was 100 both times. Details in <a href="https://github.com/RussGuo/silkify/blob/main/references/performance.md">references/performance.md</a>.</figcaption>
+    </figure>
+
+    <div class="col">
+      <h3>Many objects on one page</h3>
+      <p>Each live object holds a WebGL context, and a browser allows only about 16 of them. The gallery shows a still poster for every card, brings a card to life only when someone reaches for it, gives the context back when the card scrolls away, and keeps at most three alive. This page does the same, except that its figures come to life as you scroll to them, not when you reach for them. <span class="only-live">Live on this page right now: <output id="live-count">0</output> of at most 3.</span></p>
+
+      <!-- ============================== 6 ============================== -->
+      <h2 id="html"><span class="n">06</span>A piece of the page, on silk</h2>
+      <p class="see">What you see</p>
+      <p>The card below is not a picture of a card. Select its words, copy them, find them with the browser’s search, follow its link: it is ordinary HTML, and it still dents and ripples when you touch it.</p>
+    </div>
+
+    <figure class="col" id="fig-html">
+      <div class="stage htmlstage" data-silk="html">
+        <article id="how-card">
+          <h4>These words are HTML</h4>
+          <p>Select this sentence and copy it, or find it with the browser’s search: it is text in the page, printed on silk.</p>
+          <p><a href="#dome">Back to the dome ↑</a></p>
+        </article>
+      </div>
+      <figcaption><b>Figure 7.</b> <span id="html-note"><span class="only-hic">Live in Chrome 157 and later, through HTML-in-Canvas.</span><span class="hic-missing">Your browser shows this card as plain HTML: printing HTML on silk needs HTML-in-Canvas, in Chrome 157 and later.</span><span class="only-static"> With reduced motion it stays plain HTML, and nothing on the page moves.</span></span></figcaption>
+    </figure>
+
+    <div class="col">
+      <p class="see">Why</p>
+      <p>HTML-in-Canvas is a new browser feature, available from Chrome 157: a canvas may hold real elements of the page and draw them into its own pictures. silkify first builds the dome from a stand-in of the element’s own box (its size, its rounded corners, its background colour), then prints the element over it. The element’s corners become the outline.</p>
+      <p>The element never stops being part of the page, which is why selection, links, search and screen readers keep working. The browser tells the canvas whenever the element’s appearance changes (new text, a hover, a selection, the blinking caret), and each change is one new print and one frame. From the change to the moment the new print is handed to the graphics card takes about 2 ms. When nothing changes, nothing is drawn. In a browser without the feature, or with reduced motion, the element simply stays where it was, as plain HTML, and nothing is logged.</p>
+
+      <h2 id="next"><span class="n">—</span>Where to go next</h2>
+      <p>silkify began as the “silk moon” on the author’s personal site; this library generalises it to any outline, by adding the Poisson dome, an orthographic camera, displacement along the line of sight, and waves held inside the outline.</p>
+      <div class="next">
+        <a href="index.html"><b>Gallery</b><span>Ten objects and a live-HTML card to touch.</span></a>
+        <a href="lab.html"><b>Lab</b><span>Every option on a slider, for your own picture.</span></a>
+        <a href="https://github.com/RussGuo/silkify"><b>GitHub</b><span>The code, the skill for coding agents, and the README.</span></a>
+      </div>
+    </div>
+  </article>
+
+  <footer>
+    <span>Written by <a href="https://github.com/RussGuo">Russ Guo</a> · November 2026 · <a href="how-it-works.zh.html" hreflang="zh-CN" lang="zh-CN">中文版</a></span>
+    <span>Code MIT · images public domain or CC0, see <a href="CREDITS.md">CREDITS.md</a></span>
+  </footer>
+</div>
+<script type="module" src="how/page.js"></script>
+</body>
+</html>
