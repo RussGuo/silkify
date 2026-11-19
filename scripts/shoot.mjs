@@ -9,7 +9,7 @@
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
  *   node scripts/shoot.mjs --browsers      # WebKit and Firefox (browsers.mjs; needs Playwright, see harness.mjs)
  *   node scripts/shoot.mjs --shots         # verify, and also rewrite docs/shots/<id>-rest.jpg
- *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost)
+ *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost, pages)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
@@ -37,7 +37,7 @@
  *          every control and the text,
  *          the printed call and Download HTML carry text, font, colour and line height, and the page runs from file://.
  *          Then the Lab's Record: a 3 s clip, square and 9:16, must come back as a non-empty video/mp4 or video/webm
- *          of the frame's shape.
+ *          of the frame's shape. Last the pages (verify-pages.mjs): link-preview tags, posters, How it works, the use cases.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -58,6 +58,7 @@ import path from 'node:path';
 import { serve } from './harness.mjs';
 import { verifyTouch } from './verify-touch.mjs';
 import { verifyLabExtras } from './verify-lab.mjs';
+import { verifyPages } from './verify-pages.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'shots');
@@ -442,6 +443,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   if (!only || only === 'text') await verifyText();
   if (!only || only === 'lost') await verifyLost();
   if (!only || only === 'lab') await verifyLabExtras({ send, evaluate, navigate, sleep, diffOf, clipOf, openLab, stageRect, base, profile, problems });
+  if (!only || only === 'pages') await verifyPages({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, on, base, problems });
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */

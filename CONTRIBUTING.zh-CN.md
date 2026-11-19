@@ -34,7 +34,7 @@ src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
 src/live.js         活 HTML 的页面一侧：特性检测、元素的替身图、在页面里占住原位、快照、命中几何、退回普通 HTML
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
 scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab、test/edge.html 与活 HTML）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
-scripts/verify-touch.mjs、scripts/verify-lab.mjs   shoot.mjs 的 verify 里单独成文件的两部分：第一下触摸与多对象；Lab 的文字与录制
+scripts/verify-touch.mjs、scripts/verify-lab.mjs、scripts/verify-pages.mjs   shoot.mjs 的 verify 里单独成文件的三部分：第一下触摸与多对象；Lab 的文字与录制；各页面（链接预览标签、海报、长文页、用例页、text.html）
 scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt；两份 README、画廊和 Lab 里的那句安装指令与作者署名也由它写入（--check 查漂移）
 scripts/browsers.mjs             shoot.mjs --browsers：WebKit 与 Firefox，同源与跨源（Playwright）
 scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）
