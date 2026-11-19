@@ -118,7 +118,9 @@
   expect(out.empty.mode === 'failed' && /nothing opaque/.test(out.empty.reason), `empty picture: ${out.empty.mode} (${out.empty.reason})`);
   expect(out.missing.mode === 'failed' && /404/.test(out.missing.reason), `missing picture: ${out.missing.mode} (${out.missing.reason})`);
   expect(warned.length === 2 && warned.some((w) => /404/.test(w)) && warned.some((w) => /nothing opaque/.test(w)), `console.warn: ${JSON.stringify(warned)}`);
-  expect(out.earlyLoop === 'active', `ripple() before ready was lost (loop ${out.earlyLoop})`);
+  // 'active' for 8 s after the ripple, then 'tail' until it has died away: both say the surface was stirred. On a slow
+  // machine the other objects on this page can take longer than 8 s to load, and the sample is taken after them.
+  expect(out.earlyLoop === 'active' || out.earlyLoop === 'tail', `ripple() before ready was lost (loop ${out.earlyLoop})`);
   expect(out.first.mode === 'disposed', `the first handle on a reused canvas: ${out.first.mode}`);
   expect(out.nomap.mode === 'static' && frameWarned.length === 1 && /three/.test(frameWarned[0]), `no import map: ${JSON.stringify(out.nomap)}`);
   expect(Object.values(out.soon).every((m) => m === 'disposed'), `dispose() while starting: ready ${JSON.stringify(out.soon)}`);
