@@ -519,7 +519,7 @@ export function silkify(canvasIn, options = {}) {
         else if (m.t === 'html' || m.t === 'shaped') live?.received(m);
         else if (m.t === 'lost') lost();
         else if (m.t === 'restored') restored();
-        else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, picture: !!m.picture, svg: !!m.svg, code: !!m.code }));
+        else if (m.t === 'fail') reject(Object.assign(new Error(m.reason), { fatal: !!m.fatal, picture: !!m.picture, svg: !!m.svg, code: !!m.code, lost: !!m.lost }));
       };
       if (onWorker) {
         const offscreen = canvas.transferControlToOffscreen();
@@ -612,8 +612,11 @@ export function silkify(canvasIn, options = {}) {
    *      A still frame at once: the poster or the picture on a fresh canvas (the old one would keep its last frame,
    *      frozen, or go blank), or the live element back in the page as plain HTML; mode 'static' with the reason.
    *      When the browser gives the context back, the renderer is rebuilt on a new canvas, the still frame staying
-   *      behind it (its CSS background) until the first new frame is up, and the mode is 'webgl' again. ---- */
-  let lostEarly = false;
+   *      behind it (its CSS background) until the first new frame is up, and the mode is 'webgl' again.
+   *      While it loads, both are noted and answered once the mount settles: a loss before the scene was built ends the
+   *      attempt (fail { lost }: still frame, onFail), a loss after it ends in lost(); either way a restore that came
+   *      meanwhile rebuilds at once, and one still to come rebuilds when it comes. ---- */
+  let lostEarly = false, restoredEarly = false;
   function lost(quiet = false) {
     if (disposed) return;
     if (handle.mode === 'loading') { lostEarly = true; return; }
@@ -622,6 +625,11 @@ export function silkify(canvasIn, options = {}) {
     for (const resolve of uvs.values()) resolve(null);
     uvs.clear();
     asked.clear();
+    stillFrame();
+    if (!quiet) emit('onFail', handle);
+  }
+  /** mode 'static' for a lost context: the poster or the picture on a fresh canvas, or the element back in the page */
+  function stillFrame() {
     Object.assign(handle, { mode: 'static', thread: null, info: null, reason: LOST });
     if (live) {
       live.restore();
@@ -631,10 +639,11 @@ export function silkify(canvasIn, options = {}) {
     } else {
       paintStatic();
     }
-    if (!quiet) emit('onFail', handle);
   }
   async function restored() {
+    if (!disposed && handle.mode === 'loading' && lostEarly) restoredEarly = true;
     if (disposed || handle.mode !== 'static' || handle.reason !== LOST) return;
+    restoredEarly = false;
     send({ t: 'dispose' });
     worker?.terminate();
     worker = null;
@@ -650,6 +659,8 @@ export function silkify(canvasIn, options = {}) {
     if (still) Object.assign(canvas.style, was);
     settled();
   }
+  /** A restore that came while the mount was still settling: rebuilt once settled() has said onFail (a task later). */
+  function afterLoss() { if (restoredEarly) setTimeout(restored); }
   /** onReady (live, or a still frame) or onFail (nothing drawn, or the context went while the scene was built), once
    *  per mount and once per restore, as `ready` resolves. A disposed object says nothing. */
   function settled() {
@@ -714,9 +725,17 @@ export function silkify(canvasIn, options = {}) {
           Object.assign(handle, { mode: 'webgl', thread: onWorker ? 'worker' : 'main', tier: info.tier, info, reason: null });
           if (codeError) codeError = `${codeError}: rendering on the main thread`;
           loudly();
-          if (lostEarly) { lostEarly = false; lost(true); }   // the context went while the scene was being built (settled() says so)
+          if (lostEarly) { lostEarly = false; lost(true); afterLoss(); }   // the context went while the scene was being built (settled() says so)
           return handle;
         } catch (e) {
+          if (e.lost && !disposed) {
+            // the context went before the scene was built: a still frame now, as for a loss once live (settled() says
+            // onFail); the worker stays, its canvas listening, so the restore reaches restored() and rebuilds
+            lostEarly = false;
+            stillFrame();
+            afterLoss();
+            return handle;
+          }
           worker?.terminate();
           worker = null;
           send = () => {};

@@ -11,7 +11,9 @@
  *                one ripple where its path first crossed the object, so a stroke or a tap made while loading is answered
  *   rebuilding   live HTML whose element changed size: a new dome from a new stand-in, on the same context
  *   losing       the browser taking the WebGL context back: the scene stops and goes, the page shows a still frame,
- *                and rebuilds once the context is restored (frame and step counts carry over)
+ *                and rebuilds once the context is restored (frame and step counts carry over). Listened to from the
+ *                moment the context exists, so a loss while three.js or the picture is still loading is seen too (and
+ *                restorable): the scene is then not built at all, and `fail { lost }` tells the page so
  *
  * Messages in: warm { threeUrl } (prewarm: import three.js before init; answered with warm { ok }), init, pointer,
  * press, lift, touch, view, visible, still, options, wake, stats, uv { id, x, y } (where a point lands on the surface,
@@ -20,7 +22,9 @@
  * ElementImage to print on the albedo) and shape { picture, patch } (the element changed size). Messages out:
  * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
  * html { ok, empty }, shaped, lost and restored (the WebGL context was taken back, and given back: the page shows a
- * still frame, then rebuilds), fail { reason, fatal, picture, svg, code }. `code`: the code could not be loaded (three.js),
+ * still frame, then rebuilds), fail { reason, fatal, picture, svg, code, lost }. `lost`: the context went while the scene
+ * was being built, so there is none (the page shows a still frame and rebuilds on `restored`, as for a loss once live).
+ * `code`: the code could not be loaded (three.js),
  * a mistake in the page rather than a missing feature, so the page says so. `fatal` means another thread would fail the same
  * way (an HTTP error, or nothing in the picture is opaque); `picture` that the picture could not be decoded here,
  * which another thread may still manage; `svg` that the picture is an SVG the page must rasterise.
@@ -54,13 +58,11 @@ export function serve(post, loadThreeOnce) {
     latest.trail.unshift(...(m.trail || []));
     const gl = openContext(m.canvas);
     if (!gl) return post({ t: 'fail', reason: 'no WebGL2 with renderable half floats' });
-    // three.js that cannot be loaded is a mistake in the page (no import map, a wrong URL), not a missing feature
-    const THREE = await loadThree(m.threeUrl).catch((e) => { throw Object.assign(new Error(`three.js could not be loaded (${e?.message || e})`), { code: true }); });
-    const opened = openRenderer(THREE, m.canvas, gl);
-    if (!opened) return post({ t: 'fail', reason: 'three.js could not start a WebGL2 renderer' });
     // the browser can take the context back (a background tab, a GPU reset, too many contexts on the page): the scene
     // stops and the page shows a still frame; once the context is back, the page rebuilds the renderer. A context that
-    // is lost and never restored stays lost: the still frame is the answer then
+    // is lost and never restored stays lost: the still frame is the answer then. Listened to from here on, before
+    // anything is loaded: a loss nobody answers with preventDefault() is never restored
+    let lostEarly = false;   // lost at any moment before the scene was up (restored since or not): it is not built
     m.canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();   // without it the browser would never restore the context
       if (silk) {
@@ -68,10 +70,18 @@ export function serve(post, loadThreeOnce) {
         before.frames += s.frames; before.steps += s.steps; before.snapshots += s.snapshots || 0;
         silk.dispose(true);
         silk = null;
-      }
+      } else lostEarly = true;
       post({ t: 'lost' });
     }, { signal: watch.signal });
     m.canvas.addEventListener('webglcontextrestored', () => post({ t: 'restored' }), { signal: watch.signal });
+    const gone = () => lostEarly || gl.isContextLost();
+    const LOST = { t: 'fail', reason: 'the WebGL context was lost while the scene was being built', lost: true };
+    // three.js that cannot be loaded is a mistake in the page (no import map, a wrong URL), not a missing feature
+    const THREE = await loadThree(m.threeUrl).catch((e) => { throw Object.assign(new Error(`three.js could not be loaded (${e?.message || e})`), { code: true }); });
+    if (dead) return;
+    if (gone()) return post(LOST);
+    const opened = openRenderer(THREE, m.canvas, gl);
+    if (!opened) return post(gone() ? LOST : { t: 'fail', reason: 'three.js could not start a WebGL2 renderer' });
     // a software rasteriser cannot afford the high tier, unless the caller forced it
     const tier = opened.software && m.tier.tier === 'high' && !m.forced ? m.lowTier : m.tier;
     const sphere = m.options.shape === 'sphere';
@@ -88,6 +98,7 @@ export function serve(post, loadThreeOnce) {
       return post({ t: 'fail', reason: e.svg ? 'svg' : `could not load the picture (${e?.message || e})`, fatal: !!e.http, picture: !e.svg, svg: !!e.svg });
     }
     if (dead) return opened.renderer.dispose();
+    if (gone()) { picture.close?.(); bump?.close?.(); opened.renderer.dispose(); return post(LOST); }
     scene = { THREE, opened, tier, o: { ...m.options, ...latest.options } };
     silk = createSilk(THREE, opened, { picture, bump }, scene.o, tier, {
       view: latest.view, visible: latest.visible, still: latest.still,

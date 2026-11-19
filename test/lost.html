@@ -19,7 +19,15 @@
                again when the object is live once more.
   Cases: a picture in a worker, the same with a poster, the same with a poster the page draws (a function: the still
   frame must be its colour), a picture on the main thread, words, and (with HTML-in-Canvas) a
-  live element. window.__lost = { out, problems } at the end. Low tier.
+  live element.
+  Then the loss while it loads (the worker arms it at a fixed point: see lost-worker.js; on the main thread the page
+  loses the canvas's context the moment it is made):
+    early          lost before three.js is loaded (worker, and main): `ready` settles 'static' with the reason and a still
+                   frame, onFail; restoreContext() then brings it live (the loss was answered, so it can be restored)
+    early-back     lost and given back while the picture decodes: it settles 'static', then rebuilds by itself, live
+    twice          lost, restored, lost, restored once live: onFail and onReady each time, live at the end
+    disposed       lost, then dispose(), then restored: nothing more is heard, the mode stays 'disposed'
+  window.__lost = { out, problems } at the end. Low tier.
 -->
 <style>
   body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
@@ -37,13 +45,18 @@
 <div class="grid">
   <canvas id="worker"></canvas><canvas id="poster"></canvas><canvas id="drawn"></canvas><canvas id="main"></canvas><canvas id="text"></canvas>
   <div class="stage"><canvas id="element"></canvas><article class="card" id="card">A card, live on the silk.</article></div>
+  <canvas id="early"></canvas><canvas id="early-main"></canvas><canvas id="early-back"></canvas><canvas id="twice"></canvas><canvas id="disposed"></canvas>
 </div>
 <script type="module">
-  // silk.js's worker is swapped for test/lost-worker.js, which can lose its context; the newest one is the case's
+  // silk.js's worker is swapped for test/lost-worker.js, which can lose its context; the newest one is the case's.
+  // `arm` is its query, for the next one started: a loss at a fixed point of the loading (lost-worker.js)
   const workers = [];
+  let arm = '';
   window.Worker = class extends Worker {
     constructor(url, opts) {
-      super(String(url).endsWith('/src/worker.js') ? new URL('lost-worker.js', location.href) : url, opts);
+      const mine = String(url).endsWith('/src/worker.js');
+      super(mine ? new URL(`lost-worker.js${arm}`, location.href) : url, opts);
+      if (mine) arm = '';   // armed for the next worker only
       workers.push(this);
     }
   };
@@ -113,6 +126,103 @@
     if (st.mode !== 'active') problems.push(`${id}: ripple() after the restore leaves the loop '${st.mode}'`);
     h.dispose();
   }
+  // ---- lost while it loads ----
+  const live = async (h, ms = 10000) => { await until(() => h.mode === 'webgl', ms); return h.mode === 'webgl'; };
+  const answers = async (id, h) => {   // live again and answering ripple()
+    h.ripple(0.5, 0.5);
+    await sleep(200);
+    const st = await h.stats();
+    out[id].after = `${st.mode}, ${st.frames} frames`;
+    if (st.mode !== 'active') problems.push(`${id}: ripple() after the restore leaves the loop '${st.mode}'`);
+  };
+  const midAlpha = (c) => c.getContext('2d')?.getImageData(c.width / 2, c.height / 2, 1, 1).data[3];
+  const PEAR_LOW = { image: PEAR, tier: 'low' };
+  const heardBy = (heard) => ({ onReady: (x) => heard.push(`ready ${x.mode}`), onFail: (x) => heard.push(`fail ${x.mode}`) });
+
+  // early: lost before three.js is loaded, in a worker and on the main thread
+  for (const [id, onMain] of [['early', false], ['early-main', true]]) {
+    const heard = [], el = $(id);
+    let ext = null;
+    if (onMain) {   // the canvas's context, lost a microtask after it is made: the renderer is then waiting for three.js
+      const get = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+        const gl = get.call(this, type, ...rest);
+        if (this === el && type === 'webgl2' && gl && !ext) { ext = gl.getExtension('WEBGL_lose_context'); queueMicrotask(() => ext.loseContext()); }
+        return gl;
+      };
+    }
+    arm = onMain ? '' : '?lose=three';
+    const h = silkify(el, { ...PEAR_LOW, ...(onMain ? { worker: false } : {}), ...heardBy(heard) });
+    const t0 = performance.now();
+    await h.ready;
+    const r = out[id] = { before: `${h.mode}/${h.thread}`, heard, lostMs: Math.round(performance.now() - t0), lost: `${h.mode}: ${h.reason}` };
+    await sleep(100);
+    r.stillAlpha = h.canvas === el ? null : midAlpha(h.canvas);
+    if (h.mode !== 'static' || !/context was lost/.test(h.reason || '')) problems.push(`${id}: lost while loading, ready settled ${r.lost}`);
+    else if (!(r.stillAlpha > 0)) problems.push(`${id}: lost while loading, no still frame (alpha ${r.stillAlpha})`);
+    if (heard.join() !== 'fail static') problems.push(`${id}: heard ${heard.join(', ') || 'nothing'} once it settled`);
+    if (onMain) ext?.restoreContext(); else workers.at(-1).postMessage({ t: 'test-restore' });
+    const t1 = performance.now();
+    const back = await live(h);
+    Object.assign(r, { restored: `${h.mode}/${h.thread}`, restoredMs: Math.round(performance.now() - t1) });
+    if (!back) { problems.push(`${id}: not live after restoreContext() (${h.mode}: ${h.reason})`); continue; }
+    if (heard.join() !== 'fail static,ready webgl') problems.push(`${id}: heard ${heard.join(', ')} after the restore`);
+    await answers(id, h);
+    h.dispose();
+  }
+
+  // early-back: lost and given back while the picture decodes; it rebuilds by itself
+  {
+    const id = 'early-back', heard = [];
+    arm = '?lose=picture&restore';
+    const h = silkify($(id), { ...PEAR_LOW, ...heardBy(heard) });
+    await h.ready;
+    const r = out[id] = { before: `${h.mode}`, heard, lost: `${h.mode}: ${h.reason}`, lostMs: 0 };
+    const t1 = performance.now();
+    const back = await live(h);
+    Object.assign(r, { restored: `${h.mode}/${h.thread}`, restoredMs: Math.round(performance.now() - t1) });
+    if (!back) problems.push(`${id}: lost and restored while loading, it stays ${h.mode} (${h.reason})`);
+    else {
+      if (heard.join() !== 'fail static,ready webgl') problems.push(`${id}: heard ${heard.join(', ')}`);
+      await answers(id, h);
+    }
+    h.dispose();
+  }
+
+  // twice: lost and restored twice once live
+  {
+    const id = 'twice', heard = [];
+    const h = silkify($(id), { ...PEAR_LOW, ...heardBy(heard) });
+    await h.ready;
+    const r = out[id] = { heard, lostMs: 0 };
+    for (let k = 0; k < 2; k++) {
+      workers.at(-1).postMessage({ t: 'test-lose' });
+      r.lostMs = Math.max(r.lostMs, await until(() => h.mode === 'static', 1000));
+      workers.at(-1).postMessage({ t: 'test-restore' });
+      await live(h);
+    }
+    r.restored = `${h.mode}/${h.thread}`;
+    r.restoredMs = 0;
+    if (h.mode !== 'webgl' || heard.join() !== 'ready webgl,fail static,ready webgl,fail static,ready webgl') problems.push(`${id}: ${h.mode}, heard ${heard.join(', ')}`);
+    else await answers(id, h);
+    h.dispose();
+  }
+
+  // disposed: lost, disposed, then the context comes back (main thread: the canvas's own context); nothing more is heard
+  {
+    const id = 'disposed', heard = [];
+    const h = silkify($(id), { ...PEAR_LOW, worker: false, ...heardBy(heard) });
+    await h.ready;
+    const ext = h.canvas.getContext('webgl2').getExtension('WEBGL_lose_context');
+    ext.loseContext();
+    const lostMs = await until(() => h.mode === 'static', 1000);
+    h.dispose();
+    ext.restoreContext();
+    await sleep(800);
+    out[id] = { heard, lostMs, restored: h.mode, restoredMs: 0, after: 'disposed' };
+    if (h.mode !== 'disposed' || heard.join() !== 'ready webgl,fail static') problems.push(`${id}: ${h.mode}, heard ${heard.join(', ')}`);
+  }
+
   window.__lost = { out, problems };
 </script>
 </body>
