@@ -302,9 +302,11 @@ export function silkify(canvasIn, options = {}) {
   const o = resolveOptions(options);
   const emit = emitter(o);   // the page's callbacks, read from `o` when called (setTheme can swap them)
   const kind = o.shape;
+  // a number written as a string ('1.5', from a data attribute or a form) worked in 0.3 and still does
+  if (typeof o.fit === 'string' && o.fit !== 'cover' && o.fit.trim() && Number.isFinite(+o.fit)) o.fit = +o.fit;
   if (kind === 'image' && !(o.fit === 'cover' ? options.element == null : typeof o.fit === 'number' && o.fit > 0)) {
     throw new TypeError(o.fit === 'cover' ? "silkify: fit: 'cover' is for a picture or words; an element is drawn 1:1 (leave fit out) or scaled by a number"
-      : `silkify: options.fit is the canvas's extent over the object's, a number above 0, or 'cover' (not ${JSON.stringify(o.fit)})`);
+      : `silkify: options.fit is the canvas's extent over the object's, a number above 0, or 'cover' (not ${JSON.stringify(options.fit)})`);
   }
   const element = options.element != null ? resolveElement(options.element) : null;
   if (!o.image && !element && o.text == null) throw new Error('silkify: options.image (or options.element, or options.text) is required');

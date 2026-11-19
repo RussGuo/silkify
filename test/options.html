@@ -11,7 +11,8 @@
     corner0   matte: 'rect' with corner: 0 is a square: the dome exists and its corners are inside (every pixel used to
               sit exactly on the threshold, so nothing was inside and the mount failed); corner 0.06 still rounds them
     cover     fit: 'cover' in the static tier: the picture covers the whole canvas, wide and tall, without a remount;
-              a fit that is neither a number above 0 nor 'cover' throws; element mode with 'cover' throws
+              a fit that is neither a number above 0 nor 'cover' throws; element mode with 'cover' throws; a number
+              written as a string ('1.5', which 0.3.0 took) draws exactly as the number
     poster    a poster that is a canvas, a function (called with the canvas's device-pixel size, again on a resize), an
               async function, and one that returns nothing usable (mode 'failed', a reason, one warning)
     breeze    breezeIdle: the breeze stops (mode 'tail') once nobody has touched the object for that long, and wake()
@@ -39,6 +40,7 @@
 <body>
 <div class="row"><canvas id="cover-wide" class="wide"></canvas><canvas id="contain-wide" class="wide"></canvas><canvas id="corner0" class="sq"></canvas></div>
 <div class="row"><canvas id="static-cover" class="wide"></canvas><canvas id="p-canvas" class="sq"></canvas><canvas id="p-fn" class="sq"></canvas><canvas id="p-async" class="sq"></canvas><canvas id="p-bad" class="sq"></canvas></div>
+<div class="row"><span id="fit-text" class="row"></span></div>
 <div class="row"><canvas id="sphere" class="sphere"></canvas><canvas id="breeze-idle" class="sq"></canvas><canvas id="breeze-on" class="sq"></canvas></div>
 <div class="row"><canvas id="ink-live" class="sq"></canvas><canvas id="ink-y" class="sq"></canvas><canvas id="ink-g" class="sq"></canvas><canvas id="ink-dash" class="sq"></canvas></div>
 <div id="far"><canvas id="breeze-far" class="sq"></canvas></div>
@@ -94,8 +96,19 @@
     if (![...wide, ...tall].every(Boolean)) problems.push(`cover: the static tier leaves a corner uncovered (wide ${wide}, tall ${tall})`);
     st.dispose();
     const throws = (o) => { try { silkify(document.createElement('canvas'), o); return null; } catch (e) { return e instanceof TypeError ? e.message : `not a TypeError: ${e}`; } };
-    out.cover.errors = { word: throws({ image: pic, fit: 'contain' }), zero: throws({ image: pic, fit: 0 }), element: throws({ element: document.body, fit: 'cover' }) };
+    out.cover.errors = { word: throws({ image: pic, fit: 'contain' }), zero: throws({ image: pic, fit: 0 }), zeroText: throws({ image: pic, fit: '0' }), element: throws({ element: document.body, fit: 'cover' }) };
     for (const [k, v] of Object.entries(out.cover.errors)) if (!v || v.startsWith('not')) problems.push(`cover: fit ${k} should throw a TypeError (${v})`);
+    // a number written as a string ('1.5') worked in 0.3.0 and still does: drawn exactly as the number
+    const pair = ['1.5', 1.5].map((fit) => {
+      const c = Object.assign(document.createElement('canvas'), { className: 'sq' });
+      $('fit-text').append(c);
+      return silkify(c, { image: solid(160, 100, '#2f4f6b'), fit, tier: 'static' });
+    });
+    await Promise.all(pair.map((h) => h.ready));
+    const pixels = pair.map((h) => h.canvas.getContext('2d').getImageData(0, 0, h.canvas.width, h.canvas.height).data.join());
+    out.cover.text = `${pair[0].mode}, ${pixels[0] === pixels[1] ? 'as 1.5' : 'NOT AS 1.5'}`;
+    if (pair[0].mode !== 'static' || pixels[0] !== pixels[1]) problems.push(`cover: fit '1.5' is ${out.cover.text}`);
+    for (const h of pair) h.dispose();
   }
 
   // ---- poster: a canvas, a function, an async function, a function that returns nothing ----
