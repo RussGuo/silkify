@@ -110,6 +110,8 @@
   }
   .out .bar { display: flex; gap: 8px; flex-wrap: wrap; }
   .note { color: var(--muted); font-size: 12px; margin: 6px 0 2px; }
+  .credit { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+  .credit a { color: inherit; }
   @media (max-width: 820px) {
     .lab { grid-template-columns: 1fr; height: auto; }
     .stage { height: min(100vw, 72vh); }
@@ -151,6 +153,7 @@
         <button id="copy">Copy options</button><button id="link">Copy link</button><button id="download" title="this object and these options as one HTML file that opens with a double-click. The file loads silk.js and three.js from jsDelivr, so it depends on that CDN; for a page you publish, copy src/ into your project as SKILL.md says">Download HTML</button><button id="reset">Reset</button>
         <a href="./" style="margin-left:auto;align-self:center;color:var(--muted)">← Gallery</a>
       </div>
+      <p class="credit"><span id="byline"><!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></span> · <a href="https://github.com/RussGuo/silkify">silkify on GitHub</a></p>
     </div>
   </aside>
 </div>
@@ -533,12 +536,14 @@
     const bump = o?.bump ? await dataUrl(await fetched(o.bump)) : null;
     const title = state.obj === 'custom' ? 'your picture' : o.title;
     const lines = ['image: PICTURE', ...(bump ? ['bump: BUMP'] : []), ...optionLines()];
+    const by = document.querySelector('#byline a');     // the byline build-integrations.mjs writes into this page
     return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title.replace(/</g, '&lt;')}, silkified</title>
+<\!-- silkify by ${by.textContent} (${by.href}): https://github.com/RussGuo/silkify -->
 <\!-- Made in the silkify Lab (https://russguo.github.io/silkify/examples/lab.html). Open it with a double-click:
      the picture is inside this file. It depends on jsDelivr: silk.js and three.js load from there, so it needs the
      network. For a page you publish, copy src/ from https://github.com/RussGuo/silkify into your project and serve
@@ -546,6 +551,7 @@
 <style>
   html, body { margin: 0; height: 100%; background: ${BACKGROUND[state.bg] || BACKGROUND.paper}; }
   canvas { display: block; width: min(92vw, 92vh); aspect-ratio: 1; margin: 4vh auto; touch-action: pan-y; }
+  .silkify { position: fixed; right: 12px; bottom: 10px; font: 11px/1 system-ui, sans-serif; color: #8888; text-decoration: none; }
 </style>
 <\script type="importmap">
   { "imports": { "three": "${THREE_CDN}" } }
@@ -553,6 +559,7 @@
 </head>
 <body>
 <canvas id="silk" aria-hidden="true"></canvas>
+<a class="silkify" href="https://github.com/RussGuo/silkify">silkify</a>
 <\script type="module">
   import { silkify } from '${SILK_CDN}';
   const PICTURE = '${image}';

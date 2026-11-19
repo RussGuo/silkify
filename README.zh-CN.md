@@ -4,6 +4,8 @@
 
 # silkify
 
+<p><!-- byline -->作者：<a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></p>
+
 <p>
   <a href="https://russguo.github.io/silkify/examples/"><b>在线画廊 →</b></a> &nbsp;·&nbsp;
   <a href="https://russguo.github.io/silkify/examples/lab.html">Lab 调参页</a> &nbsp;·&nbsp;

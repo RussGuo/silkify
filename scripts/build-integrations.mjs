@@ -18,6 +18,9 @@
  * the `data-install` attribute of the "Install in your agent" button in examples/index.html and examples/lab.html.
  * --check fails when any of them differs from the sentence below by one character.
  *
+ * The author's byline is kept the same way: AUTHOR below is written between `<!-- byline -->` and `<!-- /byline -->`
+ * under the README titles, in the gallery's footer and in the Lab (which copies it into the HTML it downloads).
+ *
  * There is no ChatGPT custom GPT any more: OpenAI retires custom GPTs on 2026-12-11, and the ChatGPT desktop app
  * reads skills like Codex does (the same clone of this repository).
  *
@@ -58,6 +61,18 @@ const SLOTS = [
   ['README.zh-CN.md', 'zh', /(<!-- install[^\n]*-->\n```text\n)([^\n]*)(\n```)/],
   ['examples/index.html', 'en', /(<button id="install"[^>]*? data-install=")([^"]*)(")/],
   ['examples/lab.html', 'en', /(<button id="install"[^>]*? data-install=")([^"]*)(")/],
+];
+/** Who made silkify: the name and the links, in this one place. Written into every page the work travels with (a
+ *  line under the README titles, the gallery's footer, the Lab, which copies it into the files it downloads); add a
+ *  second link (X, a site) here and every page follows. Links after the first are listed after the name. */
+const AUTHOR = { name: 'Russ Guo', links: [['GitHub', 'https://github.com/RussGuo']] };
+const byline = (lead) => `${lead}<a href="${AUTHOR.links[0][1]}">${AUTHOR.name}</a>`
+  + AUTHOR.links.slice(1).map(([label, href]) => ` · <a href="${href}">${label}</a>`).join('');
+const BYLINE = { en: byline('Made by '), zh: byline('作者：') };
+/** Where the byline sits: between `<!-- byline -->` and `<!-- /byline -->` on one line. */
+const BYLINE_SLOT = /(<!-- byline -->)([^\n]*?)(<!-- \/byline -->)/;
+const BYLINES = [
+  ['README.md', 'en'], ['README.zh-CN.md', 'zh'], ['examples/index.html', 'en'], ['examples/lab.html', 'en'],
 ];
 const REFERENCES = [
   ['references/parameters.md', 'Parameters', 'every option with its default and tuning range, the material and feel presets, recipes from the gallery'],
@@ -117,6 +132,12 @@ for (const [f, lang, slot] of SLOTS) {
   pages[f] ??= await read(f);
   if (!slot.test(pages[f])) errors.push(`${f}: no slot for the install sentence (${slot.source.slice(1, 24)}…)`);
   else pages[f] = pages[f].replace(slot, (_, a, __, b) => a + INSTALL[lang] + b);
+}
+if (/["<>&]/.test(AUTHOR.name) || AUTHOR.links.some(([l, h]) => /["<>&]/.test(l + h))) errors.push('AUTHOR: no quotes, & or angle brackets');
+for (const [f, lang] of BYLINES) {
+  pages[f] ??= await read(f);
+  if (!BYLINE_SLOT.test(pages[f])) errors.push(`${f}: no slot for the byline (<!-- byline --><!-- /byline -->)`);
+  else pages[f] = pages[f].replace(BYLINE_SLOT, (_, a, __, b) => a + BYLINE[lang] + b);
 }
 // after the install sentence is filled in, so a release bump only needs package.json
 for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README.zh-CN.md']) {
@@ -179,7 +200,7 @@ ${INSTALL.en}
 
 ## Working on this repository
 
-- \`SKILL.md\` and \`references/\` are the only hand-written agent docs. \`AGENTS.md\`, \`llms.txt\` and everything in \`integrations/\` are generated: edit the sources, then run \`npm run build:integrations\` (\`-- --check\` fails on drift). The install sentence in the READMEs, the gallery and the Lab is written by the same script: change it there, not in the pages.
+- \`SKILL.md\` and \`references/\` are the only hand-written agent docs. \`AGENTS.md\`, \`llms.txt\` and everything in \`integrations/\` are generated: edit the sources, then run \`npm run build:integrations\` (\`-- --check\` fails on drift). The install sentence and the author's byline in the READMEs, the gallery and the Lab are written by the same script: change them there, not in the pages.
 - \`node scripts/shoot.mjs\` must pass before every commit (headless Chrome, Python with Pillow; about two minutes); it writes nothing into the repository (\`--shots\` rewrites \`docs/shots/*-rest.jpg\` when the look changed). CI also runs \`--browsers\` (WebKit and Firefox) and \`scripts/frameworks.mjs\` (React in Vite and Next.js); both need Playwright, which is never a dependency.
 - The default look is pixel-for-pixel fixed: every new option defaults to off, and the gallery posters in \`examples/posters/\` are not re-rendered unless their card changed.
 - No build step and no runtime dependencies besides three.js; every source file stays under 800 lines and opens with a comment that says what it is and why.

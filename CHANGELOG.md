@@ -15,6 +15,7 @@
 
 **Changed**
 - **The gallery and the READMEs open with the Mona Lisa and the pomegranate**, then the moon; the FateTell ink drop moves to the end of the objects (its notice is unchanged). The Lab's object list follows. Only the order changed: the posters are the same files.
+- **Who made it, wherever it travels.** A line under both README titles, the gallery's footer and the Lab now say "Made by Russ Guo" with a link; a file downloaded from the Lab carries the same credit in a comment and a small "silkify" link in its corner. The name and links live in one place, `scripts/build-integrations.mjs`, which writes them into every page and fails `--check` when one drifts.
 
 Pictures look the same: the posters re-render byte for byte.
 

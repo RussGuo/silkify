@@ -4,6 +4,8 @@ English | [简体中文](README.zh-CN.md)
 
 # silkify
 
+<p><!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></p>
+
 <p>
   <a href="https://russguo.github.io/silkify/examples/"><b>Live gallery →</b></a> &nbsp;·&nbsp;
   <a href="https://russguo.github.io/silkify/examples/lab.html">Lab</a> &nbsp;·&nbsp;
