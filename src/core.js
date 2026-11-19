@@ -569,6 +569,14 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       apply();
       wake();
     },
+    /** Where a point (-1…1, y up) lands on the object, [u, v] from the top left, or null when it misses: a picture's
+     *  silhouette box (the picture itself for an opaque one, the words' ink for text), a sphere's map as it is turned. */
+    surfaceAt(x, y) {
+      const uv = uvAt(new THREE.Vector2(x, y));
+      if (!uv) return null;
+      if (SPHERE) return [(((uv.x + U.uAngle.value) % 1) + 1) % 1, 1 - uv.y];
+      return [((uv.x - 0.5) * side) / 2 + 0.5, 0.5 - ((uv.y - 0.5) * side) / (2 * aspect)];
+    },
     /** A programmatic touch at canvas coordinates (0–1, top-left origin). False if it misses the object. */
     touch(x, y, opts) {
       if (still || dead) return false;

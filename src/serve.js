@@ -14,7 +14,8 @@
  *                and rebuilds once the context is restored (frame and step counts carry over)
  *
  * Messages in: warm { threeUrl } (prewarm: import three.js before init; answered with warm { ok }), init, pointer,
- * press, lift, touch, view, visible, still, options, wake, stats, dispose (init carries the pointer of the loading time,
+ * press, lift, touch, view, visible, still, options, wake, stats, uv { id, x, y } (where a point lands on the surface,
+ * answered with uv { id, uv }), dispose (init carries the pointer of the loading time,
  * pointer { x, y, down } | null and trail [{ x, y }]: see replayPointer); for live HTML also html { img } (an Element or
  * ElementImage to print on the albedo) and shape { picture, patch } (the element changed size). Messages out:
  * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
@@ -145,6 +146,7 @@ export function serve(post, loadThreeOnce) {
       case 'lift': latest.at = null; latest.down = false; silk?.lift(); break;
       case 'touch': if (silk) silk.touch(m.x, m.y, m); else latest.touches.push(m); break;
       case 'stats': post({ t: 'stats', id: m.id, ...stats() }); break;
+      case 'uv': post({ t: 'uv', id: m.id, uv: silk ? silk.surfaceAt(m.x, m.y) : null }); break;
       case 'view': latest.view = m.view; silk?.resize(m.view); break;
       case 'visible': latest.visible = m.visible; silk?.setVisible(m.visible); break;
       case 'still': latest.still = m.still; silk?.setStill(m.still); break;

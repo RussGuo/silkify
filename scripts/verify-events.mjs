@@ -158,6 +158,7 @@ export async function verifyEvents(t) {
   await click(g.x, g.y);
   await click(g.x, g.y);
   await mouse('mouseMoved', 2, 2);
+  await sleep(500);   // onPress waits for the renderer's uv (a message to the worker, busy drawing, and back)
   const after = await evaluate(`window.__gallery.presses.get('${id}') || 0`);
   tag('gallery', g.mode === 'webgl' && after - g.before === 2, `${id} ${g.mode}: two presses → ${after - g.before} counted by onPress`);
 }

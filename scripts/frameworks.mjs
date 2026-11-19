@@ -84,7 +84,8 @@ async function probe(url) {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.down();
       await page.mouse.up();
-      pressed = (await page.evaluate(() => window.__presses || 0)) === p0 + 1;
+      // onPress waits for the renderer's uv (a message to the worker and back): poll for it, 2 s at most
+      for (let t = 0; t < 40 && !pressed; t++) { pressed = (await page.evaluate(() => window.__presses || 0)) === p0 + 1; if (!pressed) await sleep(50); }
       await page.mouse.move(2, 2);
     }
     const ok = h.mode === 'webgl' && h.thread === 'worker' && h.canvases === 1 && ripples && pressed;

@@ -321,6 +321,7 @@ export function silkify(canvasIn, options = {}) {
   let worker = null, disposed = false, inView = true, staticPic = null, staticWhy = null, raster = null;
   const early = [];          // ripple() calls made before the renderer was ready: replayed by the renderer
   const asked = new Map();   // stats requests in flight: id → resolve
+  const uvs = new Map();     // surface lookups in flight (events.js: a press, a release, a stroke): id → resolve
   let askId = 0;
   const ctl = new AbortController();
   const on = { signal: ctl.signal, passive: true };
@@ -371,6 +372,8 @@ export function silkify(canvasIn, options = {}) {
       send = () => {};
       handle.mode = 'disposed';
       for (const resolve of asked.values()) resolve({ frames: 0, mode: 'disposed' });
+      for (const resolve of uvs.values()) resolve(null);
+      uvs.clear();
       asked.clear();
       if (owner.get(canvas) === handle) owner.delete(canvas);
       live?.restore();
@@ -501,6 +504,7 @@ export function silkify(canvasIn, options = {}) {
         if (m.t === 'ready') resolve(m);
         else if (m.t === 'hover') emit('onHover', m.on);
         else if (m.t === 'stats') { const { t, id, ...st } = m; asked.get(id)?.(st); asked.delete(id); }
+        else if (m.t === 'uv') { uvs.get(m.id)?.(m.uv); uvs.delete(m.id); }
         else if (m.t === 'html' || m.t === 'shaped') live?.received(m);
         else if (m.t === 'lost') lost();
         else if (m.t === 'restored') restored();
@@ -547,7 +551,10 @@ export function silkify(canvasIn, options = {}) {
   };
   const leave = () => { if (ptr.over || ptr.pressed) send({ t: 'lift' }); ptr.over = ptr.pressed = false; ptr.at = null; };
   // the page's onPress, onRelease and onStroke ride on the same pointer: wanted while the silk answers it
-  const g = gestures({ o, emit, canvas: () => canvas, listening: () => o.interactive !== false && (handle.mode === 'loading' || handle.mode === 'webgl') });
+  // where a point lands on the surface: only the renderer knows (its camera, fit, the outline), so it is asked; null
+  // while it loads, and when the point misses the object
+  const surface = (p) => (handle.mode !== 'webgl' ? null : new Promise((resolve) => { uvs.set(++askId, resolve); send({ t: 'uv', id: askId, x: p.x, y: p.y }); }));
+  const g = gestures({ o, emit, surface, canvas: () => canvas, listening: () => o.interactive !== false && (handle.mode === 'loading' || handle.mode === 'webgl') });
   // the window's listeners are shared by every object on the page (pointer.js): this is what they call for this one
   let unfollow = () => {};
   if (tier.tier !== 'static') {   // the static tier never needs the pointer
@@ -601,6 +608,8 @@ export function silkify(canvasIn, options = {}) {
     if (handle.mode === 'loading') { lostEarly = true; return; }
     if (handle.mode !== 'webgl') return;
     for (const resolve of asked.values()) resolve({ frames: 0, mode: 'static' });
+    for (const resolve of uvs.values()) resolve(null);
+    uvs.clear();
     asked.clear();
     Object.assign(handle, { mode: 'static', thread: null, info: null, reason: LOST });
     if (live) {

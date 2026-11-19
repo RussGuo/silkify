@@ -10,6 +10,9 @@
   made here (PointerEvent on window, where silkify listens), so the page checks itself:
     press, release   onPress at the point pressed (canvas coordinates 0–1), onRelease when it ends: lifted on the canvas
                      (over: true), lifted elsewhere (over: false, the last point on the canvas), a touch cancelled
+    uv               where a press lands on the object: the centre of the canvas is the centre of the picture's box
+                     ([0.5, 0.5]), a press on the transparent corner is null, a release off the canvas is null; a press on
+                     words too; the callbacks come in the order of the gestures (they wait for the renderer's answer)
     stroke           ten moves in one task are one onStroke; one 150 ms later carries dx, dy; leaving starts a new stroke
     throws           every callback of one object throws: each is reported as an uncaught error (caught here, so the
                      run stays clean), the object still ripples, and a second object under the same pointer still
@@ -56,6 +59,7 @@
   const { liveSupport } = await import('../src/live.js');
   const PEAR = '../examples/images/pomegranate.webp';
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const settle = () => sleep(400);   // onPress, onRelease and onStroke wait for the renderer's uv (a message to a busy worker and back)
   const $ = (id) => document.getElementById(id);
   const out = {}, problems = [];
   const check = (ok, what) => { if (!ok) problems.push(what); };
@@ -109,22 +113,34 @@
   fire('pointerup', pic, 0.5, -0.5);                // lifted elsewhere
   fire('pointerdown', pic, 0.5, 0.5, 'touch');
   window.dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'touch' }));   // the touch became a scroll
+  await settle();
   const press = of('pic', 'onPress'), rel = of('pic', 'onRelease');
   out.press = press; out.release = rel;
   check(press.length === 3 && near(press[0].x, 0.3) && near(press[0].y, 0.6) && press[0].pointerType === 'mouse' && press[2].pointerType === 'touch', `pic: onPress ${JSON.stringify(press)}`);
   check(rel.length === 3 && rel[0].over && near(rel[0].x, 0.3) && rel[0].held >= 0 && !rel[1].over && near(rel[1].x, 0.5) && !rel[2].over && rel[2].pointerType === 'touch', `pic: onRelease ${JSON.stringify(rel)}`);
+  // uv: the centre of the canvas is the centre of the picture's box; off the object, or lifted off the canvas, null
+  check(Array.isArray(press[1].uv) && near(press[1].uv[0], 0.5) && near(press[1].uv[1], 0.5) && rel[1].uv === null && rel[2].uv === null, `pic: uv ${JSON.stringify(press.map((p) => p.uv))} / ${JSON.stringify(rel.map((r) => r.uv))}`);
+  check(Array.isArray(press[0].uv) && press[0].uv[0] < 0.5 && press[0].uv[1] > 0.5 && JSON.stringify(rel[0].uv) === JSON.stringify(press[0].uv), `pic: a press left of and below the centre at ${JSON.stringify(press[0].uv)}, released at ${JSON.stringify(rel[0].uv)}`);
+  fire('pointerdown', pic, 0.02, 0.02); fire('pointerup', pic, 0.02, 0.02);   // the transparent corner of the canvas
+  await settle();
+  const corner = of('pic', 'onPress').at(-1);
+  out.uv = { centre: press[1].uv, corner: corner.uv };
+  check(corner.uv === null && near(corner.x, 0.02), `pic: a press on the transparent corner has uv ${JSON.stringify(corner.uv)} (expected null)`);
 
   // ---- stroke: throttled, with the way it went ----
   fire('pointermove', pic, 0.5, -0.5);
   log.pic.length = 0;
   for (let k = 0; k < 10; k++) fire('pointermove', pic, 0.2 + k * 0.03, 0.5);
+  await settle();
   const burst = of('pic', 'onStroke').length;
   await sleep(150);
   fire('pointermove', pic, 0.6, 0.4);
+  await settle();
   const s = of('pic', 'onStroke');
   fire('pointermove', pic, 0.5, -0.5);              // off: the next stroke starts afresh
   await sleep(150);
   fire('pointermove', pic, 0.5, 0.5);
+  await settle();
   const fresh = of('pic', 'onStroke').at(-1);
   out.stroke = { burst, strokes: s, fresh };
   check(burst === 1 && s.length === 2 && near(s[0].x, 0.2) && s[0].dx === 0 && near(s[1].dx, 0.4) && near(s[1].dy, -0.1) && !s[1].pressed, `pic: onStroke ${JSON.stringify(out.stroke)}`);
@@ -158,14 +174,18 @@
   fire('pointerdown', hc, 0.5, 0.5, 'touch'); fire('pointerup', hc, 0.5, 0.5, 'touch');
   fire('pointerdown', hc, 0.5, 0.5, 'mouse'); fire('pointerup', hc, 0.5, 0.5, 'mouse');
   fire('pointerdown', pic, 0.5, 0.5, 'touch'); fire('pointerup', pic, 0.5, 0.5, 'touch');
+  await settle();
   out.vibrated = vibrated.slice();
   check(navigator.userActivation?.hasBeenActive && vibrated.join() === '10', `haptic: vibrated ${JSON.stringify(vibrated)} (expected one 10 ms pulse, for the touch on the haptic object)`);
   check(of('haptic', 'onPress').length === 3, `haptic: ${of('haptic', 'onPress').length} onPress (expected 3)`);
 
   // ---- words, the static tier, interactive: false ----
   for (const id of ['word', 'still', 'calm']) { fire('pointerdown', $(id), 0.5, 0.5); fire('pointerup', $(id), 0.5, 0.5); }
+  await settle();
   out.counts = { word: of('word', 'onPress').length, still: of('still', 'onPress').length, calm: of('calm', 'onPress').length };
   check(out.counts.word === 1 && of('word', 'onRelease').length === 1, `word: onPress ${out.counts.word}, onRelease ${of('word', 'onRelease').length}`);
+  const wuv = of('word', 'onPress')[0]?.uv;   // the H's crossbar, the middle of its ink
+  check(Array.isArray(wuv) && near(wuv[0], 0.5) && near(wuv[1], 0.5), `word: a press on the H's crossbar has uv ${JSON.stringify(wuv)}`);
   check(out.counts.still === 0 && out.counts.calm === 0, `still / calm reported presses (${JSON.stringify(out.counts)})`);
 
   // ---- a live element: its words are the silk's, its link is its own ----
@@ -174,6 +194,7 @@
     const at = (el) => { const r = el.getBoundingClientRect(), c = ec.getBoundingClientRect(); return [(r.left + r.width / 2 - c.left) / c.width, (r.top + r.height / 2 - c.top) / c.height]; };
     fire('pointerdown', ec, ...at($('words')), 'mouse', $('words')); fire('pointerup', ec, ...at($('words')), 'mouse', $('words'));
     fire('pointerdown', ec, ...at($('link')), 'mouse', $('link')); fire('pointerup', ec, ...at($('link')), 'mouse', $('link'));
+    await settle();
     out.element = { inside: $('card').parentNode === ec, presses: of('element', 'onPress').length, releases: of('element', 'onRelease').length };
     check(out.element.inside && out.element.presses === 1 && out.element.releases === 1, `element: ${JSON.stringify(out.element)} (expected the words' press only)`);
   } else out.element = 'no HTML-in-Canvas';

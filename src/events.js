@@ -1,15 +1,18 @@
 /**
  * events.js — what one object tells the page: the page's callbacks, and the gestures behind three of them.
  *
- *   onPress({ x, y, pointerType })                     a pointer went down on the canvas
- *   onRelease({ x, y, over, held, pointerType })       that press ended: lifted (over: lifted on the canvas), cancelled
- *   onStroke({ x, y, dx, dy, pressed, pointerType })   the pointer moving on the canvas, at most every STROKE_MS
+ *   onPress({ x, y, uv, pointerType })                 a pointer went down on the canvas
+ *   onRelease({ x, y, uv, over, held, pointerType })   that press ended: lifted (over: lifted on the canvas), cancelled
+ *   onStroke({ x, y, uv, dx, dy, pressed, pointerType })  the pointer moving on the canvas, at most every STROKE_MS
  *   onHover(isOver), onReady(handle), onFail(handle)   called from silk.js (the renderer's hover; the mode settling)
  *
  * Callbacks in the options, as onHover always was, not DOM events: the canvas is swapped for a fresh one on a fallback,
  * a lost context and a restore, so a listener on it would silently go deaf, and the handle is not an EventTarget. An
  * option is one way that works the same in a plain page and as a framework prop. x, y are canvas coordinates 0–1
- * from the top left, as handle.ripple() takes them.
+ * from the top left, as handle.ripple() takes them. uv is where the point lands on the object ([u, v] from the top left
+ * of its box or map, null off the object): only the renderer can say (its camera, `fit`, the outline), so silk.js asks it
+ * (`surface`), a message to the worker and back (answered between frames), and these three wait for it, in order.
+ * While the renderer loads there is nobody to ask: a press then is reported at once, with uv null.
  *
  * A callback that throws is the page's bug, not the renderer's: it is reported as an uncaught error (reportError) and
  * everything else goes on, the frame, the other objects on the shared listeners, the next callback.
@@ -52,17 +55,23 @@ function buzz(o, e) {
  * sends the renderer. `listening()` says whether events are wanted now (live or loading, interactive);
  * `canvas()` is the current canvas (live HTML: the element is inside it).
  */
-export function gestures({ o, emit, listening, canvas }) {
+export function gestures({ o, emit, listening, canvas, surface = () => null }) {
+  let queue = Promise.resolve();     // the callbacks that wait for a uv, kept in the order of their gestures
+  const tell = (name, p, arg) => {
+    const uv = p ? surface(p) : null;
+    if (!uv) return void (queue = queue.then(() => emit(name, { ...arg, uv: null })));
+    queue = queue.then(() => uv).then((at) => emit(name, { ...arg, uv: at ?? null }));
+  };
   let press = null;                  // { at, t, pointerType } while pressed
   let stroke = null;                 // { at, t }: the last onStroke, null when the pointer is not on the canvas
   const ofControl = (e) => {
     const c = canvas(), hit = e?.target instanceof Element ? e.target.closest(CONTROLS) : null;
     return !!hit && hit !== c && c.contains(hit);
   };
-  const release = (at, over, t) => {
+  const release = (at, over, t, where = null) => {
     const p = press;
     press = null;
-    emit('onRelease', { ...p.at, ...at, over, held: Math.round(Math.max(0, t - p.t)), pointerType: p.pointerType });
+    tell('onRelease', where, { ...p.at, ...at, over, held: Math.round(Math.max(0, t - p.t)), pointerType: p.pointerType });
   };
   return {
     down(p, e) {
@@ -70,7 +79,7 @@ export function gestures({ o, emit, listening, canvas }) {
       const at = toCanvas(p), t = e?.timeStamp ?? performance.now();
       press = { at, t, pointerType: e?.pointerType || 'mouse' };
       buzz(o, e);
-      emit('onPress', { ...at, pointerType: press.pointerType });
+      tell('onPress', p, { ...at, pointerType: press.pointerType });
     },
     move(p, e) {
       if (press) press.at = toCanvas(p);
@@ -79,14 +88,14 @@ export function gestures({ o, emit, listening, canvas }) {
       if (stroke && t - stroke.t < STROKE_MS) return;
       const dx = stroke ? at.x - stroke.at.x : 0, dy = stroke ? at.y - stroke.at.y : 0;
       stroke = { at, t };
-      emit('onStroke', { ...at, dx, dy, pressed: !!press, pointerType: e?.pointerType || 'mouse' });
+      tell('onStroke', p, { ...at, dx, dy, pressed: !!press, pointerType: e?.pointerType || 'mouse' });
     },
     out() { stroke = null; },
     /** the pointer went up somewhere; where() is its point on the canvas or null (a rect read only for a press) */
     up(e, where) {
       if (!press) return;
       const p = where();
-      release(p ? toCanvas(p) : {}, !!p, e?.timeStamp ?? performance.now());
+      release(p ? toCanvas(p) : {}, !!p, e?.timeStamp ?? performance.now(), p);
     },
     /** cancelled: a touch that became a scroll, the pointer leaving the window, the window losing focus */
     cancel() {
