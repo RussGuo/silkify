@@ -76,7 +76,8 @@
   import { HELP } from './lab-help.js';              // one line per option, from references/parameters.md
   import { pageHtml } from './lab-export.js';         // Download HTML: the page around the printed call
   import { recorder } from './lab-record.js';         // Record: a clip of the stage, square or 9:16
-  import { TEXT_START, TEXT_KEYS, LINE_HEIGHT, wordRows, stylesheetOf, useStylesheet, quote, onInk } from './lab-text.js';
+  import { TEXT_START, TEXT_KEYS, LINE_HEIGHT, wordRows, stylesheetOf, useStylesheet, onInk } from './lab-text.js';
+  import { GROUPS, BACKGROUNDS, cleanState, safeUrl, js } from './lab-state.js';   // what a link may set; values as code
 
   /* ============================================
    * The objects: the gallery's cards (same pictures, same options)
@@ -96,36 +97,9 @@
   };
 
   /* ============================================
-   * Every option, grouped as in SKILL.md. Ranges are SKILL's tuning ranges, widened to show the extremes, but
- * never past what still draws: satin above 1 overshoots into black, a threshold near 0 or 1 loses the outline,
- * and the number boxes clamp to the same range (a typed damping of 1.01 would blow the waves up).
-   *   [key, kind, ...]  kind: n (min, max, step) · c colour · d direction · b boolean · s select (choices)
-   * Keys in REBUILD need a new renderer (debounced); every other key goes through setTheme() live.
+   * Every option is in lab-state.js's GROUPS, with its control and range: [key, kind, ...]. Keys in REBUILD need a
+   * new renderer (debounced); every other key goes through setTheme() live.
    * ============================================ */
-  const GROUPS = [
-    ['Ripple', [
-      ['pressDepth', 'n', 0, 0.9, 0.01], ['pressDepthHold', 'n', 0, 1.2, 0.01], ['pressRadius', 'n', 0.02, 0.16, 0.005],
-      ['waveSpeed', 'n', 0.2, 1.98, 0.01], ['damping', 'n', 0.95, 0.9995, 0.0005], ['displace', 'n', 0, 0.9, 0.01], ['ripple', 'n', 0, 140, 1],
-    ]],
-    ['Material', [
-      ['sheen', 'n', 0, 2, 0.01], ['sheenPower', 'n', 2, 80, 1], ['sheenColor', 'c'], ['satin', 'n', 0, 1, 0.01],
-      ['albedo', 'c', true], ['grain', 'n', 0, 2, 0.01], ['grainScale', 'n', 1, 4, 0.1], ['gamma', 'n', 0.5, 1.6, 0.01], ['exposure', 'n', 0.2, 3, 0.01],
-      ['metallic', 'n', 0, 1, 0.01], ['anisotropy', 'n', 0, 1, 0.01], ['anisotropyAngle', 'n', -3.1416, 3.1416, 0.01], ['threads', 'n', 0, 1, 0.01],
-      ['rim', 'n', 0, 2, 0.01], ['rimPower', 'n', 0.5, 8, 0.1], ['rimColor', 'c', true],
-      ['iridescence', 'n', 0, 1, 0.01], ['silkRest', 'n', 0, 1, 0.01], ['silkSpread', 'n', 0.2, 4, 0.05],
-    ]],
-    ['Light', [
-      ['light', 'd'], ['lightColor', 'c'], ['satinLight', 'd'], ['floor', 'n', 0, 1, 0.01], ['volume', 'n', 0, 1, 0.01],
-      ['fillLight', 'b'], ['idleSweep', 'b'],
-    ]],
-    ['Motion', [['autoplay', 'auto'], ['breeze', 'n', 0, 1, 0.01]]],
-    ['Shape', [
-      ['shape', 's', ['image', 'sphere']], ['puff', 'puff'], ['matte', 's', ['auto', 'alpha', 'rect']],
-      ['corner', 'n', 0, 0.5, 0.01], ['threshold', 'n', 0.1, 0.9, 0.01], ['fit', 'n', 1, 2.2, 0.01],
-      ['phase', 'n', 0, 1, 0.005, true], ['bumpStrength', 'n', 0, 30, 0.5], ['spin', 'b'], ['spinSpeed', 'n', 0, 0.06, 0.001], ['angle', 'n', 0, 1, 0.01],
-    ]],
-    ['Runtime', [['interactive', 'b'], ['tier', 's', ['auto', 'high', 'low', 'static']], ['worker', 's', ['auto', false]]]],
-  ];
   const IMAGE_ONLY = new Set(['puff', 'matte', 'corner', 'threshold', 'fit', 'albedo', 'grain', 'grainScale']);
   const SPHERE_ONLY = new Set(['phase', 'bumpStrength', 'spin', 'spinSpeed', 'angle']);
   const REBUILD = new Set(['shape', 'puff', 'matte', 'corner', 'threshold', 'fit', 'angle', 'tier', 'worker', ...TEXT_KEYS]);
@@ -137,7 +111,7 @@
    * ============================================ */
   const qs = new URLSearchParams(location.search);
   const fresh = (obj = 'pomegranate') => ({ obj, url: null, material: 'silk', feel: 'silk', bg: 'stage',
-    set: { ...structuredClone(OBJECTS[obj]?.options || {}), ...(qs.get('tier') ? { tier: qs.get('tier') } : {}) } });
+    set: { ...structuredClone(OBJECTS[obj]?.options || {}), ...(['auto', 'high', 'low', 'static'].includes(qs.get('tier')) ? { tier: qs.get('tier') } : {}) } });
   let state = readHash() || fresh();
   let custom = null;                       // a dropped or pasted picture (a File or Blob); never uploaded, never in the link
 
@@ -155,13 +129,11 @@
     const b = btoa(unescape(encodeURIComponent(JSON.stringify(s)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     history.replaceState(null, '', `${location.pathname}${location.search}#${b}`);
   }
+  /** The link's state, kept to what the controls could have set (lab-state.js): a link is anyone's to make. */
   function readHash() {
     try {
       const b = location.hash.slice(1);
-      if (!b) return null;
-      const s = JSON.parse(decodeURIComponent(escape(atob(b.replace(/-/g, '+').replace(/_/g, '/')))));
-      const words = s?.obj !== 'text' || (typeof s.set?.text === 'string' && s.set.text.trim());   // silkify throws on no words
-      return s && typeof s.set === 'object' && (OBJECTS[s.obj] || s.url) && MATERIALS[s.material] && FEELS[s.feel] && words ? s : null;
+      return b ? cleanState(JSON.parse(decodeURIComponent(escape(atob(b.replace(/-/g, '+').replace(/_/g, '/'))))), OBJECTS) : null;
     } catch { return null; }
   }
 
@@ -390,13 +362,13 @@
     w1.append(s);
     const [r2, w2, main2] = row('URL');
     const url = main2(el('input', { type: 'text', placeholder: 'https://… (CORS)' }));
-    url.onchange = () => url.value && useUrl(url.value.trim());
+    url.onchange = () => { if (!url.value.trim()) return; if (safeUrl(url.value)) useUrl(url.value.trim()); else { url.value = ''; url.placeholder = 'an http(s) address of a picture'; } };
     const file = el('input', { type: 'file', accept: 'image/*', hidden: true });
     file.onchange = () => file.files[0] && useBlob(file.files[0]);
     w2.append(url, el('button', { textContent: 'File', onclick: () => file.click() }), file);
     const [r3, w3, main3] = row('background');
     const bg = main3(el('select'));
-    for (const v of ['stage', 'paper', 'white', 'black', 'checker']) bg.append(el('option', { value: v, textContent: v }));
+    for (const v of BACKGROUNDS) bg.append(el('option', { value: v, textContent: v }));
     bg.onchange = () => { state.bg = bg.value; sync(); writeHash(); };
     w3.append(bg);
     const local = el('p', { className: 'note', textContent: 'A local picture is never uploaded, so it is not in the link: the link opens the pomegranate with these settings.' });
@@ -459,16 +431,16 @@
     if (state.feel !== 'silk') lines.push(`feel: '${state.feel}'`);
     for (const [k, v] of Object.entries(state.set)) {
       if (TEXT_KEYS.includes(k)) continue;              // printed first, by textLines()
-      if (v !== undefined && !same(v, base[k])) lines.push(`${k}: ${JSON.stringify(v).replace(/"(\w+)":/g, '$1: ').replace(/,/g, ', ').replace(/"/g, "'")}`);
+      if (v !== undefined && !same(v, base[k])) lines.push(`${k}: ${js(v)}`);
     }
     return lines;
   }
   /** Words: text, font and colour always (they are the object), the line height when it is set. */
-  const textLines = () => TEXT_KEYS.filter((k) => state.set[k] !== undefined).map((k) => `${k}: ${k === 'lineHeight' ? state.set[k] : quote(state.set[k])}`);
+  const textLines = () => TEXT_KEYS.filter((k) => state.set[k] !== undefined).map((k) => `${k}: ${js(state.set[k])}`);
   function printed() {
     const o = OBJECTS[state.obj];
-    const lines = isText() ? textLines() : [`image: '${state.obj === 'custom' ? state.url || 'your-picture.png' : o.image}'`];
-    if (o?.bump) lines.push(`bump: '${o.bump}'`);
+    const lines = isText() ? textLines() : [`image: ${js(state.obj === 'custom' ? state.url || 'your-picture.png' : o.image)}`];
+    if (o?.bump) lines.push(`bump: ${js(o.bump)}`);
     return `silkify(canvas, {\n  ${[...lines, ...optionLines()].join(',\n  ')},\n});`;
   }
 
@@ -524,7 +496,9 @@
     state = { ...fresh('custom'), set: {}, obj: 'custom', url: null, material: state.material, feel: state.feel, bg: state.bg };
     commit({ remount: true });
   }
-  function useUrl(url) {
+  function useUrl(raw) {
+    const url = safeUrl(raw);                           // http(s), blob:, data:image/… or relative; nothing else
+    if (!url) return;
     custom = null;
     state = { ...state, obj: 'custom', url, set: {} };
     commit({ remount: true });

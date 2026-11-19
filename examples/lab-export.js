@@ -9,6 +9,8 @@
  * no server; the comment at its top says so, and points to copying src/ for a page that is published.
  */
 
+import { quote } from './lab-text.js';   // a literal nothing can break out of: the option lines use it too
+
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
 export const BACKGROUND = { stage: '#ebe6dc', paper: '#f3efe7', white: '#ffffff', black: '#000000', checker: '#f3efe7' };
 
@@ -20,8 +22,8 @@ export function pageHtml({ title, lines, picture, bump, sheet, silk, background,
   const consts = [
     ...(sheet ? [`const font = document.getElementById('font');      // the font's stylesheet first: silkify waits for the font itself`,
       `if (!font.sheet) await new Promise((r) => { font.onload = font.onerror = r; setTimeout(r, 3000); });`] : []),
-    ...(picture ? [`const PICTURE = '${picture}';`] : []),
-    ...(bump ? [`const BUMP = '${bump}';`] : []),
+    ...(picture ? [`const PICTURE = ${quote(picture)};`] : []),
+    ...(bump ? [`const BUMP = ${quote(bump)};`] : []),
   ];
   return `<!doctype html>
 <html lang="en">

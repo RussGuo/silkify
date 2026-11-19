@@ -64,8 +64,10 @@ export function useStylesheet(href) {
   return sheets.get(href);
 }
 
-/** A string as a single-quoted JavaScript literal, for the printed call: 'it\'s', 'two\nlines'. */
-export const quote = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/</g, '\\x3c')}'`;
+/** A string as a single-quoted JavaScript literal, for the printed call: 'it\'s', 'two\nlines'. Nothing in it can end
+ *  the literal (backslash, quote, line breaks, U+2028/2029) or a <script> around it (`<` becomes \x3c). */
+export const quote = (s) => `'${String(s).replace(/[\\'\n\r\u2028\u2029<]/g, (c) => ({ '\\': '\\\\', "'": "\\'", '\n': '\\n', '\r': '\\r', '<': '\\x3c' })[c]
+  ?? `\\u${c.charCodeAt(0).toString(16)}`)}'`;
 
 /* ============================================
  * The rows under Object → Words
