@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify options</title>
+<link rel="icon" href="data:,">
+<!--
+  options.html — options the use-case pages asked for (examples/demos/), run by scripts/shoot.mjs (verify-options.mjs).
+  It checks itself; verify-options.mjs adds what only a screenshot can see (a live canvas cannot be read back).
+    corner0   matte: 'rect' with corner: 0 is a square: the dome exists and its corners are inside (every pixel used to
+              sit exactly on the threshold, so nothing was inside and the mount failed); corner 0.06 still rounds them
+  window.__options = { out, problems, handles } at the end. Low tier: no idle sweep.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: rgb(240, 240, 240); }
+  .row { display: flex; gap: 16px; align-items: start; margin-bottom: 16px; }
+  canvas { display: block; }
+  .wide { width: 300px; height: 100px; }
+  .sq { width: 120px; height: 120px; }
+  #far { margin-top: 3000px; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="row"><canvas id="corner0" class="sq"></canvas></div>
+<script type="module">
+  import { silkify } from '../src/silk.js';
+  import { buildShape } from '../src/shape.js';
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (id) => document.getElementById(id);
+  const out = {}, problems = [], handles = {};
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...a) => { warned.push(a.join(' ')); };   // the one expected warning is counted here, not reported
+  /** A plain picture: one opaque colour, w × h. */
+  const solid = (w, h, color) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = color; g.fillRect(0, 0, w, h); return c; };
+  /** The colour at (fx, fy) of a 2D canvas (0–1), as [r, g, b, a]. */
+  const at = (canvas, fx, fy) => [...canvas.getContext('2d').getImageData(Math.min(canvas.width - 1, Math.floor(fx * canvas.width)), Math.min(canvas.height - 1, Math.floor(fy * canvas.height)), 1, 1).data];
+  const near = (p, q) => p.every((v, i) => Math.abs(v - q[i]) < 12);
+  const corners = [[0.01, 0.01], [0.99, 0.01], [0.01, 0.99], [0.99, 0.99]];
+
+  // ---- corner: 0 is a square ----
+  {
+    const pic = solid(200, 120, '#7a2a1c');
+    const s0 = buildShape(pic, { matte: 'rect', corner: 0 }), s6 = buildShape(pic, { matte: 'rect', corner: 0.06 });
+    // the silhouette is 2 / side of the domain wide (centred), its height × aspect: a point just inside its corner
+    const cornerUv = (s) => [0.5 - 0.98 / s.side, 0.5 - (0.98 * s.aspect) / s.side];
+    out.corner0 = { shape: !!s0, cornerInside: s0 ? s0.inside(...cornerUv(s0)) : null, rounded: s6 ? !s6.inside(...cornerUv(s6)) : null };
+    if (!s0) problems.push('corner0: buildShape() with corner 0 found nothing inside');
+    else if (!out.corner0.cornerInside) problems.push('corner0: the corner of a corner-0 rectangle is not inside');
+    if (!out.corner0.rounded) problems.push('corner0: corner 0.06 no longer rounds the corner');
+    const h = handles.corner0 = silkify($('corner0'), { image: pic, matte: 'rect', corner: 0, fit: 1, tier: 'low' });
+    await h.ready;
+    out.corner0.mode = h.mode;
+    if (h.mode !== 'webgl') problems.push(`corner0: silkify() with corner 0 is ${h.mode} (${h.reason})`);
+  }
+
+  console.warn = warn;
+  window.__options = { out, problems, handles };
+</script>
+</body>
+</html>

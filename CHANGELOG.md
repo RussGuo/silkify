@@ -37,6 +37,7 @@
 - **A lost WebGL context no longer leaves a blank or frozen canvas** (#6). Browsers take contexts back (a phone reclaiming GPU memory from a background tab, a driver reset, more contexts than they allow); nothing listened, so the canvas stayed blank (main thread) or frozen on its last frame (worker) and `mode` still said `'webgl'`. Now the object shows its poster or picture at once on a fresh canvas (a live element goes back to the page as plain HTML), `mode` turns `'static'` with a `reason`, and when the context is restored the renderer is rebuilt behind the still frame and `mode` is `'webgl'` again. Read `handle.canvas` after it: the element is replaced. `test/lost.html`, run by `scripts/shoot.mjs`, loses and restores the context (`WEBGL_lose_context`) for a picture in a worker, with a poster, on the main thread, for words and for a live element. references/performance.md describes the context budget.
 
 **Fixed**
+- **`corner: 0` is a square.** With `matte: 'rect'`, `corner: 0` put every pixel exactly on the outline, half covered, so none counted as inside and the mount failed with "nothing opaque in it" (the fabric use case had to write `corner: 0.002`). The rectangle's distance is now signed inside too; any corner of half a pixel or more draws exactly as before. `test/options.html` checks it.
 - **The Lab no longer shows options that do not apply.** A row marked hidden (the moon's phase, relief and spin for a picture) was still drawn, because the row's own CSS overrode `hidden`.
 
 Pictures look the same: the posters re-render byte for byte.

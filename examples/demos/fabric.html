@@ -187,8 +187,7 @@
 
   const section = document.getElementById('cloth');
   const SHEET = {
-    matte: 'rect', fit: 1, puff: 0.05,                             // one flat sheet, edge to edge
-    corner: 0.002,   // square, in effect; corner: 0 would leave every pixel exactly at the threshold, so nothing counts as inside
+    matte: 'rect', corner: 0, fit: 1, puff: 0.05,                  // one flat sheet, edge to edge, square corners
     anisotropy: 0.5, anisotropyAngle: Math.PI / 2,                // the sheen drawn out along vertical threads
     sheen: 0.35, sheenPower: 10, silkRest: 0.2, floor: 0.8, volume: 0.08,
     pressRadius: 0.03, displace: 0.22,

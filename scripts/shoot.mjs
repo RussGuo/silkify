@@ -9,7 +9,7 @@
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
  *   node scripts/shoot.mjs --browsers      # WebKit and Firefox (browsers.mjs; needs Playwright, see harness.mjs)
  *   node scripts/shoot.mjs --shots         # verify, and also rewrite docs/shots/<id>-rest.jpg
- *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost, pages, events)
+ *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost, pages, events, options)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
@@ -63,6 +63,7 @@ import { verifyTouch } from './verify-touch.mjs';
 import { verifyLabExtras } from './verify-lab.mjs';
 import { verifyPages } from './verify-pages.mjs';
 import { verifyEvents } from './verify-events.mjs';
+import { verifyOptions } from './verify-options.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'shots');
@@ -449,6 +450,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   if (!only || only === 'events') await verifyEvents({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, base, problems });
   if (!only || only === 'lab') await verifyLabExtras({ send, evaluate, navigate, sleep, diffOf, clipOf, openLab, stageRect, base, profile, problems });
   if (!only || only === 'pages') await verifyPages({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, on, base, problems });
+  if (!only || only === 'options') await verifyOptions({ send, evaluate, navigate, sleep, clipOf, base, profile, problems });
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */

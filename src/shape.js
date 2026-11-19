@@ -67,13 +67,14 @@ function makeMatte(pic, { matte, corner }) {
   for (let i = 3; i < a.length; i += 4) if (a[i] < 128) clear++;
   const mode = matte === 'auto' ? (clear > (w * h) / 200 ? 'alpha' : 'rect') : matte;
   if (mode === 'rect') {
-    // rounded rectangle with a one-pixel antialiased edge: an opaque picture becomes a cushion
+    // rounded rectangle with a one-pixel antialiased edge: an opaque picture becomes a cushion. The distance is signed
+    // inside too (the min(…, 0) term): with corner 0 every pixel would otherwise sit exactly on the edge, half covered,
+    // at the threshold, and nothing would count as inside. For r ≥ 0.5 px it changes no pixel
     const r = Math.max(0, corner) * Math.min(w, h);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        const qx = Math.max(Math.abs(x + 0.5 - w / 2) - (w / 2 - r), 0);
-        const qy = Math.max(Math.abs(y + 0.5 - h / 2) - (h / 2 - r), 0);
-        const d = Math.hypot(qx, qy) - r;           // signed distance to the rounded edge (px)
+        const px = Math.abs(x + 0.5 - w / 2) - (w / 2 - r), py = Math.abs(y + 0.5 - h / 2) - (h / 2 - r);
+        const d = Math.hypot(Math.max(px, 0), Math.max(py, 0)) + Math.min(Math.max(px, py), 0) - r;   // signed distance to the rounded edge (px)
         const cover = Math.min(1, Math.max(0, 0.5 - d));
         a[(y * w + x) * 4 + 3] = Math.round(a[(y * w + x) * 4 + 3] * cover);
       }

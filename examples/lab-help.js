@@ -42,7 +42,7 @@ export const HELP = {
   "breeze": "A slow drifting noise field keeps the whole surface faintly alive (0–1)",
   "puff": "`'dome'`, `'cushion'`, `'flat'` or a number",
   "matte": "`'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one",
-  "corner": "Corner radius of `'rect'`, as a fraction of the short side",
+  "corner": "Corner radius of `'rect'`, as a fraction of the short side; 0 is a square",
   "threshold": "Alpha that counts as inside",
   "fit": "Canvas extent ÷ object extent; leaves room for the bulge",
   "phase": "Lunar phase 0–1; overrides `light`",

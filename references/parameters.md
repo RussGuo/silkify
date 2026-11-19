@@ -53,7 +53,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | **Shape (image)** | | | |
 | `puff` | `'dome'` | `'dome'`, `'cushion'`, `'flat'` or a number (see step 2) | |
 | `matte` | `'auto'` | `'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one | |
-| `corner` | 0.06 | Corner radius of `'rect'`, as a fraction of the short side | |
+| `corner` | 0.06 | Corner radius of `'rect'`, as a fraction of the short side; 0 is a square | |
 | `threshold` | 0.5 | Alpha that counts as inside | |
 | `fit` | 1.3 | Canvas extent ÷ object extent; leaves room for the bulge | 1.15 is tight, 1.5 is airy |
 | **Shape (sphere)** | | | |
