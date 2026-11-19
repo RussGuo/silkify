@@ -19,7 +19,8 @@
  * --check fails when any of them differs from the sentence below by one character.
  *
  * The author's byline is kept the same way: AUTHOR below is written between `<!-- byline -->` and `<!-- /byline -->`
- * under the README titles, in the gallery's footer and in the Lab (which copies it into the HTML it downloads).
+ * under the README titles and the How it works page, in the gallery's footer and in the Lab (which copies it into the
+ * HTML it downloads).
  *
  * There is no ChatGPT custom GPT any more: OpenAI retires custom GPTs on 2026-12-11, and the ChatGPT desktop app
  * reads skills like Codex does (the same clone of this repository).
@@ -63,7 +64,8 @@ const SLOTS = [
   ['examples/lab.html', 'en', /(<button id="install"[^>]*? data-install=")([^"]*)(")/],
 ];
 /** Who made silkify: the name and the links, in this one place. Written into every page the work travels with (a
- *  line under the README titles, the gallery's footer, the Lab, which copies it into the files it downloads); add a
+ *  line under the README titles and How it works, the gallery's footer, the Lab, which copies it into the files it
+ *  downloads); add a
  *  second link (X, a site) here and every page follows. Links after the first are listed after the name. */
 const AUTHOR = { name: 'Russ Guo', links: [['GitHub', 'https://github.com/RussGuo']] };
 const byline = (lead) => `${lead}<a href="${AUTHOR.links[0][1]}">${AUTHOR.name}</a>`
@@ -73,6 +75,7 @@ const BYLINE = { en: byline('Made by '), zh: byline('作者：') };
 const BYLINE_SLOT = /(<!-- byline -->)([^\n]*?)(<!-- \/byline -->)/;
 const BYLINES = [
   ['README.md', 'en'], ['README.zh-CN.md', 'zh'], ['examples/index.html', 'en'], ['examples/lab.html', 'en'],
+  ['references/how-it-works.md', 'en'], ['references/how-it-works.zh-CN.md', 'zh'],
 ];
 const REFERENCES = [
   ['references/parameters.md', 'Parameters', 'every option with its default and tuning range, the material and feel presets, recipes from the gallery'],
@@ -237,8 +240,10 @@ ${REFERENCES.map(([f, name, what]) => `- [${name}](${RAW}${f}): ${what}`).join('
 
 ## Optional
 
-- [README](${RAW}README.md): overview, gallery, how it works, performance
+- [README](${RAW}README.md): overview, install, the 30-second start, materials and feels, gallery, browsers and fallbacks
 - [README (简体中文)](${RAW}README.zh-CN.md)
+- [How it works](${RAW}references/how-it-works.md): from a picture to silk (Poisson dome, waves, lighting), and what it costs
+- [Contributing](${RAW}CONTRIBUTING.md): the rules for a change, and the repository's layout
 - [Changelog](${RAW}CHANGELOG.md): what changed in each release, and what a version tag promises
 - [Image credits](${RAW}examples/CREDITS.md)
 `;

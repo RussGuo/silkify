@@ -57,8 +57,8 @@ A lifted finger, a cancelled touch, or a pointer leaving the window ends "hoveri
 v0.2.0 probed WebGL2 by creating a throwaway context on the main thread at load: 15–240 ms on a real GPU, 2.5 s per probe on SwiftShader. v0.2.1 probes the canvas's own context inside the worker.
 
 Measured separately, because Lighthouse never touches the page:
-- **Main-thread long tasks while one card mounts** (headed Chrome, real GPU, 3 runs): none in a worker; 57–59 ms with `worker: false`.
-- **Frames drawn at rest:** 0 in 10 s (`scripts/shoot.mjs`, the Lab in the low tier), and 0 in 3 s with the pointer moving and held elsewhere on the page.
+- **Main-thread long tasks while one card mounts** (headed Chrome, real GPU, 3 runs): none in a worker; 57–59 ms with `worker: false`. The same in v0.2.0 and v0.2.1.
+- **Frames drawn at rest:** 0 in 10 s (`scripts/shoot.mjs`, the Lab in the low tier), in v0.2.0 and v0.2.1 alike, and 0 in 3 s with the pointer moving and held elsewhere on the page (measured on v0.2.1).
 - **GPU buffers** (estimate, 373 px card at ratio 2): ≈ 5 MB per live object, at most 3 live, 0 until touched.
 
 **Live HTML (`element`).** The element is printed again only when its rendering changes: the browser fires a `paint` event on the canvas for a change of text, style, layout, focus, hover or selection, and for the caret blinking in a focused editable line (about twice a second). Each paint is one snapshot: captured on the page and transferred to the worker (`captureElementImage`), or uploaded from the element directly on the main thread, then mipmapped, then one frame is drawn. Nothing changes, no paint, no frame: a resting card draws 0 frames, like a resting picture (`scripts/shoot.mjs` checks it: one change, one snapshot, one frame, then 0 frames). Hit geometry is set on mount and when the canvas or the element changes size, never per frame; an element that changes size rebuilds its dome (a new stand-in, the same WebGL context).

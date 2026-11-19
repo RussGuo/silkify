@@ -19,15 +19,6 @@
 
 它由两部分组成：一个小巧的 WebGL 库（基于 [three.js](https://threejs.org) 的一个 ES module），和一个 [Agent Skill](SKILL.md)。后者教任何编码 Agent 抠图、把轮廓吹成穹面，再嵌进任意页面。
 
-## 它不是什么
-
-- **不是视频或 GIF 生成器。** 它是网页上实时运行的 WebGL；下面的 GIF 是本仓库的脚本录下来的屏幕录像。
-- **不是 3D 模型。** 轮廓被吹鼓成一块从正面看的浮雕，更像软垫而不是雕塑，不能转到侧面去看（月球是唯一真正的球）。
-- **条件不够时只有一张静态图。** 没有 WebGL2、系统设置了减少动态效果、开了省流量，或者设备太弱，访客看到的就是一张静止的图。
-- **手机上只能点按和横向划动**，而且走的是轻量档；竖着划会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
-- **体积不小。** 第一个物体开始动之前，要先加载整个 three.js（1.2 MB，压缩后约 240 KB）：从你自己的服务器或打包产物里加载，选了 CDN 就从 CDN 加载。
-- **不是抠图工具。** 背景杂乱的照片要先自己准备好抠好的 PNG；[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
-
 ## 一句话安装
 
 把下面这句话复制给你的编码 Agent（Claude Code、Codex、Cursor、Copilot、Gemini CLI，或者别的能装 skill 的 Agent），它会自己把 silkify 装好：
@@ -60,33 +51,6 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md
 
 </details>
 
-## 画廊
-
-下面每一帧都是 [`examples/index.html`](examples/index.html) 在无头 Chrome 里的真实渲染，由 [`scripts/shoot.mjs`](scripts/shoot.mjs) 录制。左列是未被触碰的静止状态，右列是 2.8 秒的循环：指针划过、短按一下、涟漪慢慢消退。想亲手摸一摸，请打开[在线画廊](https://russguo.github.io/silkify/examples/)。
-
-| | 静止 | 触碰（2.8 秒循环） |
-|---|---|---|
-| **蒙娜丽莎**：做成丝绸软垫 | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="静止的蒙娜丽莎"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="起涟漪的蒙娜丽莎"> |
-| **石榴**：美国农业部果树水彩，1920 | <img src="docs/shots/pomegranate-rest.jpg" width="300" alt="静止的石榴"> | <img src="docs/shots/pomegranate-ripple.gif" width="300" alt="起涟漪的石榴"> |
-| **月球**：NASA LRO 色彩与高程图贴在球面上，盈凸月 | <img src="docs/shots/moon-rest.jpg" width="300" alt="静止的月球"> | <img src="docs/shots/moon-ripple.gif" width="300" alt="起涟漪的月球"> |
-| **野兔**：丢勒，1502 | <img src="docs/shots/hare-rest.jpg" width="300" alt="静止的野兔"> | <img src="docs/shots/hare-ripple.gif" width="300" alt="起涟漪的野兔"> |
-| **茶壶**：铁皮与藤编，英格兰，约 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="静止的茶壶"> | <img src="docs/shots/teapot-ripple.gif" width="300" alt="起涟漪的茶壶"> |
-| **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
-| **鸟形摆件**：黄金、珐琅与宝石，印度，可能为 18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鸟形摆件"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鸟形摆件"> |
-| **一滴墨**：FateTell 标识，墨色加细颗粒 | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="静止的墨滴"> | <img src="docs/shots/ink-drop-ripple.gif" width="300" alt="起涟漪的墨滴"> |
-
-示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在高档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
-
-**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里，silk.js 和 three.js 从 jsDelivr 加载）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
-
-<img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
-
-在本地运行画廊：在仓库根目录起一个静态服务器，再打开 `/examples/`。
-
-```bash
-npx serve .            # 或：python3 -m http.server
-```
-
 ## 30 秒上手
 
 先把 `src/` 文件夹拷进项目，起名 `silk/`，再装上 three（`npm i three`），然后：
@@ -109,8 +73,29 @@ npx serve .            # 或：python3 -m http.server
 没地方放文件（比如 CodePen、只有一个 HTML 文件）？那就改成从 `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js` 引入，`three` 映射到 `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`；这样页面就得靠 jsDelivr 了（细节见 [SKILL.md](SKILL.md#get-the-code)）。
 
 - **图片没有透明底？** 运行 `python3 scripts/cutout.py photo.jpg out.png` 抠掉纯色背景；或者保留整张矩形，让 silkify 把它做成软垫。
-- **用 React？** 组件写法见 [SKILL.md](SKILL.md#react-and-nextjs)。
 - **在 Agent 里用？** 见[一句话安装](#一句话安装)。
+
+**用 React**（Next.js 也一样）：画布在 effect 里自己创建，不交给 React 渲染，因为 silkify 可能把它转交给 Worker。
+
+```jsx
+'use client';                                           // Next.js app router; harmless elsewhere
+import { useEffect, useRef } from 'react';
+import { silkify } from './silk/silk.js';               // src/ copied there; `npm i three`
+
+export default function Silk({ src, options, className, style }) {
+  const box = useRef(null);
+  useEffect(() => {
+    const canvas = document.createElement('canvas');    // made here, not by React: silkify may transfer or swap it
+    canvas.style.cssText = 'display:block;width:100%;height:100%';
+    box.current.append(canvas);
+    const silk = silkify(canvas, { image: src, ...options });
+    return () => { silk.dispose(); silk.canvas.remove(); };
+  }, [src]);                                            // options are read once; use silk.setTheme() to change them live
+  return <div ref={box} className={className} style={{ aspectRatio: '1', touchAction: 'pan-y', ...style }} aria-hidden />;
+}
+```
+
+背后的规则见 [SKILL.md](SKILL.md#react-and-nextjs)；`examples/react` 和 `examples/next` 是能直接跑的工程。
 
 `silkify()` 会立即返回一个句柄：
 
@@ -121,41 +106,25 @@ silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```
 
-## 活 HTML
+## 材质与手感
 
-印在丝绸上的也可以是页面里的一段 HTML，而不是一张图片。在支持 HTML-in-Canvas 的浏览器里（Chrome 157 起），silkify 把一个真实的元素印在绸面上，它仍然是 HTML：字能选中、复制，能被浏览器的查找找到，链接能点，按钮能按，能输入，能滚动，读屏软件照常朗读。摸一下，它照样凹陷、起涟漪。可以去[在线画廊](https://russguo.github.io/silkify/examples/)的最后一张卡片试，或者打开 [examples/live.html](examples/live.html)。
-
-```html
-<div style="position: relative; display: grid; place-items: center; min-height: 480px">
-  <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
-  <article id="card" style="position: relative; box-sizing: border-box; width: min(420px, 100% - 32px); padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
-</div>
-<script type="importmap">
-  { "imports": { "three": "./node_modules/three/build/three.module.js" } }
-</script>
-<script type="module">
-  import { silkify } from './silk/silk.js';
-  silkify(document.getElementById('silk'), { element: '#card' });
-</script>
-```
+大多数效果两个词就能定：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
 
 | | |
 |---|---|
-| <img src="docs/shots/live/chrome157-gpu-selected.jpg" width="360" alt="Chrome 157 里印在绸面上的 HTML 卡片，选中了一行字"> | <img src="docs/shots/live/chrome157-gpu-ripple.jpg" width="360" alt="同一张卡片在指针下起涟漪，最后一行里输入了文字"> |
-| Chrome 157，真 GPU：在绸面上选中文字 | 同一张卡片，在最后一行输入之后被触碰 |
+| <img src="docs/shots/lab/material-foil.jpg" width="400" alt="箔面石榴，静止与刚被触碰"> | <img src="docs/shots/lab/material-velvet.jpg" width="400" alt="丝绒石榴，静止与刚被触碰"> |
+| `material: 'foil'`，左边静止，右边刚被触碰 | `material: 'velvet'` |
+| <img src="docs/shots/lab/material-wet.jpg" width="400" alt="湿润的石榴，静止与刚被触碰"> | <img src="docs/shots/lab/feel-jelly.jpg" width="400" alt="果冻手感的石榴，触碰后 0.15 秒与 0.9 秒"> |
+| `material: 'wet'` | `feel: 'jelly'`，触碰后 0.15 秒和 0.9 秒 |
 
-- **浏览器。** 活 HTML 需要 HTML-in-Canvas，Chrome 从 157 版开始提供。silkify 只检测这个特性本身，不看浏览器的名字。其他浏览器（Safari、Firefox、更早的 Chrome）里，以及系统开启了「减弱动态效果」时，元素就留在原处，是普通的 HTML：退路不用另写，控制台也不输出任何东西。
-- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上；原处留着一个同样大小、看不见的占位，页面排版不变。所以退路和活起来的卡片看起来一样，活起来的那一刻不会跳动。元素比画布大时，会缩到能放下，并用一条 `console.warn` 说明。想放大或缩小，传 `fit`，它就像图片一样缩放，不会提示。
-- **轮廓就是元素自己的盒子。** 元素的背景和 `border-radius` 就是绸面的形状；`matte`、`threshold`、`corner`、`albedo`、`grain`、`poster` 会被忽略。`material`、`feel` 以及所有光照和涟漪参数照常起作用；`puff` 默认为 `'cushion'`。
-- **静止时零开销。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧（这时 `stats().mode` 是 `'html'`，一秒内没有变化才回到 `'rest'`）。在真 GPU 上实测每次约 2 ms 的 GPU 工作，90 分位约 5 ms（见 [references/performance.md](references/performance.md)）。
-- **无障碍。** 元素一直在页面的无障碍树里。元素在画布里的时候，silkify 会去掉画布上的 `aria-hidden`（否则元素也会被一起藏掉），之后再放回去。
-- **限制。** 浏览器从不把跨源的图片和 iframe、`:visited` 样式、拼写标记画进快照；输入法的候选框是系统自己的窗口，由浏览器定位。不要在元素里放持续的动画（它的每一帧都是一张快照）。给元素用它自己的 id 或 class 写样式，因为活起来时它会被移进画布；画布上的 `user-select` 也不要关掉。元素里 `position: fixed` 的子元素，活起来时相对画布定位，退路下相对视口定位，两边位置不同，所以不要在元素里放固定定位的子元素。
+**[打开 Lab 调参页 →](https://russguo.github.io/silkify/examples/lab.html)** 所有参数都在一页上：拖滑杆，物体当场变；选一个 `material` 和一个 `feel`；不动鼠标也能用 Touch / Stroke 看手感，按住 B 与默认对比；拖入自己的图片；再一键复制参数、分享链接（完整状态都在网址里），或者下载成一个双击就能打开的 HTML 文件（图片内嵌在文件里，silk.js 和 three.js 从 jsDelivr 加载）。每个预设的效果图在 [docs/shots/lab](docs/shots/lab)。
 
-React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `SilkHtml` 会把它的子元素印在绸面上。规则见 [SKILL.md](SKILL.md#step-5-optional-live-html-instead-of-a-picture)。
+<img src="docs/shots/lab/lab.jpg" width="640" alt="silkify Lab：一只箔面茶壶，旁边是全部参数">
 
-## 参数速查
+<details>
+<summary>全部参数一览</summary>
 
-大多数效果两个词就能定：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
+<br>
 
 | 分组 | 参数（默认值） |
 |---|---|
@@ -171,94 +140,85 @@ React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `Si
 
 每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方在 [references/parameters.md](references/parameters.md)，常见问题排查在 [references/troubleshooting.md](references/troubleshooting.md)。
 
-## 原理
+</details>
 
-```mermaid
-flowchart LR
-  A[PNG 透明通道] --> B[泊松穹面]
-  B --> C[波动模拟]
-  C --> D[位移与法线]
-  D --> E[Lommel–Seeliger]
-  E --> F[只在涟漪处显出丝绸]
-```
+## 画廊
 
-1. **轮廓 → 穹面。** 透明通道给出轮廓；不透明的图片当作圆角矩形。在轮廓内解泊松方程 ∇²u = −1（轮廓上 u = 0），高度取 2√u。对圆盘，这恰好是半球。细的部分鼓得低，中轴上也不会像距离场那样折出一道棱。月球跳过这一步，直接用真球。
-2. **波动。** 阻尼波动方程在两张半浮点渲染目标上 ping-pong 交替运行：r 通道存高度，g 通道存速度。指针在上面压出凹坑。图片模式下轮廓外恒为零，所以波在轮廓处反射，轮廓本身永远不动。
-3. **位移与法线。** 高度场推动表面：球体沿法线，图片沿视线方向，所以轮廓不会折叠。涟漪斜率叠加到法线上；图片模式下再乘以 n.z，这对高度场是精确叠加，并在轮廓处自然归零。
-4. **哑光的光照模型。** 用 Lommel–Seeliger 光照，也就是月壤的背散射模型。受光面几乎是平的，所以图片看上去还是它本来的样子；明暗交界利落，背光面留有最低亮度，不会黑成一个洞。补光跟着指针走，用临界阻尼的弹簧去追，所以不会抖；没人碰时它慢慢扫一圈。
-5. **只在被触碰处显出丝绸。** 缎面叠加与柔和高光都随局部涟漪能量缩放。静止时能量为零，物体就是一张照片；起涟漪的地方变成丝绸，两种材质之间是连续过渡，没有生硬的切换。
+下面每一帧都是 [`examples/index.html`](examples/index.html) 在无头 Chrome 里的真实渲染，由 [`scripts/shoot.mjs`](scripts/shoot.mjs) 录制。左列是未被触碰的静止状态，右列是 2.8 秒的循环：指针划过、短按一下、涟漪慢慢消退。想亲手摸一摸，请打开[在线画廊](https://russguo.github.io/silkify/examples/)。
 
-## 性能
-
-silkify 默认在 **Web Worker** 里的 OffscreenCanvas 上渲染。three.js 的执行、图片解码、泊松求解、着色器编译和每一帧的绘制都不占主线程。Worker 渲染不了就退到主线程；没有 WebGL2 就只画一张静态图。
-
-| 档 | 何时 | 做什么 |
+| | 静止 | 触碰（2.8 秒循环） |
 |---|---|---|
-| `high` 高 | 桌面级设备 | 像素比最高 2，模拟最多 256 格，网格最多 240 段；闲置时补光扫一圈，然后停止渲染 |
-| `low` 低 | 以触屏为主、屏幕长边小于 1024、CPU 不超过 4 核、内存不超过 4 GB，或者是软件光栅 | 像素比 1，模拟最多 128 格，网格最多 120 段；只在有人交互的前后才渲染 |
-| `static` 静态 | 系统要求减少动态效果、省流量模式、2G 网络、设备太弱，或没有 WebGL2 | 不加载 three.js，只把 `poster`（或原图）画一次 |
+| **蒙娜丽莎**：做成丝绸软垫 | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="静止的蒙娜丽莎"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="起涟漪的蒙娜丽莎"> |
+| **石榴**：美国农业部果树水彩，1920 | <img src="docs/shots/pomegranate-rest.jpg" width="300" alt="静止的石榴"> | <img src="docs/shots/pomegranate-ripple.gif" width="300" alt="起涟漪的石榴"> |
+| **月球**：NASA LRO 色彩与高程图贴在球面上，盈凸月 | <img src="docs/shots/moon-rest.jpg" width="300" alt="静止的月球"> | <img src="docs/shots/moon-ripple.gif" width="300" alt="起涟漪的月球"> |
+| **野兔**：丢勒，1502 | <img src="docs/shots/hare-rest.jpg" width="300" alt="静止的野兔"> | <img src="docs/shots/hare-ripple.gif" width="300" alt="起涟漪的野兔"> |
+| **茶壶**：铁皮与藤编，英格兰，约 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="静止的茶壶"> | <img src="docs/shots/teapot-ripple.gif" width="300" alt="起涟漪的茶壶"> |
+| **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
+| **鸟形摆件**：黄金、珐琅与宝石，印度，可能为 18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鸟形摆件"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鸟形摆件"> |
+| **一滴墨**：FateTell 标识，墨色加细颗粒 | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="静止的墨滴"> | <img src="docs/shots/ink-drop-ripple.gif" width="300" alt="起涟漪的墨滴"> |
 
-档位在挂载时只判断一次；`tier` 参数可以强制指定。
-- **分辨率跟着物体在屏幕上的大小走。** 模拟网格、几何网格和贴图都按它实际占多少像素来定；模拟格子变粗时，求解器会折算常数、每帧多走几步，所以凹坑和波纹相对物体的大小与快慢不变。
-- **不开 MSAA，也不要深度与模板缓冲。** 这个画面用不上它们，而像素比 2 时每块画布要为此多占约 18 MB。
-- **不需要画的时候就不画：**
-  - 被触碰时和碰后 8 秒内按 60 fps 渲染；
-  - 之后降到 12 fps 把余波算完，到第 20 秒清零；
-  - 再往后一帧都不画；
-  - 手指抬起就不再算悬停；指针在页面别处移动或按住，不会唤醒物体；
-  - 波动求解固定每秒 60 步，30、60、120 Hz 的屏幕上涟漪一样快；
-  - `breeze`（微风）与 `autoplay`（自动落滴）默认关闭，因为开了就得一直画：微风在可见时保持 30 fps，每落一滴都会把物体唤醒；
-  - 离开视口或标签页切到后台就停；
-  - GPU 跟不上时，像素比自动从 2 降到 1.5，再降到 1。
+示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在高档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
 
-画廊演示了「一页多个物体」的做法：
-- 每张卡片先显示一张懒加载的 WebP **静态图**，就是渲染器画出来的静止画面，分 1x 与 2x 两档。
-- 第一次被碰到时才挂载实时渲染，滚出视口就释放。
-- 同时最多 3 个实时渲染。
+在本地运行画廊：在仓库根目录起一个静态服务器，再打开 `/examples/`。
 
-画廊实测（全程不碰任何卡片，所以每张卡都还是静态图）：Lighthouse 12.8.2，移动预设（模拟 CPU 4 倍降速），3 次取中位数，Chrome 156，Apple M1 Pro。「真 GPU」指有界面的 Chrome 走 Metal；SwiftShader 是无头 Chrome 与 CI 用的软件 GPU。
-
-| | v0.2.0 | v0.2.1 |
-|---|---|---|
-| 性能分，真 GPU / SwiftShader | 100 / 69 | **100 / 99** |
-| TBT（总阻塞时间），真 GPU / SwiftShader | 14 ms / 9,744 ms | **0 ms / 0 ms** |
-| 主线程总耗时，真 GPU / SwiftShader | 0.25 s / 10.2 s | **0.18 s / 0.16 s** |
-| 传输字节 | 0.48 MB | 0.49 MB |
-| CLS（累计布局偏移） | 0 | 0 |
-| 挂载一张卡时主线程的长任务（真 GPU） | Worker 里没有；主线程渲染时 57 ms | 同左 |
-| 静止 10 秒画的帧数 | 0 | 0，指针在页面别处移动时也是 0 |
-
-v0.2.0 加载时会在主线程临时建一个 WebGL 上下文来探测 WebGL2，软件 GPU 上这一步要花好几秒；v0.2.1 改成在 Worker 里用画布自己的上下文探测。最后两行是脚本在有界面的 Chrome 里量的，因为 Lighthouse 不会去碰页面。细节见 [references/performance.md](references/performance.md)。
-
-## 仓库结构
-
+```bash
+npx serve .            # 或：python3 -m http.server
 ```
-SKILL.md            Agent Skill：取得代码（拷贝 src/，或走 CDN）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
-references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节
-CHANGELOG.md        每个版本改了什么，以及版本 tag 承诺什么（看重完整性时钉 commit）
-src/silk.js         入口：分档，Worker → 主线程 → 静态图三级退路，转发指针事件
-src/core.js         渲染器本体，不碰 DOM（peer 依赖：three ≥ 0.152.2）
-src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
-src/worker.js       Web Worker 入口
-src/presets.js      material 与 feel 预设：纯参数片段
-src/tier.js         设备分档与按屏幕尺寸取分辨率
-src/shape.js        轮廓 → 泊松穹面，纯数组，不依赖 three.js
-src/live.js         活 HTML 的页面一侧：特性检测、元素的替身图、在页面里占住原位、快照、命中几何、退回普通 HTML
-scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
-scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab、test/edge.html 与活 HTML）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
-scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt；两份 README、画廊和 Lab 里的那句安装指令也由它写入（--check 查漂移）
-scripts/browsers.mjs             shoot.mjs --browsers：WebKit 与 Firefox，同源与跨源（Playwright）
-scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）
-scripts/harness.mjs              各检查脚本共用的静态服务器与 Playwright 加载
-examples/           画廊、Lab 调参页、活 HTML 示例 live.html、CDN 用法的测试页 cdn.html（都是静态页面，GitHub Pages）、WebP 图片与静态帧、图片来源说明
-examples/react, examples/next    带 React 组件的最小 Vite 与 Next.js 工程（图片用 Silk，活 HTML 用 SilkHtml）
-test/edge.html      曾经静默失败的情形：SVG、空图或缺图、加载中的调用
-test/live-edge.html 活 HTML 在常见布局下：卡片撑起舞台、卡片比画布大、SKILL.md 的片段在 375 px 宽下
-integrations/       生成物：Cursor rule 与按路径生效的 Copilot instructions
-AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 格式的索引
-.claude-plugin/     插件 marketplace 清单（Skill 本体是根目录的 SKILL.md）
-.github/            CI（build:integrations --check、shoot.mjs、--cdn、--browsers、frameworks.mjs）与 issue 模板
+
+## 活 HTML
+
+印在丝绸上的也可以是页面里的一段 HTML，而不是一张图片。在支持 HTML-in-Canvas 的浏览器里（Chrome 157 起），silkify 把一个真实的元素印在绸面上，它仍然是 HTML：字能选中、复制，能被浏览器的查找找到，链接能点，按钮能按，能输入，能滚动，读屏软件照常朗读。摸一下，它照样凹陷、起涟漪。可以去[在线画廊](https://russguo.github.io/silkify/examples/)的最后一张卡片试，或者打开 [examples/live.html](examples/live.html)。
+
+| | |
+|---|---|
+| <img src="docs/shots/live/chrome157-gpu-selected.jpg" width="360" alt="Chrome 157 里印在绸面上的 HTML 卡片，选中了一行字"> | <img src="docs/shots/live/chrome157-gpu-ripple.jpg" width="360" alt="同一张卡片在指针下起涟漪，最后一行里输入了文字"> |
+| Chrome 157，真 GPU：在绸面上选中文字 | 同一张卡片，在最后一行输入之后被触碰 |
+
+<details>
+<summary>代码，以及用之前要知道的事</summary>
+
+<br>
+
+```html
+<div style="position: relative; display: grid; place-items: center; min-height: 480px">
+  <canvas id="silk" style="position: absolute; inset: 0; width: 100%; height: 100%"></canvas>
+  <article id="card" style="position: relative; box-sizing: border-box; width: min(420px, 100% - 32px); padding: 24px; border-radius: 20px; background: #fbf7ef">…</article>
+</div>
+<script type="importmap">
+  { "imports": { "three": "./node_modules/three/build/three.module.js" } }
+</script>
+<script type="module">
+  import { silkify } from './silk/silk.js';
+  silkify(document.getElementById('silk'), { element: '#card' });
+</script>
 ```
+
+- **浏览器。** 活 HTML 需要 HTML-in-Canvas，Chrome 从 157 版开始提供。silkify 只检测这个特性本身，不看浏览器的名字。其他浏览器（Safari、Firefox、更早的 Chrome）里，以及系统开启了「减弱动态效果」时，元素就留在原处，是普通的 HTML：退路不用另写，控制台也不输出任何东西。
+- **1:1。** 元素按自己的尺寸，画在页面排版给它的位置上；原处留着一个同样大小、看不见的占位，页面排版不变。所以退路和活起来的卡片看起来一样，活起来的那一刻不会跳动。元素比画布大时，会缩到能放下，并用一条 `console.warn` 说明。想放大或缩小，传 `fit`，它就像图片一样缩放，不会提示。
+- **轮廓就是元素自己的盒子。** 元素的背景和 `border-radius` 就是绸面的形状；`matte`、`threshold`、`corner`、`albedo`、`grain`、`poster` 会被忽略。`material`、`feel` 以及所有光照和涟漪参数照常起作用；`puff` 默认为 `'cushion'`。
+- **静止时零开销。** 只有元素的画面变了（文字、样式、悬停、选中、光标闪烁），才重新印一次：每次一张快照、一帧（这时 `stats().mode` 是 `'html'`，一秒内没有变化才回到 `'rest'`）。在真 GPU 上实测每次约 2 ms 的 GPU 工作，90 分位约 5 ms（见 [references/performance.md](references/performance.md)）。
+- **无障碍。** 元素一直在页面的无障碍树里。元素在画布里的时候，silkify 会去掉画布上的 `aria-hidden`（否则元素也会被一起藏掉），之后再放回去。
+- **限制。** 浏览器从不把跨源的图片和 iframe、`:visited` 样式、拼写标记画进快照；输入法的候选框是系统自己的窗口，由浏览器定位。不要在元素里放持续的动画（它的每一帧都是一张快照）。给元素用它自己的 id 或 class 写样式，因为活起来时它会被移进画布；画布上的 `user-select` 也不要关掉。元素里 `position: fixed` 的子元素，活起来时相对画布定位，退路下相对视口定位，两边位置不同，所以不要在元素里放固定定位的子元素。
+
+React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `SilkHtml` 会把它的子元素印在绸面上。规则见 [SKILL.md](SKILL.md#step-5-optional-live-html-instead-of-a-picture)。
+
+</details>
+
+## 浏览器与退路
+
+- **有 WebGL2 的地方就实时渲染，而且不占主线程。** silkify 默认在 Web Worker 里的 OffscreenCanvas 上渲染，three.js 的执行、图片解码、泊松求解、着色器编译和每一帧的绘制都不占主线程；Worker 渲染不了就退到主线程。体积不小：第一个物体开始动之前，要先加载整个 three.js（1.2 MB，压缩后约 240 KB），从你自己的服务器或打包产物里加载，选了 CDN 就从 CDN 加载。
+- **条件不够时只有一张静态图。** 没有 WebGL2、系统开启了「减弱动态效果」、开了省流量，或者设备太弱，访客看到的就是一张静止的图。手机上只能点按和横向划动，而且走的是轻量档；竖着划会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
+- **它不是什么。** 不是视频或 GIF 生成器：它是网页上实时运行的 WebGL，上面的 GIF 是本仓库的脚本录下来的屏幕录像。不是 3D 模型：轮廓被吹鼓成一块从正面看的浮雕，更像软垫而不是雕塑，不能转到侧面去看（月球是唯一真正的球）。也不是抠图工具：背景杂乱的照片要先自己准备好抠好的 PNG，[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
+
+## 更多
+
+- [参数](references/parameters.md)：每个参数、各个预设、画廊里用到的配方（英文）
+- [性能](references/performance.md)：分档、什么时候停止渲染、一页多个物体、实测数据（英文）
+- [常见问题](references/troubleshooting.md)：症状、原因与解决办法（英文）
+- [活 HTML](SKILL.md#step-5-optional-live-html-instead-of-a-picture)：完整规则在 SKILL.md 第 5 步（英文）
+- [原理](references/how-it-works.zh-CN.md)：一张图怎么变成丝绸，以及要花多少性能
+- [参与贡献](CONTRIBUTING.zh-CN.md)：改动要守的规矩，以及仓库结构
+- [更新日志](CHANGELOG.md)：每个版本改了什么，以及版本 tag 承诺什么（英文）
 
 ## 致谢
 
@@ -267,3 +227,4 @@ AGENTS.md, llms.txt 生成物：给读 AGENTS.md 的 Agent，以及 llmstxt.org 
 ## 许可证
 
 代码采用 [MIT](LICENSE) 许可证，© 2026 Guo Hao。示例图片各自保留原有条款：除 FateTell 标识外，均为公有领域或 CC0；FateTell 标识 © FateTell 保留所有权利，不在 MIT 之内（见 [LICENSE](LICENSE) 末尾的例外条款与 [CREDITS](examples/CREDITS.md)）。
+

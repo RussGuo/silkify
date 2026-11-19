@@ -31,7 +31,9 @@ An agent installs the skill by following this instruction: Install the silkify a
 
 ## Optional
 
-- [README](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/README.md): overview, gallery, how it works, performance
+- [README](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/README.md): overview, install, the 30-second start, materials and feels, gallery, browsers and fallbacks
 - [README (简体中文)](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/README.zh-CN.md)
+- [How it works](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/references/how-it-works.md): from a picture to silk (Poisson dome, waves, lighting), and what it costs
+- [Contributing](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/CONTRIBUTING.md): the rules for a change, and the repository's layout
 - [Changelog](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/CHANGELOG.md): what changed in each release, and what a version tag promises
 - [Image credits](https://raw.githubusercontent.com/RussGuo/silkify/v0.3.0/examples/CREDITS.md)
