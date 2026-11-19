@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify first touch</title>
+<link rel="icon" href="data:,">
+<!--
+  first-touch.html — the pointer of the loading time (issue #1, #2), run by scripts/shoot.mjs. Each case calls
+  silkify() and, while its renderer is still loading, does what a visitor does: hovers, strokes across and leaves,
+  taps with a finger, holds a mouse button down. Once `ready` resolves, the renderer must be answering that touch
+  (stats().mode 'active'); a canvas nobody touched must rest. The pointer events are made here (PointerEvent on
+  window, where silkify listens), so the page checks itself; window.__firstTouch = { out, problems } at the end.
+  Low tier: no idle light sweep, so 'rest' means nothing at all is drawn.
+  The touches are made at once (the renderer has not been asked yet: only `init` can carry them), and also 40 ms in
+  ('late': the worker has its `init` and is building, so core.js keeps them). Words (`text`) and, where the browser
+  has HTML-in-Canvas, a live element get the same: a pointer kept while loading is answered the same way.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
+  .grid { display: grid; grid-template-columns: repeat(5, 160px); gap: 24px; }
+  canvas { width: 160px; aspect-ratio: 1; display: block; background: #ebe6dc; }
+  .stage { position: relative; width: 160px; height: 160px; display: grid; place-items: center; background: #ebe6dc; }
+  .stage canvas { position: absolute; inset: 0; }
+  .card { width: 120px; height: 100px; border-radius: 14px; background: #fbf7ef; font: 13px Georgia, serif; padding: 8px; box-sizing: border-box; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid">
+  <canvas id="hover"></canvas><canvas id="stroke"></canvas><canvas id="tap"></canvas><canvas id="held"></canvas><canvas id="none"></canvas>
+  <canvas id="late-stroke"></canvas><canvas id="late-tap"></canvas><canvas id="text-stroke"></canvas><canvas id="text-hover"></canvas>
+  <div class="stage"><canvas id="element-stroke"></canvas><article class="card" id="card">A card, live on the silk.</article></div>
+</div>
+<script type="module">
+  const silkUrl = new URLSearchParams(location.search).get('silk') || '../src/silk.js';
+  const { silkify } = await import(silkUrl);
+  const { liveSupport } = await import(new URL('live.js', new URL(silkUrl, location.href)).href);
+  const PEAR = '../examples/images/pomegranate.webp';
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (id) => document.getElementById(id);
+  /** A pointer event at canvas coordinates (0–1 from the top left; outside that range is off the canvas). */
+  const fire = (type, canvas, fx, fy, pointerType = 'mouse') => {
+    const r = canvas.getBoundingClientRect();
+    window.dispatchEvent(new PointerEvent(type, { clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pointerType, bubbles: true }));
+  };
+  const out = {}, problems = [];
+
+  const cases = {
+    hover: (c) => fire('pointermove', c, 0.5, 0.5),                                   // still over it when it is ready
+    stroke: (c) => {                                                                  // across, and gone before ready
+      for (let k = 0; k <= 10; k++) fire('pointermove', c, -0.05 + k * 0.11, 0.48);
+      fire('pointermove', c, 1.2, 0.5);
+    },
+    tap: (c) => { fire('pointerdown', c, 0.5, 0.5, 'touch'); fire('pointerup', c, 0.5, 0.5, 'touch'); },   // a finger, lifted
+    held: (c) => { fire('pointermove', c, 0.5, 0.5); fire('pointerdown', c, 0.5, 0.5); },                  // a button still down
+    none: () => {},
+  };
+  // the same touches on other objects, or made later in the loading
+  const later = (act) => async (c) => { await sleep(40); act(c); };
+  Object.assign(cases, { 'late-stroke': later(cases.stroke), 'late-tap': later(cases.tap), 'text-stroke': cases.stroke, 'text-hover': cases.hover });
+  if (liveSupport().main) cases['element-stroke'] = cases.stroke;
+  const optionsFor = (id) => (id.startsWith('text') ? { text: 'silk', font: '800 64px Georgia, serif', color: '#7a2a1c' }
+    : id.startsWith('element') ? { element: '#card' } : { image: PEAR });
+
+  for (const [id, act] of Object.entries(cases)) {
+    const h = silkify($(id), { ...optionsFor(id), tier: 'low' });
+    await act($(id));
+    const during = h.mode;
+    await h.ready;
+    await sleep(120);
+    const st = await h.stats();
+    out[id] = { during, mode: h.mode, thread: h.thread, loop: st.mode, frames: st.frames };
+    if (id === 'held') fire('pointerup', $(id), 0.5, 0.5);
+    fire('pointermove', $(id), 1.2, 1.2);                                             // away, for the next case
+    h.dispose();
+  }
+
+  for (const [id, r] of Object.entries(out)) {
+    if (r.during !== 'loading') problems.push(`${id}: the touch came after the renderer was ready (${r.during}): nothing was tested`);
+    if (r.mode !== 'webgl') problems.push(`${id}: ${r.mode}`);
+    else if (r.thread !== 'worker' && !id.startsWith('element')) problems.push(`${id}: rendered on the ${r.thread} thread, not in a worker`);
+    else if (id === 'none' ? r.loop !== 'rest' : r.loop !== 'active') problems.push(`${id}: the loop is '${r.loop}' after ready (${r.frames} frames)`);
+  }
+  window.__firstTouch = { out, problems };
+</script>
+</body>
+</html>

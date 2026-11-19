@@ -619,9 +619,10 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 
 /* ============================================
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
- * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake,
- * stats, dispose; for live HTML also html { img } (an Element or ElementImage to print on the albedo) and shape
- * { picture, patch } (the element changed size: a new dome from a new stand-in, the same context). Messages out:
+ * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake, stats, dispose (init carries
+ * the pointer of the loading time, pointer { x, y, down } | null and trail [{ x, y }]: see replayPointer); for live
+ * HTML also html { img } (an Element or ElementImage to print on the albedo) and shape { picture, patch } (the
+ * element changed size: a new dome from a new stand-in, the same context). Messages out:
  * ready { tier, sim, steps, mesh, software }, hover { on }, stats { frames, steps, mode, snapshots? },
  * html { ok, empty }, shaped, fail { reason, fatal, picture, svg, code }. `code`: the code could not be loaded (three.js),
  * a mistake in the page rather than a missing feature, so the page says so. `fatal` means another thread would fail the same
@@ -631,8 +632,9 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 export function serve(post, loadThree) {
   let silk = null, dead = false;
   // messages that arrive before the scene exists: the newest view / visibility / stillness, every option patch
-  // merged in order, and every programmatic touch, replayed once the scene is up
-  const latest = { options: {}, touches: [] };
+  // merged in order, every programmatic touch, and the pointer (where it is, whether it is pressed, the points it
+  // crossed), replayed once the scene is up
+  const latest = { options: {}, touches: [], at: null, down: false, trail: [] };
   let scene = null;                                   // what a rebuilt dome needs: THREE, the renderer, tier, options
   const before = { frames: 0, steps: 0, snapshots: 0 };   // counts from scenes a rebuild replaced
   let reshaping = Promise.resolve();
@@ -645,6 +647,8 @@ export function serve(post, loadThree) {
   async function init(m) {
     Object.assign(latest, { view: m.view, visible: m.visible, still: m.still });
     latest.touches.unshift(...(m.touches || []));
+    if (m.pointer) Object.assign(latest, { at: { x: m.pointer.x, y: m.pointer.y }, down: !!m.pointer.down });
+    latest.trail.unshift(...(m.trail || []));
     const gl = openContext(m.canvas);
     if (!gl) return post({ t: 'fail', reason: 'no WebGL2 with renderable half floats' });
     // three.js that cannot be loaded is a mistake in the page (no import map, a wrong URL), not a missing feature
@@ -679,6 +683,7 @@ export function serve(post, loadThree) {
       return post({ t: 'fail', reason: `the picture has nothing opaque in it (no pixel above threshold ${m.options.threshold}): use a PNG whose subject is visible`, fatal: true });
     }
     for (const t of latest.touches.splice(0)) silk.touch(t.x, t.y, t);
+    replayPointer();
     post({ t: 'ready', tier: tier.tier, software: opened.software, ...silk.info });   // the first frame is already drawn
   }
 
@@ -695,6 +700,20 @@ export function serve(post, loadThree) {
     post({ t: 'shaped' });
   }
 
+  /* ---- the pointer of the loading time: a pointer still over the canvas hovers (and presses) at once; one that has
+   *      gone gets one ripple where its path first crossed the object, so a stroke or a tap made while loading is
+   *      answered. Pointer coordinates are -1…1 (y up); touch() takes 0…1 from the top left ---- */
+  function replayPointer() {
+    const { at, down, trail } = latest;
+    latest.trail = [];
+    if (at) {
+      silk.pointer(at.x, at.y);
+      if (down) silk.press(true);
+    } else {
+      for (const p of trail) if (silk.touch((p.x + 1) / 2, (1 - p.y) / 2)) break;
+    }
+  }
+
   const stats = () => {
     if (!silk) return { frames: 0, mode: 'loading' };
     const s = silk.stats();
@@ -704,9 +723,9 @@ export function serve(post, loadThree) {
   return (m) => {
     switch (m.t) {
       case 'init': init(m).catch((e) => post({ t: 'fail', reason: String(e?.message || e), code: !!e?.code })); break;
-      case 'pointer': silk?.pointer(m.x, m.y); break;
-      case 'press': silk?.press(m.down); break;
-      case 'lift': silk?.lift(); break;
+      case 'pointer': latest.at = { x: m.x, y: m.y }; if (silk) silk.pointer(m.x, m.y); else if (latest.trail.length < 64) latest.trail.push(latest.at); break;
+      case 'press': latest.down = m.down; silk?.press(m.down); break;
+      case 'lift': latest.at = null; latest.down = false; silk?.lift(); break;
       case 'touch': if (silk) silk.touch(m.x, m.y, m); else latest.touches.push(m); break;
       case 'stats': post({ t: 'stats', id: m.id, ...stats() }); break;
       case 'view': latest.view = m.view; silk?.resize(m.view); break;

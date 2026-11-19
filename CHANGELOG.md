@@ -22,6 +22,9 @@
 - **Every control in the Lab says what it does.** Each row shows a plain name with the API name beside it ("Press depth · `pressDepth`") and, under it, one line from `references/parameters.md` (generated into `examples/lab-help.js` by `build-integrations.mjs`, so the two never disagree), readable on touch screens. Every input now has an accessible name: the label is tied to the row's main control and describes it, the number boxes and the other inputs have their own; an axe-core audit of the Lab reports no unlabelled form controls and no contrast failures at 1280 and 375 px. `references/parameters.md` gained the missing line for `bumpStrength`.
 - **The Lab opens on the look.** Object, material and feel sit at the top of the panel, with your own picture and the background just below; every other option is under **Advanced**, closed unless the link already carries values beyond the object's own. The renderer's readout (tier, thread, grid, fps, loop state) shows only with `lab.html?debug`; a still frame or a failure still says why. The stage's hint and its buttons share one row that wraps instead of overlapping, and at 375 px the object has its own box between the title and the buttons.
 
+**Fixed**
+- **The first touch is no longer lost while an object mounts** (#1). silkify listens to the pointer from the call on, not from `ready`: a pointer still over the canvas when the renderer is up hovers and presses at once, and one that has already gone (a stroke across, a tap) gets one ripple where it first crossed the object. Before, everything the pointer did in the half second or more of loading was dropped, so in the gallery the first stroke across a card did nothing. `test/first-touch.html` checks a hover, a stroke, a tap and a held button made while loading.
+
 Pictures look the same: the posters re-render byte for byte.
 
 ## 0.3.0 (2026-11-19)

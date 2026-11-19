@@ -37,7 +37,7 @@ A lifted finger, a cancelled touch, or a pointer leaving the window ends "hoveri
 
 **Many objects on one page.** Each live canvas is a WebGL context, and browsers allow about 16. Use the gallery's pattern (`examples/index.html`):
 - Show a **poster** first: an `<img loading="lazy">` WebP at 1x and 2x, rendered by `node scripts/shoot.mjs --posters`.
-- Mount `silkify` on the first `pointerenter` or `pointerdown`, and fade the canvas in when `ready` resolves.
+- Mount `silkify` on the first `pointerenter` or `pointerdown`, and fade the canvas in when `ready` resolves. silkify listens to the pointer from the call on, so the touch that mounted it is not lost: a pointer still over the canvas when the renderer is up hovers and presses at once, and one that already left (a stroke across, a tap) gets one ripple where it first crossed the object.
 - `dispose()` it when the card leaves the viewport.
 - Keep at most 3 live, releasing the least recently touched.
 

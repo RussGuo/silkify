@@ -9,7 +9,7 @@
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
  *   node scripts/shoot.mjs --browsers      # WebKit and Firefox (browsers.mjs; needs Playwright, see harness.mjs)
  *   node scripts/shoot.mjs --shots         # verify, and also rewrite docs/shots/<id>-rest.jpg
- *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, --only edge)
+ *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
@@ -20,6 +20,8 @@
  *          restores every control in a fresh page, and at rest the renderer draws 0 frames in 10 s.
  *          Then test/edge.html: SVG pictures go live, an empty or missing picture fails with a reason and one
  *          console.warn, calls made while loading are kept, display: none and dispose() settle `ready`.
+ *          Then the first touch (verify-touch.mjs): a pointer that hovers, strokes, taps or presses while the renderer
+ *          loads is answered once it is ready (test/first-touch.html), and one stroke across a cold gallery card ripples.
  *          Then live HTML (examples/live.html, HTML-in-Canvas, SwiftShader, about 25 s, 2 minutes at most): drag-select and copy,
  *          double-click a word, the link, the button, typing (and an IME composition), the scrolling list, the
  *          caret, the element growing and the canvas resizing (geometry stays 1:1), ripples, sleeping until the
@@ -47,6 +49,7 @@ import { mkdtemp, writeFile, mkdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { serve } from './harness.mjs';
+import { verifyTouch } from './verify-touch.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'shots');
@@ -420,6 +423,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   if (alive > 3) problems.push(`${alive} live renderers (cap is 3)`);
   if (!only || only === 'lab') await verifyLab();
   if (!only || only === 'edge') await verifyEdge();
+  if (!only || only === 'touch') await verifyTouch({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, rectOf, strokeOver, base, problems });
   if (!only || only === 'live') {
     const LIVE_MS = 120000;   // about 25 s on SwiftShader; a hang (seen once on a real GPU) must not stall CI
     let timer;
