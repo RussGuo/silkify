@@ -53,7 +53,7 @@ import { MATERIALS, FEELS, keysOf } from './presets.js';
 import { liveSupport, resolveElement, liveElement } from './live.js';
 import { TEXT_DEFAULTS, checkText, setText } from './text.js';
 import { follow } from './pointer.js';
-import { emitter, gestures } from './events.js';
+import { emitter, gestures, report } from './events.js';
 
 export { PUFF, MATERIALS, FEELS };
 
@@ -205,8 +205,14 @@ export function coolDown() {
   spare = null;
 }
 
-function loadImage(src) {
-  if (typeof src !== 'string') return Promise.resolve(src);
+/** A picture ready to draw: a URL is loaded and decoded; an <img> that is still loading is waited for (and one that
+ *  did not load rejects, rather than drawing nothing); a canvas or a bitmap is ready as it is. */
+async function loadImage(src) {
+  if (typeof HTMLImageElement !== 'undefined' && src instanceof HTMLImageElement) {
+    if (!src.complete || !src.naturalWidth) await src.decode();
+    return src;
+  }
+  if (typeof src !== 'string') return src;
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.src = src;
@@ -429,13 +435,16 @@ export function silkify(canvasIn, options = {}) {
     if (drawn) {
       const k = Math.min(window.devicePixelRatio || 1, o.dpr ?? 2), size = { width: Math.round(canvas.clientWidth * k), height: Math.round(canvas.clientHeight * k) };
       if (!size.width || !size.height) return true;   // drawn when it gets a size (the ResizeObserver calls again)
-      let pic = await Promise.resolve().then(() => o.poster(size)).catch(() => null);
+      // a poster function that throws is the page's bug: reported as such (events.js), and the reason says it threw
+      let threw = null;
+      let pic = await Promise.resolve().then(() => o.poster(size)).catch((e) => { threw = e; return null; });
       if (typeof HTMLImageElement !== 'undefined' && pic instanceof HTMLImageElement && !pic.complete) await pic.decode().catch(() => {});
       if (n !== painting) return newest;
-      if (!(pic && (pic.naturalWidth || pic.width) > 0)) { staticWhy = `the poster function returned ${describe(pic)}, not a canvas or an image`; pic = null; }
+      if (threw) { staticWhy = `the poster function threw (${threw?.message || threw})`; report(threw); }
+      else if (!(pic && (pic.naturalWidth || pic.width) > 0)) { staticWhy = `the poster function returned ${describe(pic)}, not a canvas or an image`; pic = null; }
       staticPic = pic;
     } else if (!staticPic) {
-      const src = o.poster || o.image, name = typeof src === 'string' ? src : describe(src);
+      const src = o.poster || o.image, name = typeof src === 'string' ? src : src?.currentSrc || src?.src || describe(src);
       staticPic = !o.poster && raster ? raster : await (isSvg(src) ? rasterize(src) : loadImage(src)).catch(() => null);
       if (!staticPic) staticWhy = `could not load the ${o.poster ? 'poster' : 'picture'} ${name}`;
       else if (!o.poster && !opaque(staticPic)) {
@@ -479,7 +488,7 @@ export function silkify(canvasIn, options = {}) {
   async function pictureFor() {
     if (raster) return createImageBitmap(raster);
     if (typeof o.image === 'string') return absolute(o.image);
-    return createImageBitmap(o.image);
+    return createImageBitmap(await loadImage(o.image));   // an <img> still loading is waited for
   }
 
   /* ---- live: one attempt on a given thread; resolves with the ready info (null after dispose()) or rejects ---- */

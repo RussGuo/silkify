@@ -14,7 +14,10 @@
               a fit that is neither a number above 0 nor 'cover' throws; element mode with 'cover' throws; a number
               written as a string ('1.5', which 0.3.0 took) draws exactly as the number
     poster    a poster that is a canvas, a function (called with the canvas's device-pixel size, again on a resize), an
-              async function, and one that returns nothing usable (mode 'failed', a reason, one warning)
+              async function, and one that returns nothing usable (mode 'failed', a reason, one warning); a function
+              that throws (failed, the reason says it threw and why, its error reported once as an uncaught error); an
+              <img> still loading (waited for: the still frame is the picture, not empty) and one that cannot load
+              (failed, the reason names it)
     breeze    breezeIdle: the breeze stops (mode 'tail') once nobody has touched the object for that long, and wake()
               starts it again; without breezeIdle it never stops; scrolled out of view, no frames at all
     ink       words are centred on their ink, not on the font's line box: a 'y' (a descender), a 'g' and an em dash in
@@ -40,7 +43,7 @@
 <body>
 <div class="row"><canvas id="cover-wide" class="wide"></canvas><canvas id="contain-wide" class="wide"></canvas><canvas id="corner0" class="sq"></canvas></div>
 <div class="row"><canvas id="static-cover" class="wide"></canvas><canvas id="p-canvas" class="sq"></canvas><canvas id="p-fn" class="sq"></canvas><canvas id="p-async" class="sq"></canvas><canvas id="p-bad" class="sq"></canvas></div>
-<div class="row"><span id="fit-text" class="row"></span></div>
+<div class="row"><canvas id="p-throws" class="sq"></canvas><canvas id="p-img" class="sq"></canvas><canvas id="p-img-bad" class="sq"></canvas><span id="fit-text" class="row"></span></div>
 <div class="row"><canvas id="sphere" class="sphere"></canvas><canvas id="breeze-idle" class="sq"></canvas><canvas id="breeze-on" class="sq"></canvas></div>
 <div class="row"><canvas id="ink-live" class="sq"></canvas><canvas id="ink-y" class="sq"></canvas><canvas id="ink-g" class="sq"></canvas><canvas id="ink-dash" class="sq"></canvas></div>
 <div id="far"><canvas id="breeze-far" class="sq"></canvas></div>
@@ -133,8 +136,31 @@
     const bad = silkify($('p-bad'), { image: solid(64, 64, '#000'), poster: () => null, tier: 'static' });
     await bad.ready;
     out.poster.bad = `${bad.mode}: ${bad.reason}`;
-    if (bad.mode !== 'failed' || !/poster/.test(bad.reason) || warned.filter((w) => /poster/.test(w)).length !== 1) problems.push(`poster bad: ${out.poster.bad}, warnings ${JSON.stringify(warned)}`);
-    for (const h of Object.values(hs)) h.dispose();
+    if (bad.mode !== 'failed' || !/poster/.test(bad.reason) || warned.filter((w) => /poster function returned/.test(w)).length !== 1) problems.push(`poster bad: ${out.poster.bad}, warnings ${JSON.stringify(warned)}`);
+    // a function that throws: the page's bug, reported as an uncaught error (caught here), and a reason that says so
+    const thrown = [];
+    const caught = (e) => { if (String(e.message).includes('poster boom')) { thrown.push(e.error?.message); e.preventDefault(); } };
+    addEventListener('error', caught);
+    const throwing = silkify($('p-throws'), { image: solid(64, 64, '#000'), poster: () => { throw new Error('poster boom'); }, tier: 'static' });
+    await throwing.ready;
+    await sleep(50);
+    removeEventListener('error', caught);
+    out.poster.throws = `${throwing.mode}: ${throwing.reason}; reported ${thrown.length}`;
+    if (throwing.mode !== 'failed' || !/poster function threw \(poster boom\)/.test(throwing.reason) || thrown.length !== 1
+      || warned.filter((w) => /poster function threw/.test(w)).length !== 1) problems.push(`poster throws: ${out.poster.throws}, warnings ${JSON.stringify(warned)}`);
+    // an <img> still loading when silkify() is called is waited for; one that cannot load fails with its name
+    const loading = new Image();
+    loading.src = '../examples/posters/pomegranate.webp?still-loading';
+    const img = silkify($('p-img'), { image: solid(64, 64, '#000'), poster: loading, tier: 'static' });
+    const missing = new Image();
+    missing.src = 'not-here.png';
+    const imgBad = silkify($('p-img-bad'), { image: solid(64, 64, '#000'), poster: missing, tier: 'static' });
+    await Promise.all([img.ready, imgBad.ready]);
+    out.poster.img = `${img.mode}, alpha ${at(img.canvas, 0.5, 0.5)[3]} in the middle`;
+    out.poster.imgBad = `${imgBad.mode}: ${imgBad.reason}`;
+    if (img.mode !== 'static' || !(at(img.canvas, 0.5, 0.5)[3] > 200)) problems.push(`poster img: ${out.poster.img} (an <img> still loading must be waited for)`);
+    if (imgBad.mode !== 'failed' || !/could not load the poster .*not-here\.png/.test(imgBad.reason)) problems.push(`poster img bad: ${out.poster.imgBad}`);
+    for (const h of [...Object.values(hs), bad, throwing, img, imgBad]) h.dispose();
   }
 
   // ---- breeze: breezeIdle stops it, a touch or wake() starts it again; out of view nothing is drawn ----
