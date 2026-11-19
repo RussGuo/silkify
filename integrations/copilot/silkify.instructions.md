@@ -200,8 +200,8 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 </script>
 <script type="module">
   import { silkify } from './silk/silk.js';      // as in Step 4: src/ copied to ./silk/, three from `npm i three`
-  const card = silkify(document.getElementById('silk'), { element: '#card' });
-  await card.ready;   // 'webgl': on the silk, once its first picture is there; 'static': plain HTML (card.reason says why)
+  const silk = silkify(document.getElementById('silk'), { element: '#card' });
+  await silk.ready;   // 'webgl': on the silk, once its first picture is there; 'static': plain HTML (silk.reason says why)
 </script>
 ```
 
