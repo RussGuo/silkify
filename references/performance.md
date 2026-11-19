@@ -26,7 +26,7 @@ Below the reference grid, the solver takes sub-steps with rescaled constants, so
 - **Stopped:** off-screen or in a hidden tab.
 
 `breeze` and `autoplay` are off by default because they give up the rest state. Turn them on only where a moving object is worth it, and still only one or two per page:
-- **`breeze` > 0:** the loop never rests while visible: instead of sleeping it draws 30 fps, the solver catching up the skipped steps so the motion keeps its speed. On the low tier that is still 30 frames a second of GPU work.
+- **`breeze` > 0:** the loop never rests while visible: instead of sleeping it draws 30 fps, the solver catching up the skipped steps so the motion keeps its speed. On the low tier that is still 30 frames a second of GPU work, for as long as the object is in view: a full-bleed background breezing under a page someone reads for ten minutes draws 18,000 frames. Off-screen (100 px past the viewport) or in a hidden tab it draws nothing, like any object. **`breezeIdle`** (ms) bounds it: the breeze stops once nobody has touched the object for that long (from the mount, the last touch or pointer over it, `wake()`), the loop takes its 12 fps tail and rests, and the next touch starts the breeze again. `test/options.html` checks both, and that nothing is drawn out of view.
 - **`autoplay`:** each drop is a touch, so the usual rules follow it: 60 fps for 8 s, then the tail. With the default 2.5 s interval the loop never leaves the 60 fps state while visible; at `interval` ≥ 20 000 ms it reaches rest between drops, and waits on a single timer instead of drawing.
 - `ripple()` is one touch: the same 8 s + tail as a pointer, then rest.
 - Off-screen, a hidden tab or reduced motion stops all three. `handle.stats()` reports what the loop is doing.

@@ -50,6 +50,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | **Motion** | | | |
 | `autoplay` | `false` | `true` or `{ interval: 2500, depth: 0.3, radius }`: a drop at a random point inside the outline (a sphere: its visible face) every `interval` ms while visible, skipped while someone touches it | costs frames, see Performance |
 | `breeze` | 0 | A slow drifting noise field keeps the whole surface faintly alive (0–1) | 0.3 is a breath, 1 is wind; costs 30 fps, see Performance |
+| `breezeIdle` | 0 | With `breeze`: stop it once nobody has touched the object for this many ms (counted from the mount, the last touch or pointer over it, `wake()`, or a new `breeze` value); the loop then sleeps as usual, and a touch starts the breeze again. 0 never stops it | 15000 lets a hero greet, then rest |
 | **Shape (image)** | | | |
 | `puff` | `'dome'` | `'dome'`, `'cushion'`, `'flat'` or a number (see step 2) | |
 | `matte` | `'auto'` | `'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one | |

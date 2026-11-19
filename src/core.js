@@ -15,7 +15,8 @@
  *           A pointer elsewhere on the page sends nothing here (silk.js filters it), so it never wakes the loop.
  *   tail    ripples left 8–20 s after the last touch → 12 fps, with the missed solver steps caught up, then cleared
  *   sweep   high tier only: the idle light sweep (and a sphere's spin) for one loop, ≈ 28.6 s, at 12 fps
- *   breeze  `breeze` > 0: the solver keeps stirring → 30 fps while visible (off by default)
+ *   breeze  `breeze` > 0: the solver keeps stirring → 30 fps while visible (off by default); with `breezeIdle`, only
+ *           for that long after the mount, the last touch, wake() or a new breeze value, then the tail and rest
  *   rest    nothing → no frames at all; with `autoplay`, one timer for the next drop
  * Programmatic touches (`ripple()`, `autoplay`) count as touches for these rules but never as hovering.
  * A press that ends before a frame has drawn it (a quick tap: down and up within one frame) becomes such a touch.
@@ -339,7 +340,11 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
   const touches = [];   // { uv, depth, radius (uv units), left: 60 fps frames still to press }
   let nextDrop = 0;     // autoplay: when the next drop falls (0 = off)
   const autoplay = () => (o.autoplay && !still ? { interval: 2500, depth: 0.3, ...(o.autoplay === true ? {} : o.autoplay) } : null);
-  const breezing = () => o.breeze > 0 && !still;
+  // breezeIdle > 0: the breeze stops once nobody has touched the object for that long (counted from the mount, the last
+  // touch or pointer over it, wake(), a new breeze value), and the loop goes to the tail and rest; a touch starts it again
+  let breezeFrom = performance.now();
+  const breezing = () => o.breeze > 0 && !still
+    && !(o.breezeIdle > 0 && performance.now() - Math.max(breezeFrom, lastHit, interactive() ? lastMove : -1e9) >= o.breezeIdle);
 
   function addTouch(uv, { depth = o.pressDepth, radius = o.pressRadius, hold = 120 } = {}) {
     if (touches.length >= TOUCH_MAX) touches.shift();
@@ -558,7 +563,12 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       if (still) { lifted = true; pointerDown = false; touches.length = 0; }
       wake();
     },
-    setOptions(patch) { Object.assign(o, patch); apply(); wake(); },
+    setOptions(patch) {
+      Object.assign(o, patch);
+      if ('breeze' in patch || 'breezeIdle' in patch) breezeFrom = performance.now();
+      apply();
+      wake();
+    },
     /** A programmatic touch at canvas coordinates (0–1, top-left origin). False if it misses the object. */
     touch(x, y, opts) {
       if (still || dead) return false;
@@ -627,7 +637,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       wake();
       return { ok: true, empty };
     },
-    wake,
+    /** handle.wake(): restart a sleeping loop, and a breeze that breezeIdle had stopped */
+    wake() { breezeFrom = performance.now(); wake(); },
     /** `keepRenderer`: the scene goes, the context stays (live HTML rebuilds its dome when the element changes size). */
     dispose(keepRenderer = false) {
       dead = true;

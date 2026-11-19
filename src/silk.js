@@ -72,6 +72,7 @@ const COMMON = {
   // motion that does not wait for a pointer: off by default, because both keep the loop awake
   autoplay: false,         // true | { interval: 2500, depth: 0.3, radius } — a drop at a random point every interval ms
   breeze: 0,               // 0–1: a slow noise field keeps the surface faintly alive (30 fps while visible)
+  breezeIdle: 0,           // ms: the breeze stops this long after the last touch (0: never), and a touch starts it again
   fillLight: true, idleSweep: true,
   dpr: undefined,          // device-pixel-ratio cap; undefined → the tier's (2 high, 1 low)
   reducedMotion: 'auto',

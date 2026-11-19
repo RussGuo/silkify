@@ -14,6 +14,8 @@
               a fit that is neither a number above 0 nor 'cover' throws; element mode with 'cover' throws
     poster    a poster that is a canvas, a function (called with the canvas's device-pixel size, again on a resize), an
               async function, and one that returns nothing usable (mode 'failed', a reason, one warning)
+    breeze    breezeIdle: the breeze stops (mode 'tail') once nobody has touched the object for that long, and wake()
+              starts it again; without breezeIdle it never stops; scrolled out of view, no frames at all
   The live canvases for verify-options.mjs: #cover-wide and #contain-wide (a square opaque picture in a 3:1 canvas).
   window.__options = { out, problems, handles } at the end. Low tier: no idle sweep.
 -->
@@ -32,6 +34,8 @@
 <body>
 <div class="row"><canvas id="cover-wide" class="wide"></canvas><canvas id="contain-wide" class="wide"></canvas><canvas id="corner0" class="sq"></canvas></div>
 <div class="row"><canvas id="static-cover" class="wide"></canvas><canvas id="p-canvas" class="sq"></canvas><canvas id="p-fn" class="sq"></canvas><canvas id="p-async" class="sq"></canvas><canvas id="p-bad" class="sq"></canvas></div>
+<div class="row"><canvas id="breeze-idle" class="sq"></canvas><canvas id="breeze-on" class="sq"></canvas></div>
+<div id="far"><canvas id="breeze-far" class="sq"></canvas></div>
 <script type="module">
   import { silkify } from '../src/silk.js';
   import { buildShape } from '../src/shape.js';
@@ -112,6 +116,33 @@
     out.poster.bad = `${bad.mode}: ${bad.reason}`;
     if (bad.mode !== 'failed' || !/poster/.test(bad.reason) || warned.filter((w) => /poster/.test(w)).length !== 1) problems.push(`poster bad: ${out.poster.bad}, warnings ${JSON.stringify(warned)}`);
     for (const h of Object.values(hs)) h.dispose();
+  }
+
+  // ---- breeze: breezeIdle stops it, a touch or wake() starts it again; out of view nothing is drawn ----
+  {
+    const PEAR = '../examples/images/pomegranate.webp';
+    const idle = handles.breezeIdle = silkify($('breeze-idle'), { image: PEAR, breeze: 0.5, breezeIdle: 1200, tier: 'low' });
+    const on = handles.breezeOn = silkify($('breeze-on'), { image: PEAR, breeze: 0.5, tier: 'low' });
+    const far = handles.breezeFar = silkify($('breeze-far'), { image: PEAR, breeze: 0.5, tier: 'low' });
+    await Promise.all([idle.ready, on.ready, far.ready]);
+    await sleep(300);
+    const a = (await idle.stats()).mode;
+    await sleep(1500);
+    const b = await idle.stats(), always = (await on.stats()).mode;
+    await sleep(500);
+    const c = await idle.stats();
+    idle.wake();
+    await sleep(300);
+    const d = (await idle.stats()).mode;
+    const f0 = (await far.stats()).frames;
+    await sleep(1000);
+    const f1 = (await far.stats()).frames;
+    out.breeze = { start: a, idle: b.mode, fps: Math.round((c.frames - b.frames) * 2), woken: d, always, farFrames: f1 - f0 };
+    if (a !== 'breeze' || b.mode === 'breeze' || d !== 'breeze') problems.push(`breeze: with breezeIdle ${a} → ${b.mode} after 1.8 s → ${d} after wake()`);
+    if (b.mode === 'tail' && out.breeze.fps > 14) problems.push(`breeze: still ${out.breeze.fps} fps after it stopped`);
+    if (always !== 'breeze') problems.push(`breeze: without breezeIdle it stopped (${always})`);
+    if (f1 !== f0) problems.push(`breeze: ${f1 - f0} frames in 1 s out of view`);
+    for (const h of [idle, on, far]) h.dispose();
   }
 
   console.warn = warn;

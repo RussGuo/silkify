@@ -4,7 +4,7 @@
  * file; it gets shoot.mjs's DevTools helpers in `t` and adds what it finds to `t.problems`.
  *
  *   test/options.html   corner: 0 is a square, fit: 'cover' (also in the static tier, and the mistakes that throw), a
- *                       poster that is a canvas or a function (the page checks itself)
+ *                       poster that is a canvas or a function, breezeIdle and no frames out of view (the page checks itself)
  *   a screenshot        what the page cannot read back from a live canvas: fit: 'cover' leaves none of a 3:1 canvas
  *                       empty, fit: 1 (contain) leaves about two thirds, and a wide canvas turned tall stays covered
  */

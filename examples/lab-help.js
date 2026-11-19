@@ -40,6 +40,7 @@ export const HELP = {
   "idleSweep": "High tier: after the pointer leaves, the fill light (and a sphere's spin) makes one slow loop (≈ 28.6 s at 12 fps), then nothing is drawn.",
   "autoplay": "`true` or `{ interval: 2500, depth: 0.3, radius }`: a drop at a random point inside the outline (a sphere: its visible face) every `interval` ms while visible, skipped while someone touches it",
   "breeze": "A slow drifting noise field keeps the whole surface faintly alive (0–1)",
+  "breezeIdle": "With `breeze`: stop it once nobody has touched the object for this many ms (counted from the mount, the last touch or pointer over it, `wake()`, or a new `breeze` value); the loop then sleeps as usual, and a touch starts the breeze again. 0 never stops it",
   "puff": "`'dome'`, `'cushion'`, `'flat'` or a number",
   "matte": "`'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one",
   "corner": "Corner radius of `'rect'`, as a fraction of the short side; 0 is a square",
