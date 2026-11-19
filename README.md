@@ -74,7 +74,7 @@ Copy `src/` into your project as `silk/` and run `npm i three`, then:
 Nowhere to put files (a CodePen, one HTML file)? Import `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js` instead and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`; the page then depends on jsDelivr ([SKILL.md](SKILL.md#get-the-code) has the details).
 
 - **No transparent background?** Run `python3 scripts/cutout.py photo.jpg out.png` to key out a plain backdrop, or keep the rectangle and let silkify make a cushion.
-- **Words instead of a picture?** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` makes a word, a headline or an emoji the object, no cut-out needed: try [examples/text.html](examples/text.html), options in [references/parameters.md](references/parameters.md#text-words-as-the-object). New on `main`, in the next release.
+- **Words instead of a picture?** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` makes a word, a headline or an emoji the object, no cut-out needed: try [examples/text.html](examples/text.html), options in [references/parameters.md](references/parameters.md#text-words-as-the-object). New on `main`: in the [Lab](https://russguo.github.io/silkify/examples/lab.html), pick Words as the object.
 - **From an agent?** See [One-line install](#one-line-install).
 
 **React** (and Next.js): the canvas is made in the effect, never by React, because silkify may hand it to a worker.
@@ -119,7 +119,7 @@ Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`
 | <img src="docs/shots/lab/material-wet.jpg" width="400" alt="the pomegranate wet, at rest and just touched"> | <img src="docs/shots/lab/feel-jelly.jpg" width="400" alt="the pomegranate with the jelly feel, 0.15 s and 0.9 s after a touch"> |
 | `material: 'wet'` | `feel: 'jelly'`, 0.15 s and 0.9 s after a touch |
 
-**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture, then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it (that file loads silk.js and three.js from jsDelivr). One picture per preset is in [docs/shots/lab](docs/shots/lab).
+**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture or type a few words (Object → Words, in a system font or a Google Font), then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it (that file loads silk.js and three.js from jsDelivr). One picture per preset is in [docs/shots/lab](docs/shots/lab).
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="the silkify Lab: a teapot in foil, with every option beside it">
 

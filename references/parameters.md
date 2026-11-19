@@ -113,7 +113,7 @@ silkify(canvas, { text: 'Hello\nworld', font: '900 160px system-ui, sans-serif',
 silkify(canvas, { text: '🍐' });                                        // an emoji, in its own colours
 ```
 
-The handle is the same; `ready` waits for the font as well. `examples/text.html` is the smallest page (any option can be tried from its address bar), and `test/text.html` checks every case above (`node scripts/shoot.mjs --only text`).
+The handle is the same; `ready` waits for the font as well. `examples/text.html` is the smallest page (any option can be tried from its address bar), and `test/text.html` checks every case above (`node scripts/shoot.mjs --only text`). The Lab has words as an object of their own (Object → Words: four system fonts and three Google Fonts, one with Chinese, a Google Font's stylesheet added only when it is picked), and its link, Copy options and Download HTML carry the text, the font, the colour and the line height. The gallery's word card declares its font with `@font-face` and no `<link>`, so the font file is fetched only when silkify asks for it.
 
 ## Recipes (from the gallery)
 

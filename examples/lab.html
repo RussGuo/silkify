@@ -80,6 +80,7 @@
   .look .row:nth-child(-n+3) select { padding: 6px 8px; font-size: 14px; }
   .look > div:last-child { margin-top: 8px; }
   .look > div:last-child .row label { font: inherit; color: var(--fine); }   /* your picture, background: quieter */
+  .look .words .row label { font: inherit; }
   details { border-top: 1px solid var(--rule); }
   summary {
     cursor: pointer; padding: 14px 0 10px; list-style: none;
@@ -94,6 +95,7 @@
   details.group > div { padding: 0 0 12px; }
   /* a row: the option's name and its API name, one line on what it does, then the control */
   .row { display: grid; gap: 3px; padding: 7px 0; }
+  .row[hidden] { display: none; }                   /* sphere-only, picture-only and the words' rows when they do not apply */
   .row label { color: var(--ink); }
   .row label code, .help code { font: 11px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   .row label code, .help { color: var(--fine); }
@@ -103,11 +105,13 @@
   .ctl { display: flex; gap: 8px; align-items: center; min-width: 0; margin-top: 3px; }
   .ctl > input[type=number] { flex: none; width: 66px; }
   input[type=range] { flex: 1; width: 100%; min-width: 0; accent-color: var(--accent); margin: 0; }
-  input[type=number], input[type=text], select {
+  input[type=number], input[type=text], select, textarea {
     width: 100%; min-width: 0; padding: 3px 5px; border: 1px solid var(--rule); border-radius: 6px;
     background: transparent; color: inherit; font: 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   select { font-family: inherit; font-size: 13px; }
+  textarea { resize: vertical; padding: 6px 8px; font: 400 16px/1.3 ui-serif, "Iowan Old Style", Georgia, serif; }
+  .words .ctl select + select { flex: none; width: auto; }
   input[type=color] { width: 44px; height: 24px; padding: 0; border: 1px solid var(--rule); border-radius: 6px; background: none; }
   input[type=checkbox] { accent-color: var(--accent); margin: 0; }
   button {
@@ -194,10 +198,14 @@
    * reduced motion, the stage says so and offers to play anyway, for this page only.
    * The panel opens on the look (object, material, feel); every other option is under Advanced, each with a plain
    * name and one line from references/parameters.md (lab-help.js). lab.html?debug shows the renderer's readout.
+   * Object → Words sets text instead of a picture (lab-text.js: the fonts, and a Google Font's stylesheet once picked).
+   * Download HTML's page is lab-export.js.
    */
   import { silkify, resolveOptions, PUFF } from '../src/silk.js';
   import { MATERIALS, FEELS, keysOf } from '../src/presets.js';
   import { HELP } from './lab-help.js';              // one line per option, from references/parameters.md
+  import { pageHtml } from './lab-export.js';         // Download HTML: the page around the printed call
+  import { TEXT_START, TEXT_KEYS, LINE_HEIGHT, wordRows, stylesheetOf, useStylesheet, quote } from './lab-text.js';
 
   /* ============================================
    * The objects: the gallery's cards (same pictures, same options)
@@ -213,6 +221,7 @@
     parrot: { title: 'Bird figure', image: 'images/parrot.webp', options: { puff: 'cushion', sheen: 0.5, sheenPower: 14 } },
     'ink-drop': { title: 'A drop of ink', image: 'images/ink-drop.webp',
       options: { albedo: [0.15, 0.15, 0.165], grain: 1, light: [-0.66, 0.72, 0.2], exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14 } },
+    text: { title: 'Words', options: TEXT_START },        // no picture: silkify sets the words in a canvas (lab-text.js)
   };
 
   /* ============================================
@@ -248,7 +257,7 @@
   ];
   const IMAGE_ONLY = new Set(['puff', 'matte', 'corner', 'threshold', 'fit', 'albedo', 'grain', 'grainScale']);
   const SPHERE_ONLY = new Set(['phase', 'bumpStrength', 'spin', 'spinSpeed', 'angle']);
-  const REBUILD = new Set(['shape', 'puff', 'matte', 'corner', 'threshold', 'fit', 'angle', 'tier', 'worker']);
+  const REBUILD = new Set(['shape', 'puff', 'matte', 'corner', 'threshold', 'fit', 'angle', 'tier', 'worker', ...TEXT_KEYS]);
   const MATERIAL_KEYS = keysOf(MATERIALS), FEEL_KEYS = keysOf(FEELS);
 
   /* ============================================
@@ -263,8 +272,9 @@
 
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const call = () => ({ material: state.material, feel: state.feel, ...state.set });
+  const isText = () => state.obj === 'text';
   const picture = () => (state.obj === 'custom' ? (custom || state.url) : OBJECTS[state.obj].image);
-  const effective = () => resolveOptions({ image: picture() || OBJECTS.pomegranate.image, ...call() });
+  const effective = () => resolveOptions({ ...(isText() ? {} : { image: picture() || OBJECTS.pomegranate.image }), ...call() });
   const isSphere = () => effective().shape === 'sphere';
   const isLocal = () => state.obj === 'custom' && !state.url;
 
@@ -279,7 +289,8 @@
       const b = location.hash.slice(1);
       if (!b) return null;
       const s = JSON.parse(decodeURIComponent(escape(atob(b.replace(/-/g, '+').replace(/_/g, '/')))));
-      return s && typeof s.set === 'object' && (OBJECTS[s.obj] || s.url) && MATERIALS[s.material] && FEELS[s.feel] ? s : null;
+      const words = s?.obj !== 'text' || (typeof s.set?.text === 'string' && s.set.text.trim());   // silkify throws on no words
+      return s && typeof s.set === 'object' && (OBJECTS[s.obj] || s.url) && MATERIALS[s.material] && FEELS[s.feel] && words ? s : null;
     } catch { return null; }
   }
 
@@ -293,7 +304,14 @@
   document.getElementById('play').onclick = () => { playAnyway = true; mount(); };
   reduceMq.addEventListener?.('change', () => mount());
 
+  /* Words in a Google Font wait for its stylesheet (lab-text.js); everything else mounts at once. A newer mount wins. */
+  let mounting = Promise.resolve(), mounts = 0;
   function mount() {
+    const n = ++mounts, sheet = isText() ? stylesheetOf(state.set.font) : null;
+    mounting = sheet ? useStylesheet(sheet).then(() => n === mounts && mountNow()) : Promise.resolve(mountNow());
+    return mounting;
+  }
+  function mountNow() {
     comparing = false;
     stage.classList.remove('compare');
     handle?.dispose();
@@ -304,7 +322,13 @@
     const o = OBJECTS[state.obj];
     mounted = effective();
     // reduced motion: the Lab is a tuning page, so it may play anyway when asked (never printed, never in the link)
-    handle = silkify(canvas, { image: picture(), ...(o?.bump ? { bump: o.bump } : {}), ...call(), ...(playAnyway ? { reducedMotion: false } : {}) });
+    try {
+      handle = silkify(canvas, { ...(isText() ? {} : { image: picture() }), ...(o?.bump ? { bump: o.bump } : {}), ...call(), ...(playAnyway ? { reducedMotion: false } : {}) });
+    } catch (e) {                                       // a link with a font or colour the browser cannot read
+      handle = null;
+      read.textContent = e.message;
+      return null;
+    }
     stillNote.hidden = !(reduceMq.matches && !playAnyway && (state.set.reducedMotion ?? 'auto') === 'auto');
     lastFrames = null;
     return handle.ready;
@@ -350,7 +374,7 @@
     volume: 'Volume', fillLight: 'Fill light', idleSweep: 'Idle sweep', autoplay: 'Autoplay', breeze: 'Breeze', shape: 'Shape',
     puff: 'Puff', matte: 'Matte', corner: 'Corner', threshold: 'Threshold', fit: 'Fit', phase: 'Moon phase',
     bumpStrength: 'Relief', spin: 'Spin', spinSpeed: 'Spin speed', angle: 'Start angle', interactive: 'Interactive',
-    tier: 'Tier', worker: 'Worker',
+    tier: 'Tier', worker: 'Worker', text: 'Words', font: 'Font', color: 'Colour', lineHeight: 'Line height',
   };
   const API = new Set(Object.keys(LABELS).filter((k) => !['object', 'URL', 'background'].includes(k)));
   const rich = (t) => t.split('`').map((s, i) => (i % 2 ? el('code', { textContent: s }) : document.createTextNode(s)));
@@ -512,13 +536,16 @@
     return [r1, box];
   }
 
+  /* Words (Object → Words): their rows are lab-text.js's, made with this page's row helpers */
+  const words = () => wordRows({ row, named, number, set, views, el });
+
   /* The look first: object, material, feel (then your own picture and the background), always open. Every other option
    * is under Advanced, closed unless the link already carries a value beyond the object's own options. Room is left
    * on purpose: a text object joins the object list (#13), a Record button the stage's button row (#15). */
-  const tuned = () => { const base = fresh(state.obj).set; return Object.keys({ ...base, ...state.set }).some((k) => !same(state.set[k], base[k])); };
+  const tuned = () => { const base = fresh(state.obj).set; return Object.keys({ ...base, ...state.set }).some((k) => !TEXT_KEYS.includes(k) && !same(state.set[k], base[k])); };
   function build() {
     const [pick, more] = object();
-    root.append(el('section', { className: 'look', ariaLabel: 'Look' }, pick, presets(), more));
+    root.append(el('section', { className: 'look', ariaLabel: 'Look' }, pick, words(), presets(), more));
     const advanced = el('details', { className: 'advanced', open: tuned() },
       el('summary', {}, 'Advanced', el('span', { textContent: 'every option, for fine-tuning' })));
     root.append(advanced);
@@ -536,13 +563,15 @@
   }
 
   /** Controls ← state: values, the "set by you" dot, and which shape's options are shown. */
-  const plainCall = () => resolveOptions({ image: 'x', shape: state.set.shape, material: state.material, feel: state.feel });
+  const plainCall = () => resolveOptions({ ...(isText() ? { text: 'x' } : { image: 'x' }), shape: state.set.shape, material: state.material, feel: state.feel });
   function sync() {
-    const o = effective(), sphere = o.shape === 'sphere', base = plainCall();
+    const o = effective(), sphere = o.shape === 'sphere', base = { ...plainCall(), ...TEXT_START, lineHeight: LINE_HEIGHT };
+    const text = isText(), lines = text && String(state.set.text).includes('\n');
     for (const v of views) {
       v.show(o[v.key]);
       v.row.classList.toggle('set', v.key in state.set && !same(state.set[v.key], base[v.key]));
-      v.row.hidden = (sphere && IMAGE_ONLY.has(v.key)) || (!sphere && SPHERE_ONLY.has(v.key));
+      v.row.hidden = (sphere && IMAGE_ONLY.has(v.key)) || (!sphere && SPHERE_ONLY.has(v.key))
+        || (TEXT_KEYS.includes(v.key) && !text) || (v.key === 'lineHeight' && !lines) || (v.key === 'shape' && text);
     }
     code.textContent = printed();
   }
@@ -555,13 +584,16 @@
     if (state.material !== 'silk') lines.push(`material: '${state.material}'`);
     if (state.feel !== 'silk') lines.push(`feel: '${state.feel}'`);
     for (const [k, v] of Object.entries(state.set)) {
+      if (TEXT_KEYS.includes(k)) continue;              // printed first, by textLines()
       if (v !== undefined && !same(v, base[k])) lines.push(`${k}: ${JSON.stringify(v).replace(/"(\w+)":/g, '$1: ').replace(/,/g, ', ').replace(/"/g, "'")}`);
     }
     return lines;
   }
+  /** Words: text, font and colour always (they are the object), the line height when it is set. */
+  const textLines = () => TEXT_KEYS.filter((k) => state.set[k] !== undefined).map((k) => `${k}: ${k === 'lineHeight' ? state.set[k] : quote(state.set[k])}`);
   function printed() {
     const o = OBJECTS[state.obj];
-    const lines = [`image: '${state.obj === 'custom' ? state.url || 'your-picture.png' : o.image}'`];
+    const lines = isText() ? textLines() : [`image: '${state.obj === 'custom' ? state.url || 'your-picture.png' : o.image}'`];
     if (o?.bump) lines.push(`bump: '${o.bump}'`);
     return `silkify(canvas, {\n  ${[...lines, ...optionLines()].join(',\n  ')},\n});`;
   }
@@ -571,11 +603,11 @@
    * The picture is inside it as a data: URL; silk.js and three.js come from jsDelivr, pinned to the release, so
    * the file needs the network but no server. This is the one place the Lab uses the CDN way (one file, nowhere
    * to put src/), and the file and the button say so: a real page copies src/ (SKILL.md). Nothing leaves the
-   * browser: the file is made here.
+   * browser: the file is made here, and its markup is lab-export.js.
    * ============================================ */
   const SILK_CDN = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js';
-  const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
-  const BACKGROUND = { stage: '#ebe6dc', paper: '#f3efe7', white: '#ffffff', black: '#000000', checker: '#f3efe7' };
+  // words are new on main, after v0.3.0: their page takes main until a release has them, then this tag line goes
+  const SILK_CDN_WORDS = 'https://cdn.jsdelivr.net/gh/RussGuo/silkify@main/src/silk.js';
   const dataUrl = (blob) => new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
@@ -583,53 +615,23 @@
     r.readAsDataURL(blob);
   });
   const fetched = (url) => fetch(url, { mode: 'cors' }).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`))));
-  // (this page's own script element holds the markup below, so it escapes the closing tag and the comment opener)
   async function exportHtml() {
-    const o = OBJECTS[state.obj];
-    const image = await dataUrl(state.obj === 'custom' ? custom || (await fetched(state.url)) : await fetched(o.image));
-    const bump = o?.bump ? await dataUrl(await fetched(o.bump)) : null;
-    const title = state.obj === 'custom' ? 'your picture' : o.title;
-    const lines = ['image: PICTURE', ...(bump ? ['bump: BUMP'] : []), ...optionLines()];
+    const o = OBJECTS[state.obj], text = isText();
     const by = document.querySelector('#byline a');     // the byline build-integrations.mjs writes into this page
-    return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title.replace(/</g, '&lt;')}, silkified</title>
-<\!-- silkify by ${by.textContent} (${by.href}): https://github.com/RussGuo/silkify -->
-<\!-- Made in the silkify Lab (https://russguo.github.io/silkify/examples/lab.html). Open it with a double-click:
-     the picture is inside this file. It depends on jsDelivr: silk.js and three.js load from there, so it needs the
-     network. For a page you publish, copy src/ from https://github.com/RussGuo/silkify into your project and serve
-     it yourself, as its SKILL.md says. -->${state.obj === 'ink-drop' ? '\n<\!-- The picture is the FateTell mark, © FateTell, all rights reserved: for your own experiments only. -->' : ''}
-<style>
-  html, body { margin: 0; height: 100%; background: ${BACKGROUND[state.bg] || BACKGROUND.paper}; }
-  canvas { display: block; width: min(92vw, 92vh); aspect-ratio: 1; margin: 4vh auto; touch-action: pan-y; }
-  .silkify { position: fixed; right: 12px; bottom: 10px; font: 11px/1 system-ui, sans-serif; color: #8888; text-decoration: none; }
-</style>
-<\script type="importmap">
-  { "imports": { "three": "${THREE_CDN}" } }
-<\/script>
-</head>
-<body>
-<canvas id="silk" aria-hidden="true"></canvas>
-<a class="silkify" href="https://github.com/RussGuo/silkify">silkify</a>
-<\script type="module">
-  import { silkify } from '${SILK_CDN}';
-  const PICTURE = '${image}';
-${bump ? `  const BUMP = '${bump}';\n` : ''}  window.silk = silkify(document.getElementById('silk'), {
-    ${lines.join(',\n    ')},
-  });
-<\/script>
-</body>
-</html>
-`;
+    return pageHtml({
+      title: state.obj === 'custom' ? 'your picture' : text ? state.set.text.split('\n')[0].trim() : o.title,
+      picture: text ? null : await dataUrl(state.obj === 'custom' ? custom || (await fetched(state.url)) : await fetched(o.image)),
+      bump: o?.bump ? await dataUrl(await fetched(o.bump)) : null,
+      lines: [...(text ? textLines() : ['image: PICTURE']), ...(o?.bump ? ['bump: BUMP'] : []), ...optionLines()],
+      sheet: text ? stylesheetOf(state.set.font) : null,   // a Google Font: the same <link>, and the page waits for it
+      silk: text ? SILK_CDN_WORDS : SILK_CDN, background: state.bg, credit: { name: by.textContent, href: by.href }, mark: state.obj === 'ink-drop',
+    });
   }
+  const fileName = () => (state.obj === 'custom' ? 'picture' : isText() ? 'words' : state.obj) + (state.material !== 'silk' ? `-${state.material}` : '');
   async function download(button) {
     try {
       const html = await exportHtml();
-      const name = (state.obj === 'custom' ? 'picture' : state.obj) + (state.material !== 'silk' ? `-${state.material}` : '');
-      const a = el('a', { href: URL.createObjectURL(new Blob([html], { type: 'text/html' })), download: `silkify-${name}.html` });
+      const a = el('a', { href: URL.createObjectURL(new Blob([html], { type: 'text/html' })), download: `silkify-${fileName()}.html` });
       document.body.append(a);
       a.click();
       a.remove();
@@ -664,7 +666,7 @@ ${bump ? `  const BUMP = '${bump}';\n` : ''}  window.silk = silkify(document.get
     if (/^https?:/.test(u)) useUrl(u.trim());
   });
   window.addEventListener('paste', (e) => {
-    if (e.target.closest?.('input, select')) return;
+    if (e.target.closest?.('input, select, textarea')) return;
     const item = [...e.clipboardData.items].find((x) => x.type.startsWith('image/'));
     if (item) return useBlob(item.getAsFile());
     const u = e.clipboardData.getData('text/plain');
@@ -717,7 +719,7 @@ ${bump ? `  const BUMP = '${bump}';\n` : ''}  window.silk = silkify(document.get
   const cmp = document.getElementById('compare');
   cmp.onpointerdown = (e) => { cmp.setPointerCapture(e.pointerId); compare(true); };
   cmp.onpointerup = cmp.onpointercancel = cmp.onlostpointercapture = () => compare(false);
-  window.addEventListener('keydown', (e) => { if ((e.key === 'b' || e.key === 'B') && !e.repeat && !e.target.closest?.('input, select')) compare(true); });
+  window.addEventListener('keydown', (e) => { if ((e.key === 'b' || e.key === 'B') && !e.repeat && !e.target.closest?.('input, select, textarea')) compare(true); });
   window.addEventListener('keyup', (e) => { if (e.key === 'b' || e.key === 'B') compare(false); });
   window.addEventListener('blur', () => compare(false));
   stage.addEventListener('dragstart', (e) => e.preventDefault());   // nothing on the stage is draggable
@@ -743,7 +745,7 @@ ${bump ? `  const BUMP = '${bump}';\n` : ''}  window.silk = silkify(document.get
   writeHash();
   window.__lab = {                                      // hooks for scripts/shoot.mjs
     get handle() { return handle; }, get state() { return state; }, readHash, compare, exportHtml,
-    ready: () => new Promise((r) => setTimeout(r, 200)).then(() => handle.ready),
+    ready: () => new Promise((r) => setTimeout(r, 200)).then(() => mounting).then(() => handle.ready),
   };
   mount();
 </script>

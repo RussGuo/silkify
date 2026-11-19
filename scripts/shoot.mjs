@@ -33,6 +33,8 @@
  *          one warning, the static tier, the mistakes that throw); it checks itself, and one word must ripple.
  *          Then test/lost.html: WEBGL_lose_context on a picture (worker, poster, main thread), words and a live element:
  *          a still frame (or plain HTML) at once with mode 'static', and a working object again after restoreContext().
+ *          Then the Lab's words (Object → Words): they mount and ripple, the link restores every control and the text,
+ *          the printed call and Download HTML carry text, font, colour and line height, and the page runs from file://.
  * --gif    a stroke, a short press and the ripples decaying, 2.8 s. Recorded on the main thread (worker: false)
  *          and frame-stepped (stepPerFrame): 3 solver steps per GIF frame at 20 fps, so the timing is real 60 fps however slow
  *          the software GPU is. Palette-optimised and stepped down in size until each GIF is ≤ 1.5 MB.
@@ -435,6 +437,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   }
   if (!only || only === 'text') await verifyText();
   if (!only || only === 'lost') await verifyLost();
+  if (!only || only === 'lab') await verifyLabWords();
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */
@@ -766,6 +769,51 @@ async function verifyLost() {
   const { out, problems: ps } = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__lost && (clearInterval(t), r(window.__lost)), 100); })`);
   for (const p of ps) problems.push(`lost: ${p}`);
   console.log('lost  ', Object.entries(out).map(([k, r]) => `${k}: still in ${r.lostMs} ms, ${r.restored} in ${r.restoredMs} ms, ${r.after}`).join(' | '), `${ps.length} problem(s)`);
+}
+
+/* ---- verify, part 6: the Lab's words (Object → Words), with a system font (no network) ---- */
+async function verifyLabWords() {
+  const words = { obj: 'text', url: null, material: 'satin', feel: 'silk', bg: 'stage',
+    set: { text: 'Silk\nit\'s soft', font: '900 160px ui-serif, Georgia, "Times New Roman", serif', color: '#2f4f6b', lineHeight: 1.05, tier: 'low' } };
+  const h = await openLab('', words);
+  await sleep(800);
+  const st = await stageRect(), r = { ...st, x: st.x + st.w * 0.2, y: st.y + st.h * 0.3, w: st.w * 0.6, h: st.h * 0.4 };   // the words' band
+  const shot = async () => (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(r, 0.5) })).data;
+  const a0 = await shot();
+  await evaluate(`document.getElementById('stroke').click()`);
+  await sleep(700);
+  const [d] = await diffOf(a0, await shot());
+  const fonts = await evaluate(`performance.getEntriesByType('resource').filter((e) => /fonts\.(googleapis|gstatic)/.test(e.name)).length`);
+  const ok = h.mode === 'webgl' && d > 0.3 && fonts === 0;
+  if (!ok) problems.push(`lab words: ${h.mode}, stroke Δ ${d.toFixed(2)}, ${fonts} Google Fonts request(s) for a system font`);
+  console.log('words ', `${h.mode} ${h.tier}/${h.thread}`, `stroke Δ ${d.toFixed(2)}`, `${fonts} font requests`);
+
+  // the link restores every control, the words included (the textarea), and the printed call
+  const snap = `JSON.stringify([...document.querySelectorAll('#controls input, #controls select, #controls textarea')].map((i) => i.type === 'checkbox' ? i.checked : i.value)) + document.getElementById('code').textContent`;
+  const [url, a] = [await evaluate('location.href'), await evaluate(snap)];
+  await navigate('about:blank');
+  await navigate(url);
+  await evaluate('window.__lab.ready()');
+  const b = await evaluate(snap);
+  const shown = await evaluate(`['text', 'font', 'color', 'lineHeight'].filter((k) => ![...document.querySelectorAll('#controls .row')].find((r) => r.dataset.key === k).hidden)`);
+  const code = await evaluate(`document.getElementById('code').textContent`);
+  const printed = /text: 'Silk\\nit\\'s soft'/.test(code) && /font: '900 160px ui-serif/.test(code) && /color: '#2f4f6b'/.test(code) && /lineHeight: 1\.05/.test(code) && !/image:/.test(code);
+  if (a !== b || shown.length !== 4 || !printed) problems.push(`lab words: link ${a === b ? 'identical' : 'DIFFERENT'}, rows shown ${shown}, printed ${JSON.stringify(code)}`);
+  console.log('words ', `link round trip: ${a === b ? 'identical' : 'DIFFERENT'}`, `rows ${shown.join(' ')}`, printed ? 'printed with text, font, color, lineHeight' : 'PRINTED WRONG');
+
+  // Download HTML: the words, from file:// (silk.js from this server instead of the CDN)
+  const html = await evaluate('window.__lab.exportHtml()');
+  const cdn = /https:\/\/cdn\.jsdelivr\.net\/gh\/RussGuo\/silkify@[\w.-]+\/src\/silk\.js/;
+  if (/PICTURE/.test(html) || !/text: 'Silk\\nit\\'s soft'/.test(html) || !cdn.test(html)) problems.push('lab words: Download HTML does not carry the words');
+  const file = path.join(profile, 'words.html');
+  await writeFile(file, html.replace(cdn, `${base}/src/silk.js`));
+  await navigate('about:blank');
+  await navigate(`file://${file}`);
+  const w = await evaluate(`new Promise((r) => { const t = setInterval(() => window.silk && (clearInterval(t), r(window.silk.ready)), 50); })
+    .then((h) => h.stats().then((s0) => { for (const y of [0.4, 0.6]) for (const x of [0.3, 0.42, 0.58, 0.7]) h.ripple(x, y, { hold: 200 });   // two lines
+      return new Promise((r) => setTimeout(r, 600)).then(() => h.stats()).then((s1) => ({ mode: h.mode, frames: s1.frames - s0.frames })); }))`);
+  if (w.mode !== 'webgl' || !(w.frames > 5)) problems.push(`lab words: the downloaded page from file:// is ${w.mode} (${w.frames} frames after a ripple)`);
+  console.log('words ', `Download HTML: ${(html.length / 1024).toFixed(1)} KB, from file:// ${w.mode}, ${w.frames} frames after ripple()`);
 }
 
 ws.close();
