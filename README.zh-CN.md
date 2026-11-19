@@ -16,7 +16,7 @@
   <a href="LICENSE">MIT</a>
 </p>
 
-**万物皆可丝绸化。** silkify 把任意一张图片变成网页上可以触碰的丝绸物体：静止时是哑光的实物照片，指针碰到的地方被压出凹坑，涟漪荡开，泛起缎面的光泽。
+**万物皆可丝绸化。** silkify 把一张图片、一个词，或者网页的一部分，变成网页上可以触碰的丝绸物体：静止时是哑光的实物照片，指针碰到的地方被压出凹坑，涟漪荡开，泛起缎面的光泽。
 
 它由两部分组成：一个小巧的 WebGL 库（基于 [three.js](https://threejs.org) 的一个 ES module），和一个 [Agent Skill](SKILL.md)。后者教任何编码 Agent 抠图、把轮廓吹成穹面，再嵌进任意页面。
 
@@ -108,6 +108,17 @@ silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```
 
+## 融进页面
+
+物体不只是会起涟漪。下面这些，多传一个参数或多引一个函数就有：
+
+| | |
+|---|---|
+| **事件** | `onPress`、`onRelease`、`onStroke` 告诉页面指针去了哪里，精确到物体上的哪一点（`uv`）；`onReady`、`onFail` 告诉页面物体最后是活起来了还是没成。`haptics: true` 让支持的手机在按下时轻震一下。[事件说明 →](references/parameters.md#events-what-the-object-tells-the-page)（英文） |
+| **丝绸按钮** | 一个真正的 `<button>`，按钮面是丝绸：能用 Tab 聚焦，Enter 和空格能按（按下时也起涟漪），读屏软件照常朗读。完整做法见 [examples/button.html](examples/button.html)。 |
+| **一页很多个物体** | `pool()` 先让整页都是静态帧，谁被碰到谁才活起来，同一时间只活几个。`prewarm()` 在有人触碰之前先把 three.js 加载好，`coolDown()` 再把它放掉。[一页多个物体 →](references/performance.md)（英文） |
+| **铺满整块区域** | `fit: 'cover'` 像 CSS 的 `object-fit: cover` 一样铺满画布，画布尺寸变了也跟着变。`poster` 可以是页面自己画出来的图；`breezeIdle` 让微风吹动的绸面在一段时间没人碰之后停下来歇着。[整幅绸面 →](https://russguo.github.io/silkify/examples/demos/fabric.html) |
+
 ## 材质与手感
 
 大多数效果两个词就能定：`material`（`'silk'`、`'satin'`、`'velvet'`、`'wet'`、`'foil'`、`'paper'`、`'ink'`）决定表面是什么材料，`feel`（`'silk'`、`'water'`、`'gel'`、`'jelly'`）决定它被碰时怎么动，例如 `silkify(canvas, { image, material: 'foil', feel: 'water' })`。显式写出的参数永远优先于预设。想找自己的数值，用 [Lab 调参页](https://russguo.github.io/silkify/examples/lab.html)。
@@ -134,11 +145,15 @@ silk.dispose();
 | 涟漪 | `pressDepth` 0.30（凹坑深度）· `pressDepthHold` 0.60（按住时）· `pressRadius` 0.075（半径）· `waveSpeed` 1.6（波速）· `damping` 0.996（阻尼）· `displace` 0.32（位移）· `ripple` 62（涟漪的明暗对比） |
 | 材质 | `sheen` 球体 0.18 / 图片 0.3（高光）· `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]`（高光颜色）· `satin` 0.9（缎面）· `albedo` null 或 `[r,g,b]`（反照率）· `grain` 0（颗粒）· `grainScale` 1（颗粒尺寸）· `gamma` 1 · `exposure` 1（曝光）· `metallic` 0（金属感）· `anisotropy` 0（各向异性）· `anisotropyAngle` 0（丝线方向）· `threads` 0（丝线纹理）· `rim` 0（轮廓光）· `rimPower` 3 · `rimColor` `[1,1,1]` 或 null（取图片本色）· `iridescence` 0（虹彩）· `silkRest` 0（静止时的丝绸程度）· `silkSpread` 1（丝绸扩散范围） |
 | 光 | `light`（视空间主光方向）· `lightColor` `[1,1,1]`（主光颜色）· `satinLight` `[0.5,0.6,0.45]`（缎面与高光的光向）· `floor` 0.05 / 0.55（背光面的最低亮度）· `volume` 0.28（明暗体积感）· `fillLight` true（补光跟随指针）· `idleSweep` true（闲置时补光慢慢扫一圈） |
-| 动作 | `autoplay` false 或 `{ interval, depth, radius }`（定时自动落一滴）· `breeze` 0（微风）· `handle.ripple(x, y)`（程序化触碰一次） |
-| 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（鼓起的高度）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
+| 动作 | `autoplay` false 或 `{ interval, depth, radius }`（定时自动落一滴）· `breeze` 0（微风）· `breezeIdle` 0（多少毫秒没人碰就停下微风）· `handle.ripple(x, y)`（程序化触碰一次） |
+| 形状（图片） | `puff` `'dome'` / `'cushion'` / `'flat'` / 数值（鼓起的高度）· `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 或 `'cover'`（铺满画布） |
 | 形状（球体） | `phase` null 或 0–1（月相）· `bump`（高程图）· `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
+| 文字 | `text`（代替 `image`）· `font` 默认 `800 160px` 加画布自己的字体 · `color` 默认取画布的 CSS 颜色 · `lineHeight` 1.15（行距） |
 | 活 HTML | `element`（元素或选择器，代替 `image`）· `fit` 默认 1:1 · `puff` `'cushion'` |
-| 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态图）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` · `onHover` |
+| 事件 | `onPress` · `onRelease` · `onStroke` · `onHover` · `onReady` · `onFail` · `haptics` false（按下时轻震） |
+| 运行 | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'`（档位）· `worker` `'auto'` / false · `threeUrl` · `poster`（静态帧：图片地址、canvas，或一个画出静态帧的函数）· `dpr`（像素比上限，按档位）· `reducedMotion` `'auto'` |
+
+除了 `silkify()`，`silk.js` 还导出 `prewarm()` 和 `coolDown()`，`pool.js` 导出 `pool()`（见[导出](references/parameters.md#exports)，英文）。
 
 每个参数的作用与调法、logo / 照片 / 绘画 / 月球的配方在 [references/parameters.md](references/parameters.md)，常见问题排查在 [references/troubleshooting.md](references/troubleshooting.md)。
 

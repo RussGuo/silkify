@@ -16,7 +16,7 @@ English | [简体中文](README.zh-CN.md)
   <a href="LICENSE">MIT</a>
 </p>
 
-**Silkify anything.** silkify turns any image into a touchable silk surface on the web. At rest the object is matte and photographic. Where your pointer touches it, the surface dents, ripples and catches the light like satin.
+**Silkify anything.** silkify turns an image, a word or a piece of the page into a touchable silk surface on the web. At rest the object is matte and photographic. Where your pointer touches it, the surface dents, ripples and catches the light like satin.
 
 silkify is a small WebGL library (one ES module on top of [three.js](https://threejs.org)) and an [Agent Skill](SKILL.md) that teaches any coding agent how to cut out a picture, inflate it and embed it in any page.
 
@@ -108,6 +108,17 @@ silk.setTheme({ exposure: 0.9, floor: 0.4 });
 silk.dispose();
 ```
 
+## Part of the page
+
+An object can do more than ripple. Each of these is an option or one import away:
+
+| | |
+|---|---|
+| **Events** | `onPress`, `onRelease` and `onStroke` tell the page where the pointer went, down to the spot on the object (`uv`); `onReady` and `onFail` say how the object settled. `haptics: true` adds a short tick on phones that can. [Events →](references/parameters.md#events-what-the-object-tells-the-page) |
+| **A silk button** | A real `<button>` whose face is silk: it takes focus, Enter and Space press it (and ripple it), and a screen reader reads it like any button. [examples/button.html](examples/button.html) is the whole pattern. |
+| **Many objects** | `pool()` shows a page of posters and brings each object to life on its first touch, a few at a time. `prewarm()` loads three.js before anyone touches anything; `coolDown()` lets it go. [Many objects →](references/performance.md) |
+| **Edge to edge** | `fit: 'cover'` fills the canvas like CSS `object-fit: cover` and follows it when it resizes. `poster` can be a picture the page draws itself, and `breezeIdle` lets a breezing sheet rest once nobody has touched it for a while. [A sheet of fabric →](https://russguo.github.io/silkify/examples/demos/fabric.html) |
+
 ## Material and feel
 
 Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`, `'foil'`, `'paper'`, `'ink'`) sets what the surface is made of, and `feel` (`'silk'`, `'water'`, `'gel'`, `'jelly'`) sets how it answers a touch, as in `silkify(canvas, { image, material: 'foil', feel: 'water' })`. Explicit options always win over both. To find your own values, use the [Lab](https://russguo.github.io/silkify/examples/lab.html).
@@ -119,7 +130,7 @@ Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`
 | <img src="docs/shots/lab/material-wet.jpg" width="400" alt="the pomegranate wet, at rest and just touched"> | <img src="docs/shots/lab/feel-jelly.jpg" width="400" alt="the pomegranate with the jelly feel, 0.15 s and 0.9 s after a touch"> |
 | `material: 'wet'` | `feel: 'jelly'`, 0.15 s and 0.9 s after a touch |
 
-**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture or type a few words (Object → Words, in a system font or a Google Font), then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it (that file loads silk.js and three.js from jsDelivr). **Record** makes a 3 or 5 s clip of it to post, square or 9:16, MP4 or WebM depending on the browser, with a small silkify mark in the corner that one click leaves out. One picture per preset is in [docs/shots/lab](docs/shots/lab).
+**[Open the Lab →](https://russguo.github.io/silkify/examples/lab.html)** Every option on one page: drag a slider and the object changes live, pick a `material` and a `feel`, press Touch or Stroke to see the feel without a mouse, hold B to compare with the defaults, drop in your own picture or type a few words (Object → Words, in a system font or a Google Font, a Chinese serif among them), then copy the options, share the link (the whole state is in the URL), or download the result as one HTML file that opens with a double-click, the picture inside it (that file loads silk.js and three.js from jsDelivr). **Record** makes a 3 or 5 s clip of it to post, square or 9:16, MP4 or WebM depending on the browser, with a small silkify mark in the corner that one click leaves out. One picture per preset is in [docs/shots/lab](docs/shots/lab).
 
 <img src="docs/shots/lab/lab.jpg" width="640" alt="the silkify Lab: a teapot in foil, with every option beside it">
 
@@ -134,11 +145,15 @@ Two words cover most looks: `material` (`'silk'`, `'satin'`, `'velvet'`, `'wet'`
 | Ripple | `pressDepth` 0.30 · `pressDepthHold` 0.60 · `pressRadius` 0.075 · `waveSpeed` 1.6 · `damping` 0.996 · `displace` 0.32 · `ripple` 62 |
 | Material | `sheen` 0.18 sphere / 0.3 image · `sheenPower` 22 / 16 · `sheenColor` `[0.9,0.95,1]` · `satin` 0.9 · `albedo` null or `[r,g,b]` · `grain` 0 · `grainScale` 1 · `gamma` 1 · `exposure` 1 · `metallic` 0 · `anisotropy` 0 · `anisotropyAngle` 0 · `threads` 0 · `rim` 0 · `rimPower` 3 · `rimColor` `[1,1,1]` or null · `iridescence` 0 · `silkRest` 0 · `silkSpread` 1 |
 | Light | `light` (view-space key light) · `lightColor` `[1,1,1]` · `satinLight` `[0.5,0.6,0.45]` · `floor` 0.05 / 0.55 · `volume` 0.28 · `fillLight` true · `idleSweep` true |
-| Motion | `autoplay` false or `{ interval, depth, radius }` · `breeze` 0 · `handle.ripple(x, y)` |
-| Shape (image) | `puff` `'dome'` / `'cushion'` / `'flat'` / a number · `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 |
+| Motion | `autoplay` false or `{ interval, depth, radius }` · `breeze` 0 · `breezeIdle` 0 (ms) · `handle.ripple(x, y)` |
+| Shape (image) | `puff` `'dome'` / `'cushion'` / `'flat'` / a number · `matte` `'auto'` / `'alpha'` / `'rect'` · `corner` 0.06 · `threshold` 0.5 · `fit` 1.3 or `'cover'` |
 | Shape (sphere) | `phase` null or 0–1 · `bump` (elevation map) · `bumpStrength` 7 · `spin` true · `spinSpeed` 0.006 · `angle` 0 |
+| Words | `text` (instead of `image`) · `font` `800 160px` in the canvas's family · `color` the canvas's CSS colour · `lineHeight` 1.15 |
 | Live HTML | `element` (an element or a selector, instead of `image`) · `fit` defaults to 1:1 · `puff` `'cushion'` |
-| Runtime | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'` · `worker` `'auto'` / false · `threeUrl` · `poster` · `dpr` (per tier) · `reducedMotion` `'auto'` · `onHover` |
+| Events | `onPress` · `onRelease` · `onStroke` · `onHover` · `onReady` · `onFail` · `haptics` false |
+| Runtime | `interactive` true · `tier` `'auto'` / `'high'` / `'low'` / `'static'` · `worker` `'auto'` / false · `threeUrl` · `poster` (a URL, a canvas or a function that draws one) · `dpr` (per tier) · `reducedMotion` `'auto'` |
+
+Besides `silkify()`, `silk.js` exports `prewarm()` and `coolDown()`, and `pool.js` exports `pool()` ([Exports](references/parameters.md#exports)).
 
 [references/parameters.md](references/parameters.md) explains what each option does and how to tune it and gives recipes for logos, photos, paintings and the moon; [references/troubleshooting.md](references/troubleshooting.md) has the fixes.
 
