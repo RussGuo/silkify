@@ -44,4 +44,4 @@ body:
     attributes:
       label: silkify version
       description: The version in SKILL.md's metadata (or the tag you copied src/ from), or the tag or commit in your CDN URL.
-      placeholder: v0.2.3
+      placeholder: v0.3.0

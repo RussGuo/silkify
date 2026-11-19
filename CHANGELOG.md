@@ -2,19 +2,26 @@
 
 ## Versions and what a tag promises
 
-- **Version numbers.** While silkify is 0.x, a minor release (0.3) may rename or remove options and handle members; it says so here. A patch release (0.2.3) fixes and adds, and never breaks a `silkify()` call that worked: the default look stays pixel for pixel the same (the gallery posters are re-rendered and compared byte for byte before a release).
-- **Tags.** A release tag (`v0.2.3`) is pushed once, after every check has passed on that commit, and is never moved or deleted. That is this project's promise, not a property of git: a tag can be force-pushed.
+- **Version numbers.** While silkify is 0.x, a minor release (0.4) may rename or remove options and handle members; it says so here. A patch release (0.3.1) fixes and adds, and never breaks a `silkify()` call that worked: the default look stays pixel for pixel the same (the gallery posters are re-rendered and compared byte for byte before a release).
+- **Tags.** A release tag (`v0.3.0`) is pushed once, after every check has passed on that commit, and is never moved or deleted. That is this project's promise, not a property of git: a tag can be force-pushed.
 - **Copying `src/` is the default, and the safest.** A page that serves its own copy changes only when you copy a new release in, and depends on no outside service.
-- **If you import from the CDN instead,** jsDelivr keeps the files it has served for a tag, so `@v0.2.3` does not change under a page in practice, but nothing cryptographic guarantees it. When integrity matters, pin a commit: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@<40-character commit SHA>/src/silk.js` names exactly one tree of files.
+- **If you import from the CDN instead,** jsDelivr keeps the files it has served for a tag, so `@v0.3.0` does not change under a page in practice, but nothing cryptographic guarantees it. When integrity matters, pin a commit: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@<40-character commit SHA>/src/silk.js` names exactly one tree of files.
 - **Subresource Integrity covers one file.** On the CDN, an `integrity` attribute (or an import map's `integrity` entry) checks only the module the page imports directly, silk.js. The modules silk.js imports, the worker it starts, and three.js loaded inside that worker are fetched without one. For the whole chain, copy `src/` and serve it yourself.
 
-## Unreleased
+## 0.3.0 (2026-11-19)
 
 **Added**
-- **Live HTML.** `silkify(canvas, { element })` prints a real element on the silk instead of a picture, through HTML-in-Canvas (Chrome 157 and later). The element stays HTML: its words can be selected, copied and found, links and buttons work, editable text takes typing and input methods, it scrolls, screen readers read it, and the silk still dents and ripples. It is drawn 1:1 by default (`fit` scales it), its own background and `border-radius` are the outline, and it is printed again only when its rendering changes, so a resting card draws nothing. Without the feature, in the static tier, or without WebGL2 the element stays where it is as plain HTML (`mode: 'static'`, no warning); a browser that has the feature but gives no picture within 4 s gets the same fallback with one warning. `handle.element`; `snapshots` in `stats()`. New file `src/live.js`; `examples/live.html`; a live-HTML card in the gallery; `SilkHtml` for React and Next.js in `examples/react` and `examples/next`. Ignored in element mode: `matte`, `threshold`, `corner`, `albedo`, `grain`, `poster`. See SKILL.md step 5.
+- **Live HTML.** `silkify(canvas, { element })` prints a real element on the silk instead of a picture, through HTML-in-Canvas (Chrome 157 and later). The element stays HTML: its words can be selected, copied and found, links and buttons work, editable text takes typing and input methods, it scrolls, screen readers read it, and the silk still dents and ripples. It is drawn 1:1 by default, at the place the page laid it out, and an invisible box of its size keeps that place in the page, so nothing moves when it comes alive; an element larger than the canvas is shrunk to fit, with one warning (`fit` scales it like a picture, without one). Its own background and `border-radius` are the outline. It is printed again only when its rendering changes, so a resting card draws nothing; while prints keep coming, `stats().mode` is `'html'`. The focus and the selection inside the element survive the move into the canvas and back. Without the feature, in the static tier, or without WebGL2 the element stays where it is as plain HTML (`mode: 'static'`, no warning); a browser that has the feature but gives no picture within 4 s gets the same fallback with one warning. `handle.element`; `snapshots` in `stats()`. New file `src/live.js`; `examples/live.html`; a live-HTML card in the gallery; `SilkHtml` for React and Next.js in `examples/react` and `examples/next`. Ignored in element mode: `matte`, `threshold`, `corner`, `albedo`, `grain`, `poster`. See SKILL.md step 5.
 - `scripts/shoot.mjs` checks live HTML in Chrome (selection and copy, double-click, link, button, typing and an input method, scrolling, the caret, resizing, ripples, sleeping, the fallbacks, `dispose()`); `--browsers` checks the plain-HTML fallback in WebKit and Firefox; `scripts/frameworks.mjs` checks `SilkHtml` under StrictMode.
 
-Pictures are unchanged: the posters re-render byte for byte.
+**Changed**
+- **Code that cannot be loaded says so.** A three.js that cannot be resolved (a missing import map), a worker that does not start, or a `core.js` that cannot be imported now logs one `console.warn` naming the cause and the fix, for a picture and an element alike. Before, the mount ended in a still frame or plain HTML with a `reason` and a silent console, and with live HTML the fallback looked exactly right, so the mistake went unseen. Missing features (no WebGL2, the static tier, reduced motion, no HTML-in-Canvas) stay quiet.
+
+**Fixed**
+- **`dispose()` while the renderer is starting settles `ready`.** Called in the first moments after `silkify()` (React StrictMode's first mount does exactly that), `ready` never settled; it now resolves with `mode: 'disposed'`, as the handle table always said. This was in 0.2.x too, for pictures.
+- `examples/next` is pinned to Next.js 16.4.6: 16.4.2 has a known vulnerability, and its own CLI refuses to build with it.
+
+Pictures look the same: the posters re-render byte for byte.
 
 ## 0.2.3 (2026-10-22)
 

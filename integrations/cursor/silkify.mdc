@@ -17,7 +17,7 @@ Work through the steps in order: get the code, get the silhouette right, pick th
 
 ## Get the code
 
-The library is the `src/` folder beside this SKILL.md. Copy it into the project and serve it with the page. The page then depends on no outside service: it works offline and under a strict Content-Security-Policy ([references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md) has the line), and it changes only when someone copies a new version in.
+The library is the `src/` folder beside this SKILL.md. Copy it into the project and serve it with the page. The page then depends on no outside service: it works offline and under a strict Content-Security-Policy ([references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/troubleshooting.md) has the line), and it changes only when someone copies a new version in.
 
 1. **Copy `src/` into the project**, the whole folder (the files import each other), under any name. This skill calls it `silk/`:
 
@@ -25,7 +25,7 @@ The library is the `src/` folder beside this SKILL.md. Copy it into the project 
    cp -R <the folder this SKILL.md is in>/src <project>/silk
    ```
 
-   If you were given only this file, not its folder, get the folder first: `git clone --depth 1 --branch v0.2.3 https://github.com/RussGuo/silkify`.
+   If you were given only this file, not its folder, get the folder first: `git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify`.
 
 2. **Give the project three.js**, the one peer dependency (tested with 0.152.2 and 0.186.1): `npm i three`.
    - With a bundler (Vite, webpack, Next.js) that is all; see "Bundlers" in step 4.
@@ -36,10 +36,10 @@ The library is the `src/` folder beside this SKILL.md. Copy it into the project 
 **Only when there is nowhere to put files** (a CodePen, a single HTML file, the Lab's Download HTML), import silk.js from jsDelivr instead, pinned to a release tag, and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`:
 
 ```
-https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.2.3/src/silk.js
+https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js
 ```
 
-The page then depends on jsDelivr. Pin a release tag (`@v0.2.3`), never `@main`, which follows the repository and changes under you; where integrity matters, pin a commit (`@<40-character SHA>`; see [CHANGELOG.md](https://github.com/RussGuo/silkify/blob/v0.2.3/CHANGELOG.md) on versions). The rest of `src/` loads from the same place, and the renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, the CDN way needs the CDN and `blob:` allowed (the line is in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md)).
+The page then depends on jsDelivr. Pin a release tag (`@v0.3.0`), never `@main`, which follows the repository and changes under you; where integrity matters, pin a commit (`@<40-character SHA>`; see [CHANGELOG.md](https://github.com/RussGuo/silkify/blob/v0.3.0/CHANGELOG.md) on versions). The rest of `src/` loads from the same place, and the renderer still runs in a Web Worker: a page cannot start a worker from another origin, so silk.js starts a same-origin `blob:` worker that imports the CDN one. Checked with `handle.thread === 'worker'` in Chrome 156, Firefox 157, WebKit 27.2 (Playwright), Safari 26.5 on macOS and Safari on the iOS 26.4 Simulator. Under a Content-Security-Policy, the CDN way needs the CDN and `blob:` allowed (the line is in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/troubleshooting.md)).
 
 The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it from there. What else is in the folder:
 
@@ -56,7 +56,7 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture, Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it loads silk.js and three.js from jsDelivr, so it needs the network, and renders on the main thread from `file://`). |
 | `examples/cdn.html` | The smallest page that imports silk.js from the CDN, the way for pages with nowhere to put files; `shoot.mjs --cdn` checks it. |
 | `examples/live.html` | The smallest live-HTML page (step 5): a card with a link, a button, a scrolling list and an editable line; `shoot.mjs` drives it. |
-| `references/` | [parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md) (every option, presets, recipes), [performance.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/performance.md) (tiers, sleeping, many objects, measurements), [troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md). Read them when a step below points there. |
+| `references/` | [parameters.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/parameters.md) (every option, presets, recipes), [performance.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/performance.md) (tiers, sleeping, many objects, measurements), [troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/troubleshooting.md). Read them when a step below points there. |
 
 ## Step 1: Get the silhouette right
 
@@ -121,7 +121,7 @@ One word each. Anything you also write explicitly wins over the preset.
 | `'gel'` | a deep, slow dent that settles at once |
 | `'jelly'` | big wobbles; holding pushes far in |
 
-A dark picture (lacquer, a black logo) needs a brighter, broader highlight: add `sheen: 0.5, sheenPower: 14`. A painting or poster: `puff: 'cushion', floor: 0.6, sheen: 0.25`. Exact preset values and every other option are in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md). To find values by eye, open the [Lab](https://russguo.github.io/silkify/examples/lab.html), drop the picture in, and copy the options it prints.
+A dark picture (lacquer, a black logo) needs a brighter, broader highlight: add `sheen: 0.5, sheenPower: 14`. A painting or poster: `puff: 'cushion', floor: 0.6, sheen: 0.25`. Exact preset values and every other option are in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/parameters.md). To find values by eye, open the [Lab](https://russguo.github.io/silkify/examples/lab.html), drop the picture in, and copy the options it prints.
 
 ## Step 4: Render it
 
@@ -208,7 +208,7 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 - **Style the element by its own id or class.** It moves into the canvas while it is live, so `.stage > #card` would stop matching. Give it a background: its painted box, alpha included, is the silk's outline (its `border-radius` too), and transparent parts are cut away.
 - **The canvas belongs to silkify.** No `user-select: none` on the canvas or its ancestors, or the words cannot be selected. An `aria-hidden` on the canvas would hide the element from screen readers: silkify removes it while the element is inside, and puts it back afterwards.
 - **Call it once the element is rendered.** A selector that matches nothing, or `element: null` (a lookup or a React ref read too early), throws a `TypeError` at once. In React, call it in an effect.
-- **Options.** `material`, `feel`, light and ripple options apply; `puff` defaults to `'cushion'`. Ignored without error: `matte`, `threshold`, `corner`, `albedo`, `grain`, `poster`. `image` together with `element`, or `shape: 'sphere'`, throws. The table is in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/parameters.md#element-mode-live-html).
+- **Options.** `material`, `feel`, light and ripple options apply; `puff` defaults to `'cushion'`. Ignored without error: `matte`, `threshold`, `corner`, `albedo`, `grain`, `poster`. `image` together with `element`, or `shape: 'sphere'`, throws. The table is in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/parameters.md#element-mode-live-html).
 - **Cost.** Every change in the element's rendering (text, style, hover, selection, the caret blinking) is one snapshot and one frame; nothing changes, nothing is drawn. Keep continuous animation out of the element.
 - **The handle.** `handle.element` is the element; `stats()` also reports `snapshots`, and `mode: 'html'` while they keep coming; `dispose()` puts the element back. If the browser has the feature but gives no picture of the element within 4 s, the element goes back as plain HTML: mode `'static'`, a reason, and one `console.warn`.
 
@@ -220,7 +220,7 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 - The loop sleeps by itself: 60 fps while touched and for 8 s after, a 12 fps tail, then no frames at all. Only the pointer over the canvas counts: moving or holding it elsewhere on the page draws nothing. The waves step at a fixed 60 Hz, so they move at the same speed on a 120 Hz display. Phones and small screens get the low tier; reduced motion, Save-Data and no WebGL2 get a still frame (pass a `poster`).
 - `breeze` and `autoplay` keep the loop awake (breeze draws 30 fps while visible). Use them on one hero object, never on a grid.
 
-Details and measurements: [references/performance.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/performance.md).
+Details and measurements: [references/performance.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/performance.md).
 
 ## Verify before you hand it over
 
@@ -228,6 +228,6 @@ Details and measurements: [references/performance.md](https://github.com/RussGuo
 2. Check `handle.mode` is `'webgl'` and `handle.thread` is `'worker'` in the console (if not, `handle.reason` says why); the console must have no errors or warnings.
 3. Test a narrow viewport (375 px, low tier) and `prefers-reduced-motion` (still frame).
 4. Live HTML: in Chrome 157 or later, select a few words and copy them, click the links, and type into editable text; in Safari or Firefox the element must read as plain HTML.
-5. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.2.3/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
+5. If something looks wrong, look it up in [references/troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/troubleshooting.md): black square, halo, crease, no ripple, `thread` stuck on `'main'`.
 
 In this repository, `node scripts/shoot.mjs` does steps 1–2 for every gallery card and the Lab in headless Chrome and exits non-zero on any failure; re-render posters with `--posters` whenever the look changes.
