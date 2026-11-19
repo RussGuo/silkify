@@ -40,6 +40,9 @@
  * A lost WebGL context (a background tab, a GPU reset, too many contexts): the object shows its still frame at once,
  * mode 'static', and is rebuilt when the browser restores the context (see lost()).
  *
+ * Events: callbacks in the options (onPress, onRelease, onStroke, onHover; onReady and onFail as the mode settles, a lost
+ * context included) and `haptics`, in events.js. A callback that throws never stops the renderer.
+ *
  * Peer dependency: three (tested with 0.152.2), resolved through the page's import map or bundler.
  */
 import { pickTier, TIERS } from './tier.js';
@@ -48,6 +51,7 @@ import { MATERIALS, FEELS, keysOf } from './presets.js';
 import { liveSupport, resolveElement, liveElement } from './live.js';
 import { TEXT_DEFAULTS, checkText, setText } from './text.js';
 import { follow } from './pointer.js';
+import { emitter, gestures } from './events.js';
 
 export { PUFF, MATERIALS, FEELS };
 
@@ -75,7 +79,9 @@ const COMMON = {
   threeUrl: undefined,     // absolute URL of three.module.js for the worker (default: import.meta.resolve('three'))
   poster: undefined,       // a still frame shown in the static tier (default: the picture itself)
   stepPerFrame: false,     // one solver step per drawn frame instead of 60 per second: frame-exact recordings only
-  onHover: null,
+  // events (events.js): the page's callbacks, and one short vibration on a touch press
+  haptics: false,          // true (10 ms) | ms
+  onHover: null, onPress: null, onRelease: null, onStroke: null, onReady: null, onFail: null,
 };
 
 const DEFAULTS = {
@@ -280,6 +286,7 @@ export function silkify(canvasIn, options = {}) {
     throw new TypeError(`silkify: options.element is ${options.element}: call silkify() after the element is in the DOM`);
   }
   const o = resolveOptions(options);
+  const emit = emitter(o);   // the page's callbacks, read from `o` when called (setTheme can swap them)
   const kind = o.shape;
   const element = options.element != null ? resolveElement(options.element) : null;
   if (!o.image && !element && o.text == null) throw new Error('silkify: options.image (or options.element, or options.text) is required');
@@ -461,7 +468,7 @@ export function silkify(canvasIn, options = {}) {
       ctl.signal.addEventListener('abort', () => resolve(null), { once: true });
       const receive = (m) => {
         if (m.t === 'ready') resolve(m);
-        else if (m.t === 'hover') o.onHover?.(m.on);
+        else if (m.t === 'hover') emit('onHover', m.on);
         else if (m.t === 'stats') { const { t, id, ...st } = m; asked.get(id)?.(st); asked.delete(id); }
         else if (m.t === 'html' || m.t === 'shaped') live?.received(m);
         else if (m.t === 'lost') lost();
@@ -508,20 +515,23 @@ export function silkify(canvasIn, options = {}) {
     send({ t: 'pointer', ...p });
   };
   const leave = () => { if (ptr.over || ptr.pressed) send({ t: 'lift' }); ptr.over = ptr.pressed = false; ptr.at = null; };
+  // the page's onPress, onRelease and onStroke ride on the same pointer: wanted while the silk answers it
+  const g = gestures({ o, emit, canvas: () => canvas, listening: () => o.interactive !== false && (handle.mode === 'loading' || handle.mode === 'webgl') });
   // the window's listeners are shared by every object on the page (pointer.js): this is what they call for this one
   let unfollow = () => {};
   if (tier.tier !== 'static') {   // the static tier never needs the pointer
     unfollow = follow({
       canvas: () => canvas,
       near: () => inView,
-      move: point,
-      out: () => { if (ptr.over) leave(); },
-      down: (p) => { point(p); ptr.pressed = true; send({ t: 'press', down: true }); },
-      up: (mouse) => {
+      move: (p, e) => { point(p); g.move(p, e); },
+      out: () => { g.out(); if (ptr.over) leave(); },
+      down: (p, e) => { point(p); ptr.pressed = true; send({ t: 'press', down: true }); g.down(p, e); },
+      up: (mouse, e, where) => {
+        g.up(e, where);
         if (!mouse) return leave();
         if (ptr.pressed) { ptr.pressed = false; send({ t: 'press', down: false }); }
       },
-      leave,
+      leave: () => { g.cancel(); leave(); },
     });
   }
   document.addEventListener('visibilitychange', () => send({ t: 'visible', visible: visible() }), on);
@@ -555,7 +565,7 @@ export function silkify(canvasIn, options = {}) {
    *      When the browser gives the context back, the renderer is rebuilt on a new canvas, the still frame staying
    *      behind it (its CSS background) until the first new frame is up, and the mode is 'webgl' again. ---- */
   let lostEarly = false;
-  function lost() {
+  function lost(quiet = false) {
     if (disposed) return;
     if (handle.mode === 'loading') { lostEarly = true; return; }
     if (handle.mode !== 'webgl') return;
@@ -570,6 +580,7 @@ export function silkify(canvasIn, options = {}) {
     } else {
       paintStatic();
     }
+    if (!quiet) emit('onFail', handle);
   }
   async function restored() {
     if (disposed || handle.mode !== 'static' || handle.reason !== LOST) return;
@@ -586,12 +597,20 @@ export function silkify(canvasIn, options = {}) {
     handle.mode = 'loading';
     await goLive();
     if (still) Object.assign(canvas.style, was);
+    settled();
+  }
+  /** onReady (live, or a still frame) or onFail (nothing drawn, or the context went while the scene was built), once
+   *  per mount and once per restore, as `ready` resolves. A disposed object says nothing. */
+  function settled() {
+    if (disposed) return;
+    emit(handle.mode === 'failed' || handle.reason === LOST ? 'onFail' : 'onReady', handle);
   }
 
   handle.ready = mount().catch((e) => {   // ready never rejects: anything unexpected is a failure with its reason
     if (!disposed) fail(`unexpected error (${e?.message || e})`);
     return handle;
   });
+  handle.ready.then(settled);
   async function mount() {
     await sized(canvas, ctl.signal);
     if (disposed) return handle;
@@ -644,7 +663,7 @@ export function silkify(canvasIn, options = {}) {
           Object.assign(handle, { mode: 'webgl', thread: onWorker ? 'worker' : 'main', tier: info.tier, info, reason: null });
           if (codeError) codeError = `${codeError}: rendering on the main thread`;
           loudly();
-          if (lostEarly) { lostEarly = false; lost(); }   // the context went while the scene was being built
+          if (lostEarly) { lostEarly = false; lost(true); }   // the context went while the scene was being built (settled() says so)
           return handle;
         } catch (e) {
           worker?.terminate();

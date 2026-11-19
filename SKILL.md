@@ -53,10 +53,11 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js`, `src/tier.js`, `src/shape.js` | The worker entry, device tiers, and silhouette → dome geometry. |
 | `src/pointer.js` | One set of window pointer listeners shared by every object on the page; a canvas's position is read only when it is near the viewport. |
+| `src/events.js` | What an object tells the page: the `onPress`, `onRelease`, `onStroke` gestures, `haptics`, and callbacks that cannot throw into the renderer. |
 | `src/live.js` | Live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the fallback to plain HTML. |
 | `src/text.js` | Words as the object: sets `text` in a canvas once its font has loaded, and says so when a web font did not arrive or a stack with no generic family has nothing to draw. |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, the edge cases in `test/edge.html` the first touch and many objects (`test/first-touch.html`, `test/many.html`, `scripts/verify-touch.mjs`), what the Lab makes (words, a recorded clip: `scripts/verify-lab.mjs`), and the pages around it (link-preview tags, posters, How it works, the use cases: `scripts/verify-pages.mjs`); renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
+| `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, the edge cases in `test/edge.html` the first touch and many objects (`test/first-touch.html`, `test/many.html`, `scripts/verify-touch.mjs`), the events (`test/events.html`, `scripts/verify-events.mjs`), what the Lab makes (words, a recorded clip: `scripts/verify-lab.mjs`), and the pages around it (link-preview tags, posters, How it works, the use cases: `scripts/verify-pages.mjs`); renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
 | `examples/index.html` | A working gallery of eleven objects (one of them a word) with the options that make each look right, a live-HTML card (step 5), and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
 | `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture or a few words (Object → Words), Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it loads silk.js and three.js from jsDelivr, so it needs the network, and renders on the main thread from `file://`), and Record: a 3 or 5 s clip of the stage, square or 9:16, MP4 or WebM by browser, with an optional silkify mark. |
 | `examples/cdn.html` | The smallest page that imports silk.js from the CDN, the way for pages with nowhere to put files; `shoot.mjs --cdn` checks it. |
@@ -185,7 +186,7 @@ A new `src` is a remount, and so are StrictMode's mount → unmount → mount an
 | Member | Purpose |
 |---|---|
 | `ready` | Resolves to the handle once the first frame is on screen (live or static) or the mount has failed. It never rejects; check `mode`. It waits for the canvas to have a size: a canvas in `display: none` (a closed tab, a collapsed panel) resolves once it is shown, or at `dispose()`. |
-| `mode` | `'loading'`, `'webgl'`, `'static'` (drawn once), `'failed'` (nothing could be drawn: the picture did not load or decode, or nothing in it is opaque) or `'disposed'`. A live object can turn `'static'` later: when the browser takes its WebGL context back (a background tab on a phone, a GPU reset, more contexts than it allows), it shows its poster or picture at once (a live element goes back to the page as plain HTML), and when the context is given back it rebuilds (`'loading'`, then `'webgl'` again). The canvas element is replaced on the way: read `handle.canvas`, do not keep the one you passed. |
+| `mode` | `'loading'`, `'webgl'`, `'static'` (drawn once), `'failed'` (nothing could be drawn: the picture did not load or decode, or nothing in it is opaque) or `'disposed'`. A live object can turn `'static'` later: when the browser takes its WebGL context back (a background tab on a phone, a GPU reset, more contexts than it allows), it shows its poster or picture at once (a live element goes back to the page as plain HTML), and when the context is given back it rebuilds (`'loading'`, then `'webgl'` again); `onFail` and `onReady` tell the page (see Events). The canvas element is replaced on the way: read `handle.canvas`, do not keep the one you passed. |
 | `reason` | Why it is `'static'` or `'failed'`, in words (`null` while live). A failure also logs one `console.warn` starting with `silkify:`, the library's only console output; so does code that could not be loaded (no import map for `three`, a file of `src/` not served), even when the object still ends up drawn once or on the main thread. A missing feature (no WebGL2, reduced motion) logs nothing. |
 | `tier`, `thread`, `info` | The tier used (`'high'`, `'low'`, or `'static'`, also after a fallback to a still frame), `'worker'` or `'main'`, and `{ sim, steps, mesh, texture, software }`. |
 | `setTheme(patch)` | Changes any material, light, ripple or motion option live (for example on a light/dark switch). `setTheme({ material: 'wet' })` swaps a preset. Scene options (`image`, `shape`, `puff`, `matte`, `corner`, `threshold`, `fit`, `angle`, `tier`, `worker`) need a new `silkify()`. Calls made before `ready` are kept and applied when the renderer starts. |
@@ -193,6 +194,24 @@ A new `src` is a remount, and so are StrictMode's mount → unmount → mount an
 | `stats()` | A promise of `{ frames, mode, steps }` (frames drawn, the loop's state, solver steps), for measuring sleep. `mode` is `'active'`, `'breeze'`, `'tail'`, `'sweep'` or `'rest'` (no frames at all); live HTML adds `'html'`: the loop rests, but the element changed within the last second, and each change is a frame. Resolves at once when not live. |
 | `setPhase(f)` | Sphere only: lunar phase 0–1 (0.5 full, `null` lit from the front). |
 | `wake()`, `dispose()` | Restart a sleeping loop; remove listeners, observers and GPU resources (call it on unmount). After `dispose()`, `ready` and `stats()` settle with `mode: 'disposed'`. A second `silkify()` on the same canvas disposes the first. |
+
+### Events
+
+To react to a touch (count it, play a sound, vibrate) or to know how an object settled, pass callbacks in the options; they are options rather than DOM events because the canvas element can be replaced (above). x, y are canvas coordinates 0–1 from the top left, as `ripple()` takes them.
+
+```js
+silkify(canvas, {
+  image: 'pear.png',
+  onPress: ({ x, y, pointerType }) => analytics.track('silk_press'),   // a pointer went down on the canvas
+  onRelease: ({ over, held }) => {},             // that press ended (over: lifted on the canvas)
+  onStroke: ({ x, y, dx, dy, pressed }) => {},   // moving on the canvas, at most every 100 ms
+  onReady: (h) => report(h.mode, h.reason),      // 'webgl', or 'static' (a still frame); again after a lost context comes back
+  onFail: (h) => report('fail', h.reason),       // 'failed', or a live object that lost its WebGL context ('static')
+  haptics: true,                                 // one 10 ms vibration on a touch press, where the browser can (off by default)
+});
+```
+
+A callback that throws is reported as an uncaught error and stops nothing else. Nothing is reported in the static tier or with `interactive: false`. Live HTML: a press on a link, a button or a field inside the element is that control's, not an `onPress`. The details are in [references/parameters.md](references/parameters.md#events-what-the-object-tells-the-page).
 
 ## Step 5 (optional): live HTML instead of a picture
 

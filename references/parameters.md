@@ -70,7 +70,14 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | `reducedMotion` | `'auto'` | Follows `prefers-reduced-motion`, which selects the static tier; `true` or `false` to force | |
 | `stepPerFrame` | `false` | One solver step per drawn frame instead of 60 per second: for frame-exact recordings (`shoot.mjs --gif`), never for pages | |
 | `poster` | — | A still frame of this canvas, shown in the static tier (default: the picture, drawn flat) | render one with `scripts/shoot.mjs --posters` |
-| `onHover` | — | `(isOver) => {}` | for a cursor or caption change |
+| **Events** | | Callbacks the page passes; see [Events](#events-what-the-object-tells-the-page) | |
+| `onPress` | — | `({ x, y, pointerType }) => {}`: a pointer went down on the canvas (x, y from 0 to 1, top left) | analytics, a sound, a haptic |
+| `onRelease` | — | `({ x, y, over, held, pointerType }) => {}`: that press ended; `over` is false when it was lifted off the canvas or cancelled | |
+| `onStroke` | — | `({ x, y, dx, dy, pressed, pointerType }) => {}`: the pointer moving on the canvas, at most every 100 ms | |
+| `onHover` | — | `(isOver) => {}`: the pointer came onto the object, or left it (the outline, not the canvas) | for a cursor or caption change |
+| `onReady` | — | `(handle) => {}`: drawn, live (`mode` `'webgl'`) or as a still frame (`'static'`); again after a lost context is restored | count the fallbacks in the field |
+| `onFail` | — | `(handle) => {}`: nothing could be drawn (`'failed'`), or a live object lost its WebGL context (`'static'`) | |
+| `haptics` | `false` | `true`: one short vibration (10 ms) when a finger or pen presses the object, where the browser can; a number sets the milliseconds | Android Chrome; iOS has no vibration API |
 
 ## Element mode (live HTML)
 
@@ -87,6 +94,16 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | `shape: 'sphere'` (and `phase`, `bump`, `spin`, `angle`) | `shape: 'sphere'` throws a `TypeError`; the rest only ever apply to a sphere. |
 
 The handle is the same, with `handle.element` (the element) and `snapshots` in `stats()` (pictures of the element printed since mount); `stats().mode` is `'html'` while the loop rests but a snapshot came within the last second (each snapshot is a frame), and `'rest'` only when nothing is drawn. `mode` is `'static'` when the element stays plain HTML: no HTML-in-Canvas, the static tier, no WebGL2, an element with no size (`reason` says which, and nothing is logged), or a browser that has the feature but gave no picture of the element within 4 s of the canvas being visible (this one also logs one `console.warn`). A live element whose WebGL context the browser takes back goes back to the page as plain HTML (`mode` `'static'`), and moves into the canvas again when the context is restored. Code that could not be loaded (no import map for `three`) also leaves the element as plain HTML, with one `console.warn`. `ready` resolves once the element's first picture is on the silk.
+
+## Events: what the object tells the page
+
+The page passes callbacks in the options, as with `onHover`, and silkify calls them. They are options, not DOM events on the canvas, because silkify replaces the canvas element on a fallback, a lost context and a restore: a listener on the canvas you passed would stop hearing without a word. As options they work the same in a plain page and as props of a framework component. They are read when called, so `setTheme({ onPress })` swaps one.
+
+- **`onPress`, `onRelease`, `onStroke`** follow the pointer on the canvas's box, the transparent parts around the object included (`onHover` is the outline). `x`, `y` are canvas coordinates from 0 to 1, top left, the ones `handle.ripple()` takes; `pointerType` is `'mouse'`, `'touch'` or `'pen'`. A press is reported from the moment `silkify()` is called, also while the renderer is still loading. `onRelease` follows every `onPress`: lifted on the canvas (`over: true`, where it was lifted), lifted elsewhere or cancelled (a touch that became a scroll, the window losing focus: `over: false`, the last point on the canvas), with `held` in milliseconds. `onStroke` is throttled to one call per 100 ms; `dx`, `dy` are the way it moved since the last call (0 for the first after the pointer came onto the canvas), `pressed` whether a button or finger is down. None of the three is called in the static tier, with `interactive: false`, after a lost context (until it is restored) or after `dispose()`; `handle.ripple()` and `autoplay` are not presses.
+- **`onReady` and `onFail`** say how the object settled, with the handle: read `mode` and `reason`. `onReady` comes when `ready` resolves with `'webgl'` or `'static'` (the static tier, reduced motion, no WebGL2: a still frame is not a failure), `onFail` when it resolves with `'failed'`. A live object whose WebGL context the browser takes back calls `onFail` (`mode` `'static'`, `reason` says so) and, once the context is restored and it is live again, `onReady` (`'webgl'`): the page hears it without polling `handle.mode`. A disposed object calls neither.
+- **Live HTML (`element`).** A press on the element's plain words or its background is a press on the silk. A press on a control inside the element (a link, a button, a form field, a `<label>` or `<summary>`, editable text, anything with `role="button"` or `role="link"`) belongs to that control: no `onPress` and no `onRelease` (the silk still dents under it, as it always does).
+- **A callback that throws** is a bug in the page, not in the renderer: it is reported as an uncaught error (`reportError`, so it shows in the console and in `window.onerror`) and everything else goes on: the frame, the other callbacks, the other objects sharing the pointer listeners.
+- **`haptics`** vibrates only for a finger or a pen, only where `navigator.vibrate` exists (Android Chrome and Firefox; not Safari), and only once the page has had a user gesture: browsers refuse a vibration before that and log the refusal, so the very first tap on a page is silent.
 
 ## Text: words as the object
 

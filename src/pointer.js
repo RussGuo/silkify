@@ -7,9 +7,10 @@
  * only for an object that is near the viewport (`near()`: silk.js's IntersectionObserver, 100 px margin). An object far
  * off-screen cannot be under the pointer, so it costs nothing; if it was being touched, it is told the pointer left.
  *
- * What each object does with the pointer (keeping it while loading, sending it to its renderer) stays in silk.js: a
- * member is { canvas(), near(), move(p), out(), down(p), up(mouse), leave() }, p = { x, y } in -1…1 with y up. Only
- * what happens over an object's canvas reaches it, so a pointer moving or held anywhere else wakes nothing.
+ * What each object does with the pointer (keeping it while loading, sending it to its renderer, the page's onPress and
+ * the like: events.js) stays in silk.js: a member is { canvas(), near(), move(p, e), out(), down(p, e),
+ * up(mouse, e, where), leave() }, p = { x, y } in -1…1 with y up, e the PointerEvent. Only what happens over an
+ * object's canvas reaches it, so a pointer moving or held anywhere else wakes nothing.
  * silk.js is its only user: `follow(member)` returns the function that stops following.
  */
 
@@ -30,17 +31,20 @@ function attach() {
   window.addEventListener('pointermove', (e) => {
     for (const m of members) {
       const p = m.near() ? at(m.canvas(), e) : null;
-      if (p) m.move(p); else m.out();
+      if (p) m.move(p, e); else m.out();
     }
   }, on);
   window.addEventListener('pointerdown', (e) => {
     for (const m of members) {
       const p = m.near() ? at(m.canvas(), e) : null;
-      if (p) m.down(p);
+      if (p) m.down(p, e);
     }
   }, on);
   // a mouse that lets go is still there; a lifted finger or pen is not (else its last point "hovers" forever)
-  window.addEventListener('pointerup', (e) => { for (const m of members) m.up(e.pointerType === 'mouse'); }, on);
+  // where(): the point on that canvas or null, read only by an object that was pressed (most objects never ask)
+  window.addEventListener('pointerup', (e) => {
+    for (const m of members) m.up(e.pointerType === 'mouse', e, () => (m.near() ? at(m.canvas(), e) : null));
+  }, on);
   window.addEventListener('pointercancel', all((m) => m.leave()), on);   // a touch that turns into a scroll
   document.documentElement.addEventListener('pointerleave', all((m) => m.leave()), on);
   window.addEventListener('blur', all((m) => m.leave()), on);

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify events</title>
+<link rel="icon" href="data:,">
+<!--
+  events.html — what an object tells the page (issue #18), run by scripts/verify-events.mjs. The pointer events are
+  made here (PointerEvent on window, where silkify listens), so the page checks itself:
+    press, release   onPress at the point pressed (canvas coordinates 0–1), onRelease when it ends: lifted on the canvas
+                     (over: true), lifted elsewhere (over: false, the last point on the canvas), a touch cancelled
+    stroke           ten moves in one task are one onStroke; one 150 ms later carries dx, dy; leaving starts a new stroke
+    throws           every callback of one object throws: each is reported as an uncaught error (caught here, so the
+                     run stays clean), the object still ripples, and a second object under the same pointer still
+                     gets its onPress from the same event
+    haptics          a touch press vibrates once (10 ms) with haptics: true, only after the page has had a user gesture
+                     (verify-events.mjs clicks once when asked); a mouse press and haptics: false never vibrate
+    lifecycle        onReady with mode 'webgl' or 'static' (the static tier), onFail with 'failed' (an empty picture),
+                     once each; no pointer events in the static tier, with interactive: false, after dispose()
+    words, element   words report presses as a picture does; a live element (with HTML-in-Canvas) reports a press on its
+                     plain words but not one on its link
+  window.__events = { out, problems } at the end. Low tier.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
+  .grid { display: grid; grid-template-columns: repeat(5, 160px); gap: 24px; }
+  canvas { width: 160px; aspect-ratio: 1; display: block; background: #ebe6dc; }
+  .stage { position: relative; width: 160px; height: 160px; display: grid; place-items: center; background: #ebe6dc; }
+  .stage canvas { position: absolute; inset: 0; }
+  .card { width: 120px; height: 100px; border-radius: 14px; background: #fbf7ef; font: 13px Georgia, serif; padding: 8px; box-sizing: border-box; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid">
+  <canvas id="pic"></canvas>
+  <div class="stage"><canvas id="boom"></canvas><canvas id="twin"></canvas></div>
+  <canvas id="haptic"></canvas><canvas id="word"></canvas><canvas id="still"></canvas>
+  <canvas id="empty"></canvas><canvas id="calm"></canvas>
+  <div class="stage"><canvas id="element"></canvas><article class="card" id="card"><span id="words">Plain words</span> and <a id="link" href="#nowhere">a link</a>.</article></div>
+</div>
+<script type="module">
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...a) => { if (String(a[0]).startsWith('silkify:')) warned.push(String(a[0])); else warn(...a); };
+  // a callback that throws is reported as an uncaught error: caught here, so the run's console stays clean
+  const thrown = [];
+  addEventListener('error', (e) => { if (String(e.message).includes('page bug')) { thrown.push(e.error?.message); e.preventDefault(); } });
+  const vibrated = [];
+  navigator.vibrate = (ms) => { vibrated.push(ms); return true; };
+
+  const { silkify } = await import('../src/silk.js');
+  const { liveSupport } = await import('../src/live.js');
+  const PEAR = '../examples/images/pomegranate.webp';
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (id) => document.getElementById(id);
+  const out = {}, problems = [];
+  const check = (ok, what) => { if (!ok) problems.push(what); };
+
+  /** A pointer event at canvas coordinates (0–1 from the top left; outside that range is off the canvas). */
+  const fire = (type, canvas, fx, fy, pointerType = 'mouse', target = window) => {
+    const r = canvas.getBoundingClientRect();
+    target.dispatchEvent(new PointerEvent(type, { clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pointerType, bubbles: true }));
+  };
+  /** Every callback, recorded: [name, argument] (a handle is recorded as its mode). */
+  const NAMES = ['onPress', 'onRelease', 'onStroke', 'onHover', 'onReady', 'onFail'];
+  const log = {};
+  const track = (id) => {
+    const l = log[id] = [];
+    return Object.fromEntries(NAMES.map((n) => [n, (a) => l.push([n, a && typeof a === 'object' && 'ready' in a ? a.mode : a])]));
+  };
+  const of = (id, name) => log[id].filter(([n]) => n === name).map(([, a]) => a);
+  const near = (a, b) => Math.abs(a - b) < 0.02;
+
+  const boom = Object.fromEntries(NAMES.map((n) => [n, () => { throw new Error(`page bug in ${n}`); }]));
+  const handles = {
+    pic: silkify($('pic'), { image: PEAR, tier: 'low', ...track('pic') }),
+    boom: silkify($('boom'), { image: PEAR, tier: 'low', ...boom }),
+    twin: silkify($('twin'), { image: PEAR, tier: 'low', ...track('twin') }),
+    haptic: silkify($('haptic'), { image: PEAR, tier: 'low', haptics: true, ...track('haptic') }),
+    word: silkify($('word'), { text: 'H', font: '800 120px Georgia, serif', color: '#7a2a1c', tier: 'low', ...track('word') }),
+    still: silkify($('still'), { image: PEAR, tier: 'static', ...track('still') }),
+    empty: silkify($('empty'), { image: 'empty.png', tier: 'low', ...track('empty') }),
+    calm: silkify($('calm'), { image: PEAR, tier: 'low', interactive: false, ...track('calm') }),
+  };
+  if (liveSupport().main) handles.element = silkify($('element'), { element: '#card', tier: 'low', ...track('element') });
+  await Promise.all(Object.values(handles).map((h) => h.ready));
+  await sleep(50);
+  out.modes = Object.fromEntries(Object.entries(handles).map(([k, h]) => [k, h.mode]));
+
+  // ---- lifecycle: onReady / onFail, once each, with the mode they settled in ----
+  for (const id of ['pic', 'twin', 'haptic', 'word', 'calm', ...(handles.element ? ['element'] : [])]) {
+    check(of(id, 'onReady').join() === 'webgl' && !of(id, 'onFail').length, `${id}: onReady ${of(id, 'onReady')}, onFail ${of(id, 'onFail')} (expected onReady webgl once)`);
+  }
+  check(of('still', 'onReady').join() === 'static', `still: onReady ${of('still', 'onReady')} (expected static)`);
+  check(of('empty', 'onFail').join() === 'failed' && !of('empty', 'onReady').length && warned.length === 1, `empty: onFail ${of('empty', 'onFail')}, onReady ${of('empty', 'onReady')}, ${warned.length} warning(s)`);
+  check(thrown.some((m) => m.includes('onReady')), `boom: a throwing onReady was not reported (${thrown})`);
+
+  // ---- press and release ----
+  const pic = $('pic');
+  fire('pointermove', pic, 0.3, 0.6);
+  fire('pointerdown', pic, 0.3, 0.6);
+  fire('pointerup', pic, 0.3, 0.6);
+  fire('pointerdown', pic, 0.5, 0.5);
+  fire('pointermove', pic, 0.5, -0.5);              // off the canvas, still pressed
+  fire('pointerup', pic, 0.5, -0.5);                // lifted elsewhere
+  fire('pointerdown', pic, 0.5, 0.5, 'touch');
+  window.dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'touch' }));   // the touch became a scroll
+  const press = of('pic', 'onPress'), rel = of('pic', 'onRelease');
+  out.press = press; out.release = rel;
+  check(press.length === 3 && near(press[0].x, 0.3) && near(press[0].y, 0.6) && press[0].pointerType === 'mouse' && press[2].pointerType === 'touch', `pic: onPress ${JSON.stringify(press)}`);
+  check(rel.length === 3 && rel[0].over && near(rel[0].x, 0.3) && rel[0].held >= 0 && !rel[1].over && near(rel[1].x, 0.5) && !rel[2].over && rel[2].pointerType === 'touch', `pic: onRelease ${JSON.stringify(rel)}`);
+
+  // ---- stroke: throttled, with the way it went ----
+  fire('pointermove', pic, 0.5, -0.5);
+  log.pic.length = 0;
+  for (let k = 0; k < 10; k++) fire('pointermove', pic, 0.2 + k * 0.03, 0.5);
+  const burst = of('pic', 'onStroke').length;
+  await sleep(150);
+  fire('pointermove', pic, 0.6, 0.4);
+  const s = of('pic', 'onStroke');
+  fire('pointermove', pic, 0.5, -0.5);              // off: the next stroke starts afresh
+  await sleep(150);
+  fire('pointermove', pic, 0.5, 0.5);
+  const fresh = of('pic', 'onStroke').at(-1);
+  out.stroke = { burst, strokes: s, fresh };
+  check(burst === 1 && s.length === 2 && near(s[0].x, 0.2) && s[0].dx === 0 && near(s[1].dx, 0.4) && near(s[1].dy, -0.1) && !s[1].pressed, `pic: onStroke ${JSON.stringify(out.stroke)}`);
+  check(of('pic', 'onStroke').length === 3 && fresh.dx === 0 && fresh.dy === 0, `pic: a stroke after leaving does not start afresh (${JSON.stringify(fresh)})`);
+  fire('pointermove', pic, 0.5, -0.5);
+
+  // ---- callbacks that throw: reported, and nothing else stops ----
+  const bc = $('boom');
+  const f0 = (await handles.boom.stats()).frames, t0 = (await handles.twin.stats()).frames;
+  fire('pointermove', bc, 0.5, 0.5);
+  fire('pointerdown', bc, 0.5, 0.5);
+  await sleep(600);
+  fire('pointerup', bc, 0.5, 0.5);
+  fire('pointermove', bc, 0.5, -0.5);
+  await sleep(50);
+  const st = await handles.boom.stats();
+  out.throws = { thrown: [...new Set(thrown.map((m) => m.replace('page bug in ', '')))], frames: st.frames - f0, twinFrames: (await handles.twin.stats()).frames - t0, twin: of('twin', 'onPress').length };
+  for (const n of ['onPress', 'onRelease', 'onStroke', 'onHover']) check(thrown.some((m) => m.endsWith(n)), `boom: a throwing ${n} was not reported (${thrown})`);
+  // as many frames as the object beside it, which nobody's callbacks broke (a software GPU draws few)
+  check(st.frames - f0 >= Math.max(1, out.throws.twinFrames / 2) && st.mode === 'active', `boom: did not ripple after its callbacks threw (${st.frames - f0} frames against ${out.throws.twinFrames}, ${st.mode})`);
+  check(of('twin', 'onPress').length === 1, `twin: the object under boom got ${of('twin', 'onPress').length} onPress from the same event`);
+
+  // ---- haptics: a touch press, after a user gesture; never a mouse, never without the option ----
+  const hc = $('haptic');
+  fire('pointerdown', hc, 0.5, 0.5, 'touch'); fire('pointerup', hc, 0.5, 0.5, 'touch');
+  out.beforeGesture = vibrated.length;
+  check(vibrated.length === 0 || navigator.userActivation?.hasBeenActive, `haptic: vibrated before any user gesture (${vibrated})`);
+  window.__eventsWaiting = true;                    // verify-events.mjs clicks once, off every canvas
+  for (let t = 0; t < 100 && !navigator.userActivation?.hasBeenActive; t++) await sleep(100);
+  vibrated.length = 0;
+  fire('pointerdown', hc, 0.5, 0.5, 'touch'); fire('pointerup', hc, 0.5, 0.5, 'touch');
+  fire('pointerdown', hc, 0.5, 0.5, 'mouse'); fire('pointerup', hc, 0.5, 0.5, 'mouse');
+  fire('pointerdown', pic, 0.5, 0.5, 'touch'); fire('pointerup', pic, 0.5, 0.5, 'touch');
+  out.vibrated = vibrated.slice();
+  check(navigator.userActivation?.hasBeenActive && vibrated.join() === '10', `haptic: vibrated ${JSON.stringify(vibrated)} (expected one 10 ms pulse, for the touch on the haptic object)`);
+  check(of('haptic', 'onPress').length === 3, `haptic: ${of('haptic', 'onPress').length} onPress (expected 3)`);
+
+  // ---- words, the static tier, interactive: false ----
+  for (const id of ['word', 'still', 'calm']) { fire('pointerdown', $(id), 0.5, 0.5); fire('pointerup', $(id), 0.5, 0.5); }
+  out.counts = { word: of('word', 'onPress').length, still: of('still', 'onPress').length, calm: of('calm', 'onPress').length };
+  check(out.counts.word === 1 && of('word', 'onRelease').length === 1, `word: onPress ${out.counts.word}, onRelease ${of('word', 'onRelease').length}`);
+  check(out.counts.still === 0 && out.counts.calm === 0, `still / calm reported presses (${JSON.stringify(out.counts)})`);
+
+  // ---- a live element: its words are the silk's, its link is its own ----
+  if (handles.element) {
+    const ec = $('element');
+    const at = (el) => { const r = el.getBoundingClientRect(), c = ec.getBoundingClientRect(); return [(r.left + r.width / 2 - c.left) / c.width, (r.top + r.height / 2 - c.top) / c.height]; };
+    fire('pointerdown', ec, ...at($('words')), 'mouse', $('words')); fire('pointerup', ec, ...at($('words')), 'mouse', $('words'));
+    fire('pointerdown', ec, ...at($('link')), 'mouse', $('link')); fire('pointerup', ec, ...at($('link')), 'mouse', $('link'));
+    out.element = { inside: $('card').parentNode === ec, presses: of('element', 'onPress').length, releases: of('element', 'onRelease').length };
+    check(out.element.inside && out.element.presses === 1 && out.element.releases === 1, `element: ${JSON.stringify(out.element)} (expected the words' press only)`);
+  } else out.element = 'no HTML-in-Canvas';
+
+  // ---- dispose(): nothing after it ----
+  handles.pic.dispose();
+  const n = log.pic.length;
+  fire('pointermove', pic, 0.5, 0.5); fire('pointerdown', pic, 0.5, 0.5); fire('pointerup', pic, 0.5, 0.5);
+  check(log.pic.length === n, `pic: ${log.pic.length - n} callbacks after dispose()`);
+
+  for (const h of Object.values(handles)) h.dispose();
+  window.__events = { out, problems };
+</script>
+</body>
+</html>

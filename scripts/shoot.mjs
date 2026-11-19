@@ -9,7 +9,7 @@
  *   node scripts/shoot.mjs --cdn [ref]     # examples/cdn.html: silk.js from jsDelivr (default ref: the release tag)
  *   node scripts/shoot.mjs --browsers      # WebKit and Firefox (browsers.mjs; needs Playwright, see harness.mjs)
  *   node scripts/shoot.mjs --shots         # verify, and also rewrite docs/shots/<id>-rest.jpg
- *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost, pages)
+ *   node scripts/shoot.mjs --only moon     # any mode, one card (verify: also --only lab, edge, touch, live, text, lost, pages, events)
  *   CHROME=/path/to/chrome node scripts/shoot.mjs
  *
  * verify   the gallery as a visitor gets it (auto tier): each poster at rest, then each card is activated, must
@@ -33,6 +33,8 @@
  *          one warning, the static tier, the mistakes that throw); it checks itself, and one word must ripple.
  *          Then test/lost.html: WEBGL_lose_context on a picture (worker, poster, main thread), words and a live element:
  *          a still frame (or plain HTML) at once with mode 'static', and a working object again after restoreContext().
+ *          Then the events (verify-events.mjs): test/events.html checks onPress, onRelease, onStroke, onReady / onFail,
+ *          callbacks that throw and haptics.
  *          Then what the Lab makes (verify-lab.mjs). Its words (Object → Words): they mount and ripple, the link restores
  *          every control and the text,
  *          the printed call and Download HTML carry text, font, colour and line height, and the page runs from file://.
@@ -59,6 +61,7 @@ import { serve } from './harness.mjs';
 import { verifyTouch } from './verify-touch.mjs';
 import { verifyLabExtras } from './verify-lab.mjs';
 import { verifyPages } from './verify-pages.mjs';
+import { verifyEvents } from './verify-events.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'shots');
@@ -442,6 +445,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   }
   if (!only || only === 'text') await verifyText();
   if (!only || only === 'lost') await verifyLost();
+  if (!only || only === 'events') await verifyEvents({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, base, problems });
   if (!only || only === 'lab') await verifyLabExtras({ send, evaluate, navigate, sleep, diffOf, clipOf, openLab, stageRect, base, profile, problems });
   if (!only || only === 'pages') await verifyPages({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, on, base, problems });
 }
@@ -774,7 +778,7 @@ async function verifyLost() {
   await navigate(`${base}/test/lost.html`);
   const { out, problems: ps } = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__lost && (clearInterval(t), r(window.__lost)), 100); })`);
   for (const p of ps) problems.push(`lost: ${p}`);
-  console.log('lost  ', Object.entries(out).map(([k, r]) => `${k}: still in ${r.lostMs} ms, ${r.restored} in ${r.restoredMs} ms, ${r.after}`).join(' | '), `${ps.length} problem(s)`);
+  console.log('lost  ', Object.entries(out).map(([k, r]) => `${k}: still in ${r.lostMs} ms, ${r.restored} in ${r.restoredMs} ms, ${r.after}, heard ${r.heard.length}`).join(' | '), `${ps.length} problem(s)`);
 }
 
 ws.close();
