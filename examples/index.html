@@ -250,11 +250,13 @@
   import { silkify, prewarm } from '../src/silk.js';
   import { pickTier } from '../src/tier.js';
 
-  /* ---- page modes: ?tier=high|low|static forces a tier; ?poster=1 renders still frames for the posters ---- */
+  /* ---- page modes: ?tier=high|low|static forces a tier; ?poster=1 renders still frames for the posters;
+   *      ?debug counts the presses on each card in the console ---- */
   const CARDS = window.CARDS;
   const qs = new URLSearchParams(location.search);
   const forced = qs.get('tier') || 'auto';
   const posterMode = qs.has('poster');
+  const debug = qs.has('debug');
   if (posterMode) document.documentElement.classList.add('poster-mode');
   const tier = pickTier(forced);   // decided once; 'static' never mounts a renderer
   if (tier.tier === 'static') document.documentElement.classList.add('static-tier');
@@ -264,6 +266,12 @@
   const live = new Map();          // id → { handle, used }
   const byId = new Map(CARDS.map((c) => [c.id, c]));
   const stageOf = (id) => grid.querySelector(`figure[data-id="${id}"] .stage`);
+  // presses per card (onPress), across mounts: what a page would send to its analytics
+  const presses = new Map();
+  const pressed = (id) => (e) => {
+    presses.set(id, (presses.get(id) || 0) + 1);
+    if (debug) console.log(`silkify gallery: ${id} pressed (${e.pointerType}), ${presses.get(id)}× on this card, ${[...presses.values()].reduce((a, b) => a + b)}× in all`);
+  };
 
   // the static tier never mounts the live-HTML card: its note says it stays plain HTML here, and why
   const htmlNote = document.getElementById('html-note');
@@ -298,8 +306,8 @@
     canvas.setAttribute('aria-hidden', 'true');   // live HTML: silkify takes it off while the card is in the canvas
     stage.prepend(canvas);
     const handle = id === 'html'
-      ? silkify(canvas, { element: '#html-card', tier: forced, ...extra })
-      : silkify(canvas, { ...c.options, poster: `posters/${id}.webp`, tier: forced, ...extra });
+      ? silkify(canvas, { element: '#html-card', tier: forced, onPress: pressed(id), ...extra })
+      : silkify(canvas, { ...c.options, poster: `posters/${id}.webp`, tier: forced, onPress: pressed(id), ...extra });
     live.set(id, { handle, used: performance.now() });
     for (const [other] of [...live].sort((a, b) => a[1].used - b[1].used)) {
       if (live.size <= MAX_LIVE) break;
@@ -349,7 +357,7 @@
 
   // hooks for scripts/shoot.mjs
   window.__gallery = {
-    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm, greeted,
+    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm, greeted, presses,
     stroke: (id) => byId.get(id)?.stroke || '',
   };
 </script>
