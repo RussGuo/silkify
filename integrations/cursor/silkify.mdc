@@ -54,12 +54,13 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | `src/live.js` | Live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the fallback to plain HTML. |
 | `src/text.js` | Words as the object: sets `text` in a canvas once its font has loaded, and says so when a web font did not arrive or a stack with no generic family has nothing to draw. |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
-| `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, the edge cases in `test/edge.html` the first touch and many objects (`test/first-touch.html`, `test/many.html`, `scripts/verify-touch.mjs`), the events (`test/events.html`, `scripts/verify-events.mjs`), what the Lab makes (words, a recorded clip: `scripts/verify-lab.mjs`), and the pages around it (link-preview tags, posters, How it works, the use cases: `scripts/verify-pages.mjs`); renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
+| `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, the edge cases in `test/edge.html` the first touch and many objects (`test/first-touch.html`, `test/many.html`, `scripts/verify-touch.mjs`), the events and the silk button (`test/events.html`, `scripts/verify-events.mjs`), what the Lab makes (words, a recorded clip: `scripts/verify-lab.mjs`), and the pages around it (link-preview tags, posters, How it works, the use cases: `scripts/verify-pages.mjs`); renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
 | `examples/index.html` | A working gallery of eleven objects (one of them a word) with the options that make each look right, a live-HTML card (step 5), and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
 | `examples/lab.html` | The Lab ([live](https://russguo.github.io/silkify/examples/lab.html)): every option as a live control, presets, your own picture or a few words (Object → Words), Touch and Stroke buttons, hold B to compare with the defaults, the options printed ready to copy, and Download HTML: one file with the picture inside that opens with a double-click (no server; it loads silk.js and three.js from jsDelivr, so it needs the network, and renders on the main thread from `file://`), and Record: a 3 or 5 s clip of the stage, square or 9:16, MP4 or WebM by browser, with an optional silkify mark. |
 | `examples/cdn.html` | The smallest page that imports silk.js from the CDN, the way for pages with nowhere to put files; `shoot.mjs --cdn` checks it. |
 | `examples/live.html` | The smallest live-HTML page (step 5): a card with a link, a button, a scrolling list and an editable line; `shoot.mjs` drives it. |
 | `examples/text.html` | The smallest text page (a word as the object); any option can be tried from its address bar. |
+| `examples/button.html` | The silk button: a real `<button>` whose face is a silk object, pressed by mouse, touch and keyboard (see Events). |
 | `examples/demos/` | Four pages to start from, each one HTML file: `hero.html` (a landing-page hero with one object, poster first), `logo-wall.html` (many small objects: poster first, live on touch, at most 3 live), `fabric.html` (a full-bleed section as one sheet of silk), `404.html`. Copy a page with `src/` and its posters, and fix the import path. |
 | `references/` | [parameters.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/parameters.md) (every option, presets, recipes), [performance.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/performance.md) (tiers, sleeping, many objects, measurements), [troubleshooting.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/troubleshooting.md). Read them when a step below points there. |
 
@@ -209,6 +210,24 @@ silkify(canvas, {
 ```
 
 A callback that throws is reported as an uncaught error and stops nothing else. Nothing is reported in the static tier or with `interactive: false`. Live HTML: a press on a link, a button or a field inside the element is that control's, not an `onPress`. The details are in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/parameters.md#events-what-the-object-tells-the-page).
+
+**The silk button.** When the object is something to press (add to basket, play, subscribe), make it a real `<button>` whose face is the silk, never a canvas with a click handler: it then takes focus, Enter and Space press it, and screen readers read it.
+
+```html
+<button class="silk-button" id="buy" type="button">
+  <canvas aria-hidden="true" style="display: block; width: 100%; aspect-ratio: 1"></canvas>
+  <span>Add a pomegranate</span>
+</button>
+<script type="module">
+  const button = document.getElementById('buy');
+  const silk = silkify(button.querySelector('canvas'), { image: 'pomegranate.png', haptics: true });
+  // mouse and touch dent the silk by themselves; the keyboard has no pointer, so press the middle
+  button.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) silk.ripple(0.5, 0.5, { hold: 160 }); });
+  button.addEventListener('click', addToBasket);   // the action is the button's click, whatever pressed it
+</script>
+```
+
+Give it a focus ring outside the canvas (`.silk-button:focus-visible { outline: 2px solid; outline-offset: 4px }`), pick a picture whose centre is the object (the keyboard's ripple lands there), and keep the action in `click`: `onPress` is for feedback only. Where the static tier applies (reduced motion, Save-Data), a poster `<img>` as the face is lighter than a canvas: `examples/button.html` starts with it and swaps in the canvas only when `pickTier()` (from `tier.js`) is not `'static'`. It is the whole page.
 
 ## Step 5 (optional): live HTML instead of a picture
 

@@ -34,7 +34,7 @@
  *          Then test/lost.html: WEBGL_lose_context on a picture (worker, poster, main thread), words and a live element:
  *          a still frame (or plain HTML) at once with mode 'static', and a working object again after restoreContext().
  *          Then the events (verify-events.mjs): test/events.html checks onPress, onRelease, onStroke, onReady / onFail,
- *          callbacks that throw and haptics;
+ *          callbacks that throw and haptics; the silk button (examples/button.html) is pressed by mouse, touch and keyboard;
  *          a press on a gallery card is counted through onPress.
  *          Then what the Lab makes (verify-lab.mjs). Its words (Object → Words): they mount and ripple, the link restores
  *          every control and the text,

@@ -35,12 +35,12 @@ src/live.js         live HTML, the page side: feature detection, the element's s
 src/events.js       what an object tells the page: onPress / onRelease / onStroke from the shared pointer, haptics, callbacks that cannot throw into the renderer
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html, live HTML), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
-scripts/verify-touch.mjs, scripts/verify-lab.mjs, scripts/verify-pages.mjs, scripts/verify-events.mjs   parts of shoot.mjs's verify, in files of their own: the first touch and many objects; the Lab's words and Record; the pages (link-preview tags, posters, How it works, the use cases, text.html); the events
+scripts/verify-touch.mjs, scripts/verify-lab.mjs, scripts/verify-pages.mjs, scripts/verify-events.mjs   parts of shoot.mjs's verify, in files of their own: the first touch and many objects; the Lab's words and Record; the pages (link-preview tags, posters, How it works, the use cases, text.html); the events and the silk button
 scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence and the byline in both READMEs, the gallery and the Lab (--check for drift)
 scripts/browsers.mjs             shoot.mjs --browsers: WebKit and Firefox, same origin and cross-origin (Playwright)
 scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
 scripts/harness.mjs              the static server and the Playwright loader the check scripts share
-examples/           the gallery, the Lab, live.html (live HTML), and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
+examples/           the gallery, the Lab, live.html (live HTML), button.html (the silk button), and cdn.html, the CDN way's test page (static; GitHub Pages), WebP pictures and posters, image credits
 examples/react, examples/next    the smallest Vite and Next.js projects with the React components (Silk for a picture, SilkHtml for live HTML)
 test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
 test/live-edge.html live HTML in the layouts people write: a card that holds its stage open, one larger than its canvas, SKILL.md's snippet at 375 px
