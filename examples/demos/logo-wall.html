@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pelham Works — who we make things with</title>
+<meta name="description" content="A silkify use-case demo: a logo wall of twelve silk marks, poster first, at most three live.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
+<!--
+  logo-wall.html — many small silk objects on one page. Copy this file as a starting point:
+    1. Copy src/ into your project and fix the two import paths at the bottom ('../../src/…').
+    2. Replace MARKS with your own logos (SVG, or transparent PNG/WebP) and render a poster for each (1x and 2x WebP,
+       the page with ?poster=1; see the end of this file).
+    3. The block marked "the pattern" is the part worth keeping: every tile is a poster until someone reaches for it,
+       goes live on the first pointerenter or pointerdown, gives its WebGL context back when it scrolls away, and at
+       most MAX_LIVE tiles are live at once (the least recently touched one is released). Browsers allow about 16
+       WebGL contexts per page; this page never holds more than 3.
+  Pelham Works and every client below are made up; the marks are plain geometric shapes drawn for this page, and two letters set in the system serif.
+-->
+<style>
+  :root {
+    --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #6f695f; --rule: #d9d2c4; --accent: #8a6d3b; --accent-text: #7a5f30;   /* the accent, darkened to 5.2:1 on paper for small text */
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --stage: #201e1b; --ink: #ece7dd; --muted: #9a9488; --rule: #2c2a26; --accent: #c9a96b; --accent-text: #c9a96b; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .bar { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; padding-top: 28px; }
+  .brand { font: 400 22px/1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; text-decoration: none; }
+  .bar nav { display: flex; gap: 28px; font-size: 14px; color: var(--muted); }
+  .bar nav a { text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+
+  .intro { padding: 112px 0 72px; max-width: 40em; }
+  .eyebrow { margin: 0 0 20px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
+  h1 {
+    margin: 0; font: 400 clamp(38px, 5vw, 64px)/1.02 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    letter-spacing: -0.02em; text-wrap: balance;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .lede { margin: 24px 0 0; max-width: 32em; font-size: 18px; color: var(--muted); text-wrap: pretty; }
+
+  /* ---- the wall ---- */
+  .wall { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+  .wall li { margin: 0; }
+  .tile {
+    position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; touch-action: pan-y; cursor: crosshair;
+    background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 55%, var(--paper)), var(--stage));
+  }
+  .tile img, .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .tile img, .tile canvas { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
+  .tile img { pointer-events: none; }
+  .tile canvas { opacity: 0; transition: opacity 0.25s; }
+  .tile.live canvas { opacity: 1; }
+  .tile.live img { opacity: 0; transition: opacity 0.25s 0.05s; }
+  .wall .name { margin: 12px 2px 0; font: 400 17px/1.25 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
+  .wall .what { margin: 2px 2px 0; font-size: 13px; color: var(--muted); }
+
+  .outro { padding: 72px 0 96px; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 16px; }
+  .outro p { margin: 0; max-width: 34em; color: var(--muted); }
+  .outro a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
+  .outro a:hover { border-color: var(--ink); }
+  footer { padding: 20px 0 40px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 860px) { .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    .bar { padding-top: 20px; }
+    .bar nav a:not(:last-child) { display: none; }
+    .intro { padding: 64px 0 44px; }
+    .lede { font-size: 17px; }
+    .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; }
+    .outro { padding: 56px 0 64px; }
+  }
+
+  /* ?poster=1 renders the still frames: each tile alone, fixed size, transparent */
+  .poster-mode, .poster-mode body { background: transparent; }
+  .poster-mode .wall { grid-template-columns: repeat(4, 280px); }
+  .poster-mode .tile { background: none; border-radius: 0; }
+  .poster-mode .tile img { display: none; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="brand" href="#">Pelham Works</a>
+    <nav aria-label="Main"><a href="#work">Work</a><a href="#studio">Studio</a><a href="#contact">Contact</a></nav>
+  </header>
+
+  <main>
+  <section class="intro">
+    <p class="eyebrow">Clients since 2014</p>
+    <h1>Twelve years, <em>twelve</em> long friendships.</h1>
+    <p class="lede">We are a small studio for printed and woven things: labels, bindings, signage, the odd tapestry.
+      These are the people who keep coming back. Run a finger over their marks.</p>
+  </section>
+
+  <ul class="wall" id="wall"></ul>
+
+  <section class="outro">
+    <p>Most of our work starts with a letter. If you have something that should be held as well as seen, write to us.</p>
+    <a href="#contact">Start a project</a>
+  </section>
+  </main>
+
+  <footer>A <a href="../index.html">silkify</a> demo. Pelham Works and its clients are made up; the marks are plain shapes and letters drawn for this page.</footer>
+</div>
+
+<script>
+  /* Built synchronously, before first paint: the tiles and their posters are in place before anything loads. */
+  /* Each mark: an SVG in a 100 × 100 box, or a letter set in a font (silkify's text object: no picture at all),
+     its colour, and the client's name. posters/mark-<id>.webp (+ @2x) are still frames of the same canvas,
+     rendered from this page with ?poster=1. A letter is drawn in the visitor's own serif, as the headings
+     are (ui-serif is New York on Apple systems, elsewhere the browser's serif), so the live mark can differ slightly
+     from a poster rendered on a Mac. Use a web font (a <link> in the head) when the letterform has to be exact. */
+  window.MARKS = [
+    { id: 'halcyon', name: 'Halcyon Kiln', what: 'Ceramics', color: '#8a6d3b',
+      svg: '<path d="M10 45 A40 40 0 0 1 90 45 Z M10 55 A40 40 0 0 0 90 55 Z"/>' },
+    { id: 'northfold', name: 'Northfold', what: 'Outdoor clothing', color: '#3d4a57',
+      svg: '<path d="M50 14 L86 80 L14 80 Z" stroke="currentColor" stroke-width="12" stroke-linejoin="round"/>' },
+    { id: 'sorrel', name: 'Quill & Sorrel', what: 'Stationers', color: '#5c6236',
+      text: '&', font: 'italic 700 200px ui-serif, serif' },
+    { id: 'ambry', name: 'Ambry', what: 'Archives & storage', color: '#5a3a4a',
+      svg: '<path fill-rule="evenodd" d="M30 14 H70 A16 16 0 0 1 86 30 V70 A16 16 0 0 1 70 86 H30 A16 16 0 0 1 14 70 V30 A16 16 0 0 1 30 14 Z M40 38 H60 A2 2 0 0 1 62 40 V60 A2 2 0 0 1 60 62 H40 A2 2 0 0 1 38 60 V40 A2 2 0 0 1 40 38 Z"/>' },
+    { id: 'lumen', name: 'Lumen Hollow', what: 'Lighting', color: '#a45a3c',
+      svg: '<path d="M60 10 A40 40 0 1 0 60 90 A56 56 0 0 1 60 10 Z"/>' },
+    { id: 'sable', name: 'Sable Row', what: 'Tailors', color: '#3f5e5a',
+      svg: '<rect x="10" y="20" width="62" height="16" rx="8"/><rect x="28" y="42" width="62" height="16" rx="8"/><rect x="10" y="64" width="62" height="16" rx="8"/>' },
+    { id: 'dovetail', name: 'Dovetail Press', what: 'Bookbinders', color: '#6b1f1a',
+      svg: '<circle cx="34" cy="50" r="27"/><circle cx="66" cy="50" r="27"/>' },
+    { id: 'ferncastle', name: 'Ferncastle', what: 'Gardens', color: '#5c6236',
+      svg: '<path d="M50 16 V84 M16 50 H84" stroke="currentColor" stroke-width="22" stroke-linecap="round"/>' },
+    { id: 'orrery', name: 'Orrery', what: 'Observatory café', color: '#3d4a57',
+      svg: '<circle cx="50" cy="50" r="17"/><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width="8"/>' },
+    { id: 'tamsin', name: 'Tamsin', what: 'Swimwear', color: '#3f5e5a',
+      svg: '<path d="M14 40 Q32 22 50 40 T86 40 M14 64 Q32 46 50 64 T86 64" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"/>' },
+    { id: 'wick', name: 'Wick & Wane', what: 'Candle makers', color: '#8a6d3b',
+      text: 'W', font: '700 200px ui-serif, serif' },
+    { id: 'saltmarsh', name: 'Saltmarsh', what: 'Seafood', color: '#a45a3c',
+      svg: '<circle cx="50" cy="50" r="15"/><circle cx="50" cy="26" r="15"/><circle cx="71" cy="38" r="15"/><circle cx="71" cy="62" r="15"/><circle cx="50" cy="74" r="15"/><circle cx="29" cy="62" r="15"/><circle cx="29" cy="38" r="15"/>' },
+  ];
+  (() => {
+    const wall = document.getElementById('wall');
+    for (const m of MARKS) {
+      const li = document.createElement('li');
+      li.innerHTML = `<div class="tile" data-id="${m.id}">
+          <img src="posters/mark-${m.id}.webp" srcset="posters/mark-${m.id}.webp 1x, posters/mark-${m.id}@2x.webp 2x"
+               width="280" height="280" loading="lazy" decoding="async" draggable="false" alt="${m.name} logo"></div>
+        <p class="name">${m.name}</p><p class="what">${m.what}</p>`;
+      wall.append(li);
+    }
+  })();
+</script>
+
+<script type="module">
+  import { silkify } from '../../src/silk.js';
+  import { pickTier } from '../../src/tier.js';
+
+  /** The silk options of one mark: a letter as text, or the SVG as a data URL (silkify rasterises it); a little air around it. */
+  const optionsFor = (m) => ({
+    ...(m.text ? { text: m.text, font: m.font, color: m.color }
+      : { image: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" fill="${m.color}" color="${m.color}">${m.svg}</svg>`)}` }),
+    fit: 1.75, sheen: 0.5, sheenPower: 14, floor: 0.6,
+  });
+
+  /* ======================= the pattern: poster first, live on touch, at most MAX_LIVE live ======================= */
+  /**
+   * liveOnTouch(tiles, mount, { max }) — each tile shows its <img> poster until the pointer reaches it. Then
+   * mount(tile, canvas) starts silkify on a fresh canvas; the tile gets .live (the canvas fades in over the poster)
+   * once the first frame is up. A tile that scrolls away, or the least recently touched one beyond `max`, is
+   * disposed and goes back to its poster. Returns { activate, release, live } for scripts and tests.
+   */
+  function liveOnTouch(tiles, mount, { max = 3, listen = true } = {}) {
+    const live = new Map();   // tile → { handle, used }
+    function activate(tile, extra) {
+      const have = live.get(tile);
+      if (have) { have.used = performance.now(); return have.handle.ready; }
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-hidden', 'true');
+      tile.prepend(canvas);
+      const handle = mount(tile, canvas, extra);
+      live.set(tile, { handle, used: performance.now() });
+      for (const [other] of [...live].sort((a, b) => a[1].used - b[1].used)) {
+        if (live.size <= max) break;
+        if (other !== tile) release(other);
+      }
+      return handle.ready.then((h) => {
+        if (live.get(tile)?.handle === h && h.mode === 'webgl') tile.classList.add('live');
+        return h;
+      });
+    }
+    function release(tile) {
+      const l = live.get(tile);
+      if (!l) return;
+      live.delete(tile);
+      l.handle.dispose();
+      tile.classList.remove('live');
+      l.handle.canvas.remove();
+    }
+    if (listen) {
+      const io = new IntersectionObserver((es) => { for (const e of es) if (!e.isIntersecting) release(e.target); }, { rootMargin: '200px' });
+      for (const tile of tiles) {
+        for (const ev of ['pointerenter', 'pointerdown']) tile.addEventListener(ev, () => activate(tile), { passive: true });
+        io.observe(tile);
+      }
+    }
+    return { activate, release, live };
+  }
+  /* ================================================================================================================ */
+
+  const posterMode = new URLSearchParams(location.search).has('poster');
+  if (posterMode) document.documentElement.classList.add('poster-mode');
+  const byId = new Map(MARKS.map((m) => [m.id, m]));
+  const tiles = [...document.querySelectorAll('.tile')];
+  const tileOf = (id) => tiles.find((t) => t.dataset.id === id);
+  // the static tier (reduced motion, Save-Data, a very small device) keeps the posters: nothing listens, three.js never loads
+  const listen = !posterMode && pickTier().tier !== 'static';
+  const wall = liveOnTouch(tiles, (tile, canvas, extra) => {
+    const id = tile.dataset.id;
+    return silkify(canvas, { ...optionsFor(byId.get(id)), poster: `posters/mark-${id}.webp`, ...extra });
+  }, { max: 3, listen });
+
+  // hooks for a still-frame renderer (?poster=1) and for tests
+  window.__demo = {
+    ids: MARKS.map((m) => m.id), stageOf: tileOf, posterOf: (id) => `mark-${id}`,
+    activate: (id, extra) => wall.activate(tileOf(id), extra), release: (id) => wall.release(tileOf(id)),
+    state: () => [...wall.live].map(([t, l]) => ({ id: t.dataset.id, mode: l.handle.mode, tier: l.handle.tier, thread: l.handle.thread })),
+  };
+</script>
+</body>
+</html>
