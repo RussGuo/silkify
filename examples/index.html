@@ -247,7 +247,8 @@
 </div>
 
 <script type="module">
-  import { silkify, prewarm } from '../src/silk.js';
+  import { silkify } from '../src/silk.js';
+  import { pool } from '../src/pool.js';
   import { pickTier } from '../src/tier.js';
 
   /* ---- page modes: ?tier=high|low|static forces a tier; ?poster=1 renders still frames for the posters;
@@ -263,7 +264,6 @@
   const MAX_LIVE = 3;              // WebGL contexts alive at once; the least recently touched one is released
 
   const grid = document.getElementById('grid');
-  const live = new Map();          // id → { handle, used }
   const byId = new Map(CARDS.map((c) => [c.id, c]));
   const stageOf = (id) => grid.querySelector(`figure[data-id="${id}"] .stage`);
   // presses per card (onPress), across mounts: what a page would send to its analytics
@@ -282,53 +282,31 @@
     htmlNote.dataset.plain = '';
   }
 
-  // the slow, shared part of a mount (a worker, three.js) is done once the page is idle, so the first touch of a
-  // card only waits for its own scene
-  const warm = new Promise((resolve) => {
-    if (tier.tier === 'static' || posterMode) return resolve(false);
-    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
-    const go = () => idle(() => resolve(prewarm({ tier: forced })), { timeout: 2000 });
-    document.readyState === 'complete' ? go() : addEventListener('load', go, { once: true });
-  });
-
-  // the poster stays until someone reaches for the object; then the live renderer takes over
-  if (tier.tier !== 'static' && !posterMode) {
-    for (const id of [...byId.keys(), 'html']) {
-      for (const ev of ['pointerenter', 'pointerdown']) stageOf(id).addEventListener(ev, () => activate(id), { passive: true });
-    }
+  // the many-objects pattern, from the library (src/pool.js): each card is its poster until someone reaches for it
+  // (pointerenter, pointerdown), then goes live; at most MAX_LIVE at once, the least recently touched released, and a
+  // card that scrolls away gives its WebGL context back. The pool prewarms once the page is idle (a worker with three.js),
+  // so the first touch of a card only waits for its own scene. The static tier never mounts; ?poster=1 mounts by hand
+  const wall = pool({ max: MAX_LIVE, tier: forced, listen: !posterMode, warm: !posterMode });
+  for (const id of [...byId.keys(), 'html']) {
+    wall.add(stageOf(id), (canvas, extra = {}) => (id === 'html'
+      ? silkify(canvas, { element: '#html-card', tier: forced, onPress: pressed(id), ...extra })
+      : silkify(canvas, { ...byId.get(id).options, poster: `posters/${id}.webp`, tier: forced, onPress: pressed(id), ...extra })));
   }
   /** Mount the live renderer for one card (idempotent). Resolves with its handle once the first frame is up. */
   function activate(id, extra = {}) {
-    const have = live.get(id);
-    if (have) { have.used = performance.now(); return have.handle.ready; }
-    const c = byId.get(id), stage = stageOf(id);
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('aria-hidden', 'true');   // live HTML: silkify takes it off while the card is in the canvas
-    stage.prepend(canvas);
-    const handle = id === 'html'
-      ? silkify(canvas, { element: '#html-card', tier: forced, onPress: pressed(id), ...extra })
-      : silkify(canvas, { ...c.options, poster: `posters/${id}.webp`, tier: forced, onPress: pressed(id), ...extra });
-    live.set(id, { handle, used: performance.now() });
-    for (const [other] of [...live].sort((a, b) => a[1].used - b[1].used)) {
-      if (live.size <= MAX_LIVE) break;
-      if (other !== id) release(other);
-    }
-    return handle.ready.then((h) => {
-      if (live.get(id)?.handle === h && h.mode === 'webgl') stage.classList.add('live');
+    return wall.activate(stageOf(id), extra).then((h) => {
       const note = document.getElementById('html-note');   // the browser has the feature, but this card stayed plain: say why
       if (id === 'html' && h.mode === 'static' && !('plain' in note.dataset)) note.textContent = `Shown as plain HTML: ${h.reason}.`;
       return h;
     });
   }
-
-  function release(id) {
-    const l = live.get(id);
-    if (!l) return;
-    live.delete(id);
-    l.handle.dispose();
-    stageOf(id).classList.remove('live');
-    l.handle.canvas.remove();
-  }
+  const release = (id) => wall.release(stageOf(id));
+  // the live cards by id, for scripts/shoot.mjs: size, has(id), get(id) → { handle }
+  const live = {
+    get size() { return wall.live.size; },
+    has: (id) => wall.live.has(stageOf(id)),
+    get: (id) => (wall.live.has(stageOf(id)) ? { handle: wall.live.get(stageOf(id)) } : undefined),
+  };
 
   // a touch screen has no hover, so each card shows once that it is alive: the first time it is mostly in view it goes
   // live and plays one ripple. The static tier (reduced motion among others) never mounts; MAX_LIVE still holds, the
@@ -349,15 +327,9 @@
     grid.querySelectorAll('.stage').forEach((s) => hello.observe(s));
   }
 
-  // a card that scrolls out of view gives its WebGL context back
-  const io = new IntersectionObserver((es) => {
-    for (const e of es) if (!e.isIntersecting) release(e.target.dataset.id);
-  }, { rootMargin: '200px' });
-  if (!posterMode) grid.querySelectorAll('figure').forEach((f) => io.observe(f));
-
   // hooks for scripts/shoot.mjs
   window.__gallery = {
-    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm, greeted, presses,
+    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm: wall.warm, greeted, presses,
     stroke: (id) => byId.get(id)?.stroke || '',
   };
 </script>

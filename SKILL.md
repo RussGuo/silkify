@@ -52,6 +52,7 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | `src/core.js`, `src/serve.js`, `src/shaders.js` | The renderer (no DOM), its message endpoint (loading, a lost context), and its GLSL. |
 | `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js`, `src/tier.js`, `src/shape.js` | The worker entry, device tiers, and silhouette → dome geometry. |
+| `src/pool.js` | `pool()`: many objects on a page, poster first, live on touch, at most 3 live, prewarmed. |
 | `src/pointer.js` | One set of window pointer listeners shared by every object on the page; a canvas's position is read only when it is near the viewport. |
 | `src/events.js` | What an object tells the page: the `onPress`, `onRelease`, `onStroke` gestures, `haptics`, and callbacks that cannot throw into the renderer. |
 | `src/live.js` | Live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the fallback to plain HTML. |
@@ -263,7 +264,7 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 
 ## Performance rules
 
-- One live object per WebGL context, and browsers allow about 16. With more than three objects on a page, use the gallery's pattern: a WebP poster first, `prewarm()` once the page is idle, `silkify()` on the first `pointerenter` or `pointerdown`, `dispose()` when the card scrolls away, at most 3 live. `prewarm()` starts a worker and imports three.js ahead of time, so mounting on a touch only builds the scene (about 0.1 s instead of 1.2–1.4 s, measured in headless Chrome); the touch that mounted it is answered either way, since silkify keeps the pointer from the moment it is called.
+- One live object per WebGL context, and browsers allow about 16. With more than three objects on a page, use `pool()` from `src/pool.js`, as the gallery and `examples/demos/logo-wall.html` do: a WebP poster in each element first, then `const wall = pool({ max: 3 }); wall.add(el, (canvas) => silkify(canvas, { …options, poster }))`. Each object mounts on the first `pointerenter` or `pointerdown`, is disposed when it scrolls away, and at most 3 are live; the pool prewarms (a worker with three.js) once the page is idle, so a mount on a touch only builds the scene (about 0.1 s instead of 1.2–1.4 s, measured in headless Chrome), and the touch that mounted it is answered. The API is in [references/parameters.md](references/parameters.md#exports).
 - The loop sleeps by itself: 60 fps while touched and for 8 s after, a 12 fps tail, then no frames at all. Only the pointer over the canvas counts: moving or holding it elsewhere on the page draws nothing. The waves step at a fixed 60 Hz, so they move at the same speed on a 120 Hz display. Phones and small screens get the low tier; reduced motion, Save-Data and no WebGL2 get a still frame (pass a `poster`).
 - `breeze` and `autoplay` keep the loop awake (breeze draws 30 fps while visible; `breezeIdle: 15000` stops it 15 s after the last touch until the next). Use them on one hero object, never on a grid.
 

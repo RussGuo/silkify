@@ -32,6 +32,7 @@ src/worker.js       the Web Worker entry
 src/presets.js      material and feel presets: plain option fragments
 src/tier.js         device tiers and on-screen grid sizing
 src/shape.js        silhouette → Poisson dome, plain arrays (no three.js)
+src/pool.js         pool(): many objects on a page (poster first, live on touch, at most N live, prewarmed)
 src/live.js         live HTML, the page side: feature detection, the element's stand-in, the place it keeps in the page, snapshots, hit geometry, the plain-HTML fallback
 src/events.js       what an object tells the page: onPress / onRelease / onStroke from the shared pointer, haptics, callbacks that cannot throw into the renderer
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
@@ -46,7 +47,8 @@ examples/react, examples/next    the smallest Vite and Next.js projects with the
 test/edge.html      the cases that once failed silently: SVG, an empty or missing picture, calls while loading
 test/live-edge.html live HTML in the layouts people write: a card that holds its stage open, one larger than its canvas, SKILL.md's snippet at 375 px
 test/events.html    the callbacks: press, release, stroke, a callback that throws, haptics, onReady / onFail, words and a live element's link
-test/options.html   options the use-case pages asked for (corner: 0 …); it checks itself
+test/options.html   options the use-case pages asked for (corner: 0, fit: 'cover', a drawn poster, breezeIdle); it checks itself
+test/pool.html      pool(): the cap, the least recently touched released, a pointer mounts, a scroll releases, dispose(); it checks itself
 integrations/       generated: a Cursor rule and a path-scoped Copilot instruction
 AGENTS.md, llms.txt generated: for agents that read AGENTS.md, and the llmstxt.org index
 .claude-plugin/     the plugin marketplace manifest (the skill is SKILL.md at the root)

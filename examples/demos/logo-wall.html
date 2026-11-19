@@ -22,10 +22,11 @@
     1. Copy src/ into your project and fix the two import paths at the bottom ('../../src/…').
     2. Replace MARKS with your own logos (SVG, or transparent PNG/WebP) and render a poster for each (1x and 2x WebP,
        the page with ?poster=1; see the end of this file).
-    3. The block marked "the pattern" is the part worth keeping: every tile is a poster until someone reaches for it,
-       goes live on the first pointerenter or pointerdown, gives its WebGL context back when it scrolls away, and at
-       most MAX_LIVE tiles are live at once (the least recently touched one is released). Browsers allow about 16
-       WebGL contexts per page; this page never holds more than 3.
+    3. The pattern is the library's pool() (src/pool.js): every tile is a poster until someone reaches for it, goes
+       live on the first pointerenter or pointerdown, gives its WebGL context back when it scrolls away, and at most
+       3 tiles are live at once (the least recently touched one is released). It prewarms once the page is idle, so a
+       tile answers its first touch in about 0.1 s. Browsers allow about 16 WebGL contexts per page; this page never
+       holds more than 3.
   Pelham Works and every client below are made up; the marks are plain geometric shapes drawn for this page, and two letters set in the system serif.
 -->
 <style>
@@ -176,7 +177,7 @@
 
 <script type="module">
   import { silkify } from '../../src/silk.js';
-  import { pickTier } from '../../src/tier.js';
+  import { pool } from '../../src/pool.js';
 
   /** The silk options of one mark: a letter as text, or the SVG as a data URL (silkify rasterises it); a little air around it. */
   const optionsFor = (m) => ({
@@ -185,68 +186,24 @@
     fit: 1.75, sheen: 0.5, sheenPower: 14, floor: 0.6,
   });
 
-  /* ======================= the pattern: poster first, live on touch, at most MAX_LIVE live ======================= */
-  /**
-   * liveOnTouch(tiles, mount, { max }) — each tile shows its <img> poster until the pointer reaches it. Then
-   * mount(tile, canvas) starts silkify on a fresh canvas; the tile gets .live (the canvas fades in over the poster)
-   * once the first frame is up. A tile that scrolls away, or the least recently touched one beyond `max`, is
-   * disposed and goes back to its poster. Returns { activate, release, live } for scripts and tests.
-   */
-  function liveOnTouch(tiles, mount, { max = 3, listen = true } = {}) {
-    const live = new Map();   // tile → { handle, used }
-    function activate(tile, extra) {
-      const have = live.get(tile);
-      if (have) { have.used = performance.now(); return have.handle.ready; }
-      const canvas = document.createElement('canvas');
-      canvas.setAttribute('aria-hidden', 'true');
-      tile.prepend(canvas);
-      const handle = mount(tile, canvas, extra);
-      live.set(tile, { handle, used: performance.now() });
-      for (const [other] of [...live].sort((a, b) => a[1].used - b[1].used)) {
-        if (live.size <= max) break;
-        if (other !== tile) release(other);
-      }
-      return handle.ready.then((h) => {
-        if (live.get(tile)?.handle === h && h.mode === 'webgl') tile.classList.add('live');
-        return h;
-      });
-    }
-    function release(tile) {
-      const l = live.get(tile);
-      if (!l) return;
-      live.delete(tile);
-      l.handle.dispose();
-      tile.classList.remove('live');
-      l.handle.canvas.remove();
-    }
-    if (listen) {
-      const io = new IntersectionObserver((es) => { for (const e of es) if (!e.isIntersecting) release(e.target); }, { rootMargin: '200px' });
-      for (const tile of tiles) {
-        for (const ev of ['pointerenter', 'pointerdown']) tile.addEventListener(ev, () => activate(tile), { passive: true });
-        io.observe(tile);
-      }
-    }
-    return { activate, release, live };
-  }
-  /* ================================================================================================================ */
-
   const posterMode = new URLSearchParams(location.search).has('poster');
   if (posterMode) document.documentElement.classList.add('poster-mode');
   const byId = new Map(MARKS.map((m) => [m.id, m]));
   const tiles = [...document.querySelectorAll('.tile')];
   const tileOf = (id) => tiles.find((t) => t.dataset.id === id);
-  // the static tier (reduced motion, Save-Data, a very small device) keeps the posters: nothing listens, three.js never loads
-  const listen = !posterMode && pickTier().tier !== 'static';
-  const wall = liveOnTouch(tiles, (tile, canvas, extra) => {
+  // poster first, live on touch, at most 3 live (src/pool.js). The static tier (reduced motion, Save-Data, a very small
+  // device) keeps the posters: nothing listens, three.js never loads. ?poster=1 mounts by hand, for the still frames
+  const wall = pool({ max: 3, listen: !posterMode, warm: !posterMode });
+  for (const tile of tiles) {
     const id = tile.dataset.id;
-    return silkify(canvas, { ...optionsFor(byId.get(id)), poster: `posters/mark-${id}.webp`, ...extra });
-  }, { max: 3, listen });
+    wall.add(tile, (canvas, extra) => silkify(canvas, { ...optionsFor(byId.get(id)), poster: `posters/mark-${id}.webp`, ...extra }));
+  }
 
   // hooks for a still-frame renderer (?poster=1) and for tests
   window.__demo = {
     ids: MARKS.map((m) => m.id), stageOf: tileOf, posterOf: (id) => `mark-${id}`,
     activate: (id, extra) => wall.activate(tileOf(id), extra), release: (id) => wall.release(tileOf(id)),
-    state: () => [...wall.live].map(([t, l]) => ({ id: t.dataset.id, mode: l.handle.mode, tier: l.handle.tier, thread: l.handle.thread })),
+    state: () => [...wall.live].map(([t, h]) => ({ id: t.dataset.id, mode: h.mode, tier: h.tier, thread: h.thread })),
   };
 </script>
 </body>

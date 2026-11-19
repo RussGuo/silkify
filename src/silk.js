@@ -35,7 +35,8 @@
  * The first touch: the pointer is listened to from the call on, not from `ready`. What it does while the renderer
  * loads (hovering, a stroke across, a tap, a held button) is kept and handed to the renderer, which answers it the
  * moment it is up. `prewarm()` does the slow, shared part of a mount ahead of time (a worker with three.js imported),
- * so a page of many objects can mount each one on its first touch and still answer that touch quickly. The window's
+ * so a page of many objects can mount each one on its first touch and still answer that touch quickly (pool.js does
+ * that for a page; coolDown() lets the prewarmed worker go). The window's
  * pointer listeners are shared by every object on the page (pointer.js), so twenty objects cost what one does.
  *
  * A lost WebGL context (a background tab, a GPU reset, too many contexts): the object shows its still frame at once,
@@ -154,10 +155,11 @@ const workerFirst = (o) => o.worker !== false && canWorker() && location.protoco
 /* ---- prewarm: one spare worker that has already started and imported three.js, taken by the next mount ---- */
 let spare = null;          // { worker, threeUrl, ok: undefined (warming) | true | false, ready: Promise<boolean> }
 let warmMain = null;       // the main-thread path: serve.js (with core.js) and three, imported once
+let warming = false;       // prewarm() was called and coolDown() has not been since: a spare taken is replaced
 function warmWorker(threeUrl) {
   const s = { worker: spawnWorker(), threeUrl, ok: undefined };
   s.ready = new Promise((resolve) => {
-    const done = (ok) => { s.ok = ok; resolve(ok); };
+    const done = s.done = (ok) => { s.ok = ok; resolve(ok); };
     // listeners, not onmessage / onerror: a mount that takes the worker while it is still warming sets those
     s.worker.addEventListener('message', (e) => { if (e.data.t === 'warm') done(e.data.ok); });
     s.worker.addEventListener('error', (e) => { e.preventDefault?.(); done(false); });
@@ -170,7 +172,7 @@ function takeSpare(threeUrl) {
   if (!spare || spare.threeUrl !== threeUrl || spare.ok === false) return null;
   const { worker } = spare;
   spare = null;
-  idle(() => { spare ??= warmWorker(threeUrl); });
+  idle(() => { if (warming) spare ??= warmWorker(threeUrl); });
   return worker;
 }
 const idle = (f) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 200));
@@ -187,10 +189,20 @@ export function prewarm(options = {}) {
   if (pickTier(o.tier, o.reducedMotion).tier === 'static') return Promise.resolve(false);
   const threeUrl = resolveThree(o.threeUrl);
   if (workerFirst(o)) {
+    warming = true;
     if (!spare || spare.threeUrl !== threeUrl) { spare?.worker.terminate(); spare = warmWorker(threeUrl); }
     return spare.ready;
   }
   return (warmMain ??= Promise.all([import('./serve.js'), import('three')]).then(() => true, () => false));
+}
+
+/** coolDown(): let the idle prewarmed worker go (a few MB with three.js parsed) and stop warming new ones, until
+ *  prewarm() is called again. A pending prewarm() resolves false. Mounted objects are not touched. */
+export function coolDown() {
+  warming = false;
+  spare?.worker.terminate();
+  spare?.done(false);
+  spare = null;
 }
 
 function loadImage(src) {

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify pool</title>
+<link rel="icon" href="data:,">
+<!--
+  pool.html — pool() (src/pool.js), the many-objects pattern, run by scripts/shoot.mjs (verify-options.mjs). Six tiles,
+  each a poster <img>, one far below the fold. It checks itself:
+    cap       activating five tiles one after another leaves at most three live; the ones released are posters again
+              (no canvas, no `live` class), the live ones are 'webgl' and carry `live`
+    lru       re-activating the oldest live tile keeps it: the next mount releases the least recently touched one instead
+    pointer   a pointerenter on a tile mounts it (the pool listens)
+    scroll    a live tile scrolled far out of view is released
+    prewarm   the pool prewarms once the page is idle (warm resolves true); dispose() releases every tile and the idle
+              prewarmed worker is terminated (coolDown())
+    static    pool({ tier: 'static' }) says still, does not listen, and a pointerenter mounts nothing
+  window.__pool = { out, problems } at the end. Low tier.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
+  .grid { display: grid; grid-template-columns: repeat(5, 120px); gap: 16px; }
+  .tile { position: relative; width: 120px; height: 120px; }
+  .tile img, .tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #far { margin-top: 3000px; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid" id="near"></div>
+<div id="far"></div>
+<div class="tile" id="still"><img src="../examples/posters/moon.webp" alt=""></div>
+<script type="module">
+  // count the workers silk.js starts and terminates (the prewarmed one among them)
+  const workers = [];
+  window.Worker = class extends Worker {
+    constructor(url, opts) { super(url, opts); this.ended = false; workers.push(this); }
+    terminate() { this.ended = true; super.terminate(); }
+  };
+  const { silkify } = await import('../src/silk.js');
+  const { pool } = await import('../src/pool.js');
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const out = {}, problems = [];
+  const IDS = ['pomegranate', 'hare', 'teapot', 'parrot', 'moon', 'carriera'];
+
+  const tiles = IDS.map((id, i) => {
+    const t = document.createElement('div');
+    t.className = 'tile';
+    t.dataset.id = id;
+    t.innerHTML = `<img src="../examples/posters/${id}.webp" alt="">`;
+    document.getElementById(i < 5 ? 'near' : 'far').append(t);
+    return t;
+  });
+  const wall = pool({ max: 3, tier: 'low' });
+  for (const t of tiles) {
+    const id = t.dataset.id;
+    wall.add(t, (canvas, extra) => silkify(canvas, { image: `../examples/images/${id}.webp`, ...(id === 'moon' ? { shape: 'sphere' } : {}), poster: `../examples/posters/${id}.webp`, tier: 'low', ...extra }));
+  }
+  const liveIds = () => tiles.filter((t) => wall.live.has(t)).map((t) => t.dataset.id);
+  const posters = () => tiles.filter((t) => !wall.live.has(t)).every((t) => !t.querySelector('canvas') && !t.classList.contains('live'));
+
+  // cap and lru
+  for (const t of tiles.slice(0, 3)) await wall.activate(t);
+  await wall.activate(tiles[0]);                 // touched again: now the most recent
+  await wall.activate(tiles[3]);                 // releases tiles[1], the least recently touched
+  out.lru = liveIds();
+  if (out.lru.join() !== 'pomegranate,teapot,parrot') problems.push(`lru: live ${out.lru}`);
+  const h = await wall.activate(tiles[4]);
+  out.cap = { live: wall.live.size, ids: liveIds(), posters: posters(), mode: h.mode, cls: tiles[4].classList.contains('live') };
+  if (wall.live.size > 3 || !out.cap.posters) problems.push(`cap: ${JSON.stringify(out.cap)}`);
+  if (h.mode !== 'webgl' || !out.cap.cls) problems.push(`cap: the newest tile is ${h.mode}, class live ${out.cap.cls}`);
+
+  // pointer: a pointerenter mounts a tile
+  tiles[1].dispatchEvent(new PointerEvent('pointerenter'));
+  await sleep(50);
+  out.pointer = wall.live.has(tiles[1]);
+  if (!out.pointer) problems.push('pointer: pointerenter did not mount the tile');
+  await wall.live.get(tiles[1])?.ready;
+
+  // scroll: the far tile, live, then scrolled away from
+  tiles[5].scrollIntoView();
+  await wall.activate(tiles[5]);
+  scrollTo(0, 0);
+  await sleep(400);
+  out.scroll = !wall.live.has(tiles[5]) && !tiles[5].querySelector('canvas');
+  if (!out.scroll) problems.push('scroll: the far tile stayed live after it left the view');
+
+  // prewarm, and dispose()
+  out.warm = await wall.warm;
+  if (out.warm !== true) problems.push(`prewarm: warm resolved ${out.warm}`);
+  await sleep(600);                            // the spare is warmed again when the page is idle
+  const spares = workers.filter((w) => !w.ended).length;
+  wall.dispose();
+  await sleep(300);
+  out.dispose = { live: wall.live.size, canvases: document.querySelectorAll('.tile canvas').length, workersBefore: spares, workersAfter: workers.filter((w) => !w.ended).length };
+  if (out.dispose.live || out.dispose.canvases || out.dispose.workersAfter) problems.push(`dispose: ${JSON.stringify(out.dispose)}`);
+  await sleep(1500);                           // and no new spare is warmed afterwards
+  if (workers.some((w) => !w.ended)) problems.push('dispose: a worker was started again after dispose()');
+
+  // the static tier: nothing listens, nothing mounts
+  const quiet = pool({ tier: 'static' });
+  const still = document.getElementById('still');
+  quiet.add(still, (canvas) => silkify(canvas, { image: '../examples/images/moon.webp', tier: 'static' }));
+  still.dispatchEvent(new PointerEvent('pointerenter'));
+  await sleep(50);
+  out.static = { still: quiet.still, live: quiet.live.size, warm: await quiet.warm };
+  if (!quiet.still || quiet.live.size || out.static.warm !== false) problems.push(`static: ${JSON.stringify(out.static)}`);
+
+  window.__pool = { out, problems };
+</script>
+</body>
+</html>

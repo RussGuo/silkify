@@ -5,6 +5,8 @@
  *
  *   test/options.html   corner: 0 is a square, fit: 'cover' (also in the static tier, and the mistakes that throw), a
  *                       poster that is a canvas or a function, breezeIdle and no frames out of view (the page checks itself)
+ *   test/pool.html      pool(): at most `max` live, the least recently touched released, a pointer mounts, a scroll away
+ *                       releases, dispose() lets the prewarmed worker go, the static tier mounts nothing (it checks itself)
  *   a screenshot        what the page cannot read back from a live canvas: fit: 'cover' leaves none of a 3:1 canvas
  *                       empty, fit: 1 (contain) leaves about two thirds, and a wide canvas turned tall stays covered
  */
@@ -53,4 +55,11 @@ export async function verifyOptions(t) {
   tag('fit cover', cover < 0.01 && tall < 0.01 && contain > 0.5,
     `${(cover * 100).toFixed(1)} % of a 3:1 canvas empty, ${(tall * 100).toFixed(1)} % once it is 1:3 (no remount); fit 1: ${(contain * 100).toFixed(0)} %`);
   await evaluate(`Object.values(window.__options.handles).forEach((h) => h.dispose())`);
+
+  // pool()
+  await navigate('about:blank');
+  await navigate(`${base}/test/pool.html`);
+  const pool = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__pool && (clearInterval(t), r(window.__pool)), 100); })`);
+  for (const p of pool.problems) problems.push(`pool: ${p}`);
+  tag('pool', !pool.problems.length, Object.entries(pool.out).map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(' | '));
 }
