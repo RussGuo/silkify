@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Long Room — autumn season</title>
+<meta name="description" content="A silkify use-case demo: a full-bleed section whose background is one sheet of silk.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
+<!--
+  fabric.html — a whole section as a sheet of silk behind its text. Copy this file as a starting point:
+    1. Copy src/ into your project and fix the import paths at the bottom ('../../src/…').
+    2. Change the cloth: drawCloth() paints it (colours and folds) on a canvas, so there is no picture to load.
+       The same painting is the section's CSS background before the silk is up, and stays it where the silk never
+       comes (reduced motion, Save-Data, a very small device): there is no separate poster to keep in step.
+  The sheet is a picture inflated with matte: 'rect', corner: 0, fit: 1, a low puff. silkify frames a picture by
+  "contain", so the cloth is painted at the section's own aspect ratio, and painted again (a new silkify()) when
+  that ratio changes. The text sits above the canvas and stays ordinary HTML; the pointer ripples the silk under it.
+  The Long Room and its performers are made up.
+-->
+<style>
+  :root {
+    --paper: #f3efe7; --ink: #1f1d1a; --muted: #6f695f; --rule: #d9d2c4; --accent: #8a6d3b; --accent-text: #7a5f30;   /* the accent, darkened to 5.2:1 on paper for small text */
+    --cloth: #5a1a16; --on-cloth: #f6eedf; --on-cloth-muted: #e0cdb4;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --ink: #ece7dd; --muted: #9a9488; --rule: #2c2a26; --accent: #c9a96b; --accent-text: #c9a96b; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .bar { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; padding: 24px 0; }
+  .brand { font: 400 22px/1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; text-decoration: none; }
+  .bar nav { display: flex; gap: 28px; font-size: 14px; color: var(--muted); }
+  .bar nav a { text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+
+  /* ---- the silk section: the painted cloth as its background, the live sheet over it, the words on top ---- */
+  .cloth {
+    position: relative; overflow: hidden; touch-action: pan-y;
+    min-height: min(78svh, 760px); display: grid; align-items: end;
+    background: var(--cloth) center / 100% 100% no-repeat; color: var(--on-cloth);
+  }
+  .cloth canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+    opacity: 0; transition: opacity 0.6s; -webkit-user-drag: none;
+  }
+  .cloth.live canvas { opacity: 1; }
+  .cloth .inner { position: relative; width: 100%; max-width: 1180px; margin: 0 auto; padding: 120px 28px 88px; }
+  .cloth .eyebrow { margin: 0 0 22px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--on-cloth-muted); }
+  .cloth h1 {
+    margin: 0; max-width: 10em;
+    font: 400 clamp(44px, 7vw, 104px)/0.96 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    letter-spacing: -0.02em; text-wrap: balance; text-shadow: 0 1px 24px rgb(30 6 4 / 0.35);
+  }
+  .cloth h1 em { font-style: italic; }
+  .cloth .lede { margin: 28px 0 0; max-width: 28em; font-size: 18px; color: var(--on-cloth-muted); text-wrap: pretty; }
+  .actions { margin-top: 40px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; }
+  .cta {
+    display: inline-block; padding: 15px 28px; border-radius: 999px; background: var(--on-cloth); color: #3a0f0c;
+    text-decoration: none; transition: transform 0.15s;
+  }
+  .cta:hover { transform: translateY(-1px); }
+  .more { text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--on-cloth) 45%, transparent); padding-bottom: 2px; }
+  .more:hover { border-color: var(--on-cloth); }
+  .cta:focus-visible, .more:focus-visible { outline: 2px solid var(--on-cloth); outline-offset: 3px; }
+
+  /* ---- the rest of the page ---- */
+  .programme { padding: 88px 0 72px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 48px; }
+  .programme h2 { margin: 0; font: 400 32px/1.1 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
+  .programme .note { margin: 12px 0 0; color: var(--muted); }
+  .programme ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  .programme li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+  .programme li:last-child { border-bottom: 0; }   /* the footer's rule closes the list */
+  .programme time { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+  .programme b { display: block; font: 400 20px/1.3 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
+  .programme span { color: var(--muted); font-size: 15px; }
+  footer { padding: 20px 0 40px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 0 16px; }
+    .bar { padding: 18px 0; }
+    .bar nav a:not(:last-child) { display: none; }
+    .cloth { min-height: 0; }
+    .cloth .inner { padding: 96px 16px 56px; }
+    .cloth .lede { font-size: 17px; }
+    .programme { grid-template-columns: 1fr; gap: 28px; padding: 56px 0 48px; }
+    .programme li { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="brand" href="#">The Long Room</a>
+    <nav aria-label="Main"><a href="#programme">Programme</a><a href="#visit">Visit</a><a href="#tickets">Tickets</a></nav>
+  </header>
+</div>
+
+<main>
+<section class="cloth" id="cloth">
+  <div class="inner">
+    <p class="eyebrow">Autumn season · October to December</p>
+    <h1>Music for the <em>darker</em> evenings.</h1>
+    <p class="lede">String quartets, a harpsichord, one night of Schubert songs. Thursdays at eight, in a room that seats ninety.</p>
+    <div class="actions">
+      <a class="cta" href="#tickets">Book a seat</a>
+      <a class="more" href="#programme">See the programme</a>
+    </div>
+  </div>
+</section>
+
+<script>
+  /* Plain script, run before first paint: the cloth is painted once here and becomes the section's background,
+     so the section looks finished at once, whether or not the silk ever comes. The module below paints it again,
+     at the section's size, as the picture silkify inflates. */
+  window.drawCloth = (w, h) => {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    // the body: madder, darker towards the floor
+    const body = g.createLinearGradient(0, 0, 0, h);
+    body.addColorStop(0, '#7a2620'); body.addColorStop(0.55, '#5a1a16'); body.addColorStop(1, '#3a0f0d');
+    g.fillStyle = body; g.fillRect(0, 0, w, h);
+    // folds: soft vertical bands of light and shade, a fixed handful across any width
+    for (let x = 0; x < w; x++) {
+      const t = x / w;
+      const f = 0.55 * Math.sin(t * 2 * Math.PI * 3.2 + 0.4) + 0.3 * Math.sin(t * 2 * Math.PI * 7.1 + 1.3) + 0.15 * Math.sin(t * 2 * Math.PI * 13.3);
+      g.fillStyle = f > 0 ? `rgb(255 214 190 / ${(0.11 * f).toFixed(3)})` : `rgb(20 0 0 / ${(-0.22 * f).toFixed(3)})`;
+      g.fillRect(x, 0, 1, h);
+    }
+    // a pool of light from the upper left
+    const glow = g.createRadialGradient(w * 0.28, h * 0.12, 0, w * 0.28, h * 0.12, Math.max(w, h) * 0.8);
+    glow.addColorStop(0, 'rgb(255 200 170 / 0.16)'); glow.addColorStop(1, 'rgb(255 200 170 / 0)');
+    g.fillStyle = glow; g.fillRect(0, 0, w, h);
+    return c;
+  };
+  (() => {
+    const s = document.getElementById('cloth');
+    const r = s.getBoundingClientRect();
+    s.style.backgroundImage = `url(${drawCloth(480, Math.max(1, Math.round(480 * r.height / r.width))).toDataURL('image/jpeg', 0.85)})`;
+  })();
+</script>
+
+<div class="wrap">
+  <section class="programme" id="programme">
+    <div>
+      <h2>This season</h2>
+      <p class="note">Doors at half past seven. Every seat is the same price.</p>
+    </div>
+    <ol>
+      <li><time datetime="2026-10-08">Thu 8 Oct</time><div><b>The Arden Quartet</b><span>Haydn, Op. 76 no. 4 · Bartók, Quartet no. 3</span></div></li>
+      <li><time datetime="2026-10-22">Thu 22 Oct</time><div><b>Mira Oduya, harpsichord</b><span>Rameau and Couperin, by candlelight</span></div></li>
+      <li><time datetime="2026-11-12">Thu 12 Nov</time><div><b>Winterreise</b><span>Tom Ashby, baritone · Lena Varga, piano</span></div></li>
+      <li><time datetime="2026-12-10">Thu 10 Dec</time><div><b>The Arden Quartet</b><span>Beethoven, Op. 132</span></div></li>
+    </ol>
+  </section>
+</div>
+</main>
+
+<div class="wrap">
+  <footer>A <a href="../index.html">silkify</a> demo. The Long Room and its performers are made up; the cloth is painted by the page.</footer>
+</div>
+
+<script type="module">
+  import { silkify } from '../../src/silk.js';
+  import { pickTier } from '../../src/tier.js';
+
+  const section = document.getElementById('cloth');
+  const SHEET = {
+    matte: 'rect', fit: 1, puff: 0.05,                             // one flat sheet, edge to edge
+    corner: 0.002,   // square, in effect; corner: 0 would leave every pixel exactly at the threshold, so nothing counts as inside
+    anisotropy: 0.5, anisotropyAngle: Math.PI / 2,                // the sheen drawn out along vertical threads
+    sheen: 0.35, sheenPower: 10, silkRest: 0.2, floor: 0.8, volume: 0.08,
+    pressRadius: 0.03, displace: 0.22,
+    breeze: 0.3,                                                   // keeps the loop at 30 fps while visible: one per page
+  };
+
+  let silk = null, aspect = 0;
+  /** Paint the cloth at the section's aspect ratio and inflate it; a new ratio means a new silkify(). */
+  function mount() {
+    const r = section.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    aspect = r.height / r.width;
+    const w = Math.min(1024, Math.round(r.width)), h = Math.max(1, Math.round(w * aspect));
+    const old = silk;
+    const canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    section.prepend(canvas);
+    silk = silkify(canvas, { ...SHEET, image: drawCloth(w, h) });
+    silk.ready.then((h) => {
+      if (h !== silk) return;
+      if (h.mode === 'webgl') section.classList.add('live');
+      if (old) { old.dispose(); old.canvas.remove(); }   // the old sheet stays up until the new one is drawn
+    });
+  }
+
+  if (pickTier().tier !== 'static') {
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
+    const start = () => idle(mount, { timeout: 1500 });
+    document.readyState === 'complete' ? start() : addEventListener('load', start, { once: true });
+    let timer = 0;
+    new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const r = section.getBoundingClientRect();
+        if (silk && Math.abs(r.height / r.width - aspect) / aspect > 0.03) mount();
+      }, 300);
+    }).observe(section);
+  }
+
+  // hooks for tests
+  window.__demo = { ids: ['cloth'], stageOf: () => section, state: () => silk && { mode: silk.mode, tier: silk.tier, thread: silk.thread } };
+</script>
+</body>
+</html>
