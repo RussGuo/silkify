@@ -39,3 +39,7 @@ python3 scripts/cutout.py mona-lisa.jpg mona-lisa.png --rect
 python3 scripts/cutout.py carriera.jpg carriera.png --crop 90,95,1395,1700 --keep-largest
 python3 scripts/cutout.py parrot.jpg parrot.png --crop 330,40,1620,1850 --shadow-box 330,1350,1620,1850 --keep-largest
 ```
+
+## Font
+
+`fonts/fraunces-silk.woff2`, the gallery's word card, is a subset of **Fraunces** Black (only the four letters of "silk", at the 144 pt optical size) as Google Fonts serves it: © 2018 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces), under the SIL Open Font License 1.1, whose text is in [`fonts/OFL.txt`](fonts/OFL.txt). The card's posters (`posters/silk-foil.webp` and `@2x`) are pictures rendered with it; the license sets no terms on such pictures, and they are covered by this repository's MIT license.

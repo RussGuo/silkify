@@ -91,6 +91,9 @@
     display: block; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule);
     font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); white-space: pre-wrap; word-break: break-word;
   }
+  /* the word card's font: a subset of Fraunces Black with the four letters of "silk" (1.4 KB, OFL; fonts/OFL.txt).
+     Declared, not loaded: the browser fetches it only when silkify asks for it, as the card comes alive */
+  @font-face { font-family: Fraunces; font-weight: 900; src: url(fonts/fraunces-silk.woff2) format("woff2"); }
   footer { margin-top: 96px; padding-top: 20px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
   footer a { color: inherit; }
   @media (max-width: 640px) {
@@ -156,6 +159,10 @@
         options: { shape: 'sphere', image: 'images/moon.webp', bump: 'images/moon-bump.webp', phase: 0.38, floor: 0.6, exposure: 1.1, gamma: 0.92, bumpStrength: 7 },
       },
       {
+        id: 'silk-foil', title: 'A word, in foil', note: 'No picture at all: the word set in Fraunces Black, inflated letter by letter. The text option, with material: foil.',
+        options: { text: 'silk', font: '900 160px Fraunces', color: '#8a6d3b', material: 'foil' },
+      },
+      {
         id: 'hare', title: 'Young Hare', note: 'Albrecht Dürer, 1502. Paper and cast shadow keyed out; the silhouette inflated.',
         options: { image: 'images/hare.webp', puff: 'cushion' },
       },
@@ -193,7 +200,7 @@
       /* ?poster=1 (shoot.mjs --posters) lays the cards out in the order their posters were rendered in: a card's column
          shifts it by a fraction of a device pixel, which changes its @2x poster, and reordering the gallery must not
          change a poster by one byte. A card missing from this list goes after it. */
-      const POSTER_ORDER = ['ink-drop', 'moon', 'pomegranate', 'hare', 'teapot', 'mona-lisa', 'carriera', 'parrot', 'pomegranate-foil', 'teapot-wet'];
+      const POSTER_ORDER = ['ink-drop', 'moon', 'pomegranate', 'hare', 'teapot', 'mona-lisa', 'carriera', 'parrot', 'pomegranate-foil', 'teapot-wet', 'silk-foil'];
       const cards = /[?&]poster\b/.test(location.search)
         ? [...POSTER_ORDER.map((id) => CARDS.find((c) => c.id === id)).filter(Boolean), ...CARDS.filter((c) => !POSTER_ORDER.includes(c.id))]
         : CARDS;
