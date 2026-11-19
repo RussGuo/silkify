@@ -6,10 +6,12 @@
  *   test/events.html      the library: onPress, onRelease, onStroke (throttled), onReady / onFail, callbacks that
  *                         throw, haptics before and after a user gesture (one real click here gives the gesture), words,
  *                         the static tier, interactive: false, a live element's link (the page checks itself)
- *   examples/button.html  the silk button pressed three ways, each a click of the <button>: a real mouse press (the silk
- *                         reports it), a finger (touch emulation), and the keyboard (Tab shows the focus ring; Enter and
- *                         Space ripple the silk from its centre: the frame changes); under reduced motion the face
- *                         stays the poster <img> (no canvas, no three.js) and Enter still clicks it
+ *   examples/button.html  the silk button. On a throttled network its face is never empty from the poster's first
+ *                         paint to `ready` (the poster, or the live canvas over it, sampled every 50 ms). Then it is
+ *                         pressed three ways, each a click of the <button>: a real mouse press (the silk reports it), a
+ *                         finger (touch emulation), and the keyboard (Tab shows the focus ring; Enter and Space ripple
+ *                         the silk from its centre: the frame changes). Under reduced motion the face stays the poster
+ *                         <img> (no canvas, no three.js) and Enter still clicks it
  *   the gallery           a real press on a live card is counted through onPress (__gallery.presses)
  */
 
@@ -43,6 +45,37 @@ export async function verifyEvents(t) {
   tag('library', !ev.problems.length, `presses ${o.press?.length}, releases ${o.release?.map((r) => (r.over ? 'over' : 'off')).join('/')}, `
     + `10 moves → ${o.stroke?.burst} stroke, thrown ${o.throws?.thrown.join(' ')} with ${o.throws?.frames} frames after (twin ${o.throws?.twinFrames}), `
     + `vibrated ${JSON.stringify(o.vibrated)}, element ${typeof o.element === 'string' ? o.element : `${o.element?.presses} press`}`);
+
+  // ---- the silk button: the face is never empty while it loads (a slow network stretches the wait) ----
+  // every 50 ms from the poster's first paint to `ready`: a visible poster, or a shown canvas that is live
+  const { identifier } = await send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+    const samples = window.__faceSamples = [];
+    const shown = (el) => !!el && +getComputedStyle(el).opacity > 0 && el.getBoundingClientRect().width > 0;
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const img = document.querySelector('#buy .face img'), canvas = document.querySelector('#buy .face canvas'), h = window.__button?.handle;
+      const poster = shown(img) && img.complete && img.naturalWidth > 0, silk = shown(canvas) && h?.mode === 'webgl';
+      if (poster || silk || samples.length) samples.push({ t: Math.round(performance.now() - t0), poster, silk, mode: h?.mode ?? 'none' });
+      if (h && h.mode !== 'loading' && samples.length) clearInterval(id);
+    }, 50);
+  })()` });
+  await send('Network.enable');
+  await send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 200 * 1024, uploadThroughput: 100 * 1024 });
+  try {
+    await navigate('about:blank');
+    await navigate(`${base}/examples/button.html`);
+    await evaluate('window.__button.handle.ready');
+    await sleep(200);
+  } finally {
+    await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await send('Network.disable');
+    await send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
+  }
+  const samples = await evaluate('window.__faceSamples');
+  const empty = samples.filter((x) => !x.poster && !x.silk), loading = samples.filter((x) => x.mode === 'loading' || x.mode === 'none');
+  tag('button, loading', samples.length > 0 && !empty.length && loading.length >= 3 && samples.at(-1).silk,
+    `${samples.length} samples over ${samples.at(-1)?.t - samples[0]?.t} ms (${loading.length} while loading, 1.6 Mbit/s, 150 ms): `
+    + `${empty.length} with an empty face${empty.length ? ` (first at ${empty[0].t} ms, ${empty[0].mode})` : ''}, then ${samples.at(-1)?.silk ? 'the live canvas' : 'no live canvas'}`);
 
   // ---- the silk button: mouse, touch, keyboard ----
   await navigate('about:blank');
@@ -104,7 +137,7 @@ export async function verifyEvents(t) {
     await key('Tab', 'Tab', 9);
     await key('Enter', 'Enter', 13, '\r');
     await sleep(300);
-    const r = await evaluate(`({ canvases: document.querySelectorAll('canvas').length, img: document.querySelector('#buy img.face')?.complete,
+    const r = await evaluate(`({ canvases: document.querySelectorAll('canvas').length, img: document.querySelector('#buy .face img')?.complete,
       three: performance.getEntriesByType('resource').filter((e) => /three/.test(e.name)).length, clicks: window.__button.clicks })`);
     tag('button, reduced motion', r.canvases === 0 && r.img && r.three === 0 && r.clicks === 1, `${r.canvases} canvas, poster ${r.img ? 'shown' : 'missing'}, ${r.three} three.js requests, Enter → ${r.clicks} click`);
   } finally {

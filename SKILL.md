@@ -230,7 +230,7 @@ A callback that throws is reported as an uncaught error and stops nothing else. 
 </script>
 ```
 
-Give it a focus ring outside the canvas (`.silk-button:focus-visible { outline: 2px solid; outline-offset: 4px }`), pick a picture whose centre is the object (the keyboard's ripple lands there), and keep the action in `click`: `onPress` is for feedback only. Where the static tier applies (reduced motion, Save-Data), a poster `<img>` as the face is lighter than a canvas: `examples/button.html` starts with it and swaps in the canvas only when `pickTier()` (from `tier.js`) is not `'static'`. It is the whole page.
+Give it a focus ring outside the canvas (`.silk-button:focus-visible { outline: 2px solid; outline-offset: 4px }`), pick a picture whose centre is the object (the keyboard's ripple lands there), and keep the action in `click`: `onPress` is for feedback only. So that the face is never empty while the renderer loads, put a poster `<img>` under the canvas and show the canvas only from `onReady` with `mode` `'webgl'` (hide it again on `onFail`, a lost context), as the gallery does; in the static tier (reduced motion, Save-Data) add no canvas at all, only the poster (`pickTier()` from `tier.js`). `examples/button.html` is the whole page, all of this included.
 
 ## Step 5 (optional): live HTML instead of a picture
 

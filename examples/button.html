@@ -21,9 +21,11 @@
   Tab, Enter and Space press it, a screen reader reads its label, a click runs the action) and the silk is only its
   face, so nothing about the button depends on WebGL: in the static tier the face is the poster and the button works the
   same. The pattern, in four parts:
-    1. the face inside the <button>, aria-hidden; the button's own text is its accessible name. It starts as the poster,
-       an <img>, and becomes a canvas only where silk can be live: the static tier (reduced motion, Save-Data, no WebGL2)
-       keeps the picture and never loads three.js
+    1. the face inside the <button>, aria-hidden; the button's own text is its accessible name. The face is the poster,
+       an <img>, from the first paint: the canvas is added over it only where silk can be live, and shown only once its
+       first frame is up (onReady), so the face is never empty while the renderer loads. A lost WebGL context hides the
+       canvas again (onFail) until it is back. The static tier (reduced motion, Save-Data, no WebGL2) keeps the picture
+       alone and never loads three.js
     2. mouse and touch press the silk by themselves (silkify follows the pointer); onPress is there for feedback only
        (haptics: true, a sound), never for the action, which is the button's click
     3. the keyboard has no pointer: on Enter or Space, handle.ripple() at the centre, so the key is seen on the silk
@@ -41,7 +43,11 @@
     border: 0; border-radius: 22px; background: var(--face); color: var(--ink); font: inherit; font-size: 16px; font-weight: 500;
     cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
-  .silk-button .face { display: block; width: 100%; aspect-ratio: 1; touch-action: manipulation; }
+  .silk-button .face { position: relative; width: 100%; aspect-ratio: 1; touch-action: manipulation; }
+  .face img, .face canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: manipulation; }
+  .face canvas { opacity: 0; transition: opacity 0.25s; }
+  .face.live canvas { opacity: 1; }
+  .face.live img { opacity: 0; transition: opacity 0.25s 0.05s; }
   .silk-button:focus { outline: none; }
   .silk-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
   .status { margin-top: 18px; font-size: 13px; color: var(--muted); }
@@ -52,7 +58,7 @@
   <h1>A silk button</h1>
   <p class="lede">A real button whose face is silk. Press it with the mouse, a finger, or Tab to it and press Enter or Space.</p>
   <button class="silk-button" id="buy" type="button">
-    <img class="face" src="posters/pomegranate.webp" srcset="posters/pomegranate.webp 1x, posters/pomegranate@2x.webp 2x" alt="" aria-hidden="true">
+    <span class="face" aria-hidden="true"><img src="posters/pomegranate.webp" srcset="posters/pomegranate.webp 1x, posters/pomegranate@2x.webp 2x" alt=""></span>
     <span>Add a pomegranate</span>
   </button>
   <p class="status"><output id="count" aria-live="polite">Nothing in the basket yet.</output></p>
@@ -68,17 +74,19 @@
   const button = document.getElementById('buy');
   const state = window.__button = { clicks: 0, presses: [], handle: null };
 
-  // 1–2: the face. Where silk can be live, the poster gives way to a canvas; a press with the mouse or a finger dents
-  // it on its own, and onPress only adds feedback
+  // 1–2: the face. Where silk can be live, a canvas goes over the poster and takes its place once its first frame is up
+  // (onReady with mode 'webgl'); a lost context gives the face back to the poster (onFail) until it is restored. A press
+  // with the mouse or a finger dents the silk on its own, and onPress only adds feedback
   if (pickTier().tier !== 'static') {
+    const face = button.querySelector('.face');
     const canvas = document.createElement('canvas');
-    canvas.className = 'face';
-    canvas.setAttribute('aria-hidden', 'true');
-    button.querySelector('.face').replaceWith(canvas);
+    face.append(canvas);
     const silk = state.handle = silkify(canvas, {
       image: 'images/pomegranate.webp', poster: 'posters/pomegranate.webp',
       haptics: true,                                       // one short tick on a phone that can
       onPress: (e) => state.presses.push(e.pointerType),
+      onReady: (h) => face.classList.toggle('live', h.mode === 'webgl'),
+      onFail: () => face.classList.remove('live'),
     });
     // 3: the keyboard presses the middle of the silk (Enter presses on keydown, Space on keyup: both are seen at once)
     button.addEventListener('keydown', (e) => {
