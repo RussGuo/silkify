@@ -64,14 +64,14 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md
 
 | | 静止 | 触碰（2.8 秒循环） |
 |---|---|---|
-| **一滴墨**：FateTell 标识，墨色加细颗粒 | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="静止的墨滴"> | <img src="docs/shots/ink-drop-ripple.gif" width="300" alt="起涟漪的墨滴"> |
-| **月球**：NASA LRO 色彩与高程图贴在球面上，盈凸月 | <img src="docs/shots/moon-rest.jpg" width="300" alt="静止的月球"> | <img src="docs/shots/moon-ripple.gif" width="300" alt="起涟漪的月球"> |
+| **蒙娜丽莎**：做成丝绸软垫 | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="静止的蒙娜丽莎"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="起涟漪的蒙娜丽莎"> |
 | **石榴**：美国农业部果树水彩，1920 | <img src="docs/shots/pomegranate-rest.jpg" width="300" alt="静止的石榴"> | <img src="docs/shots/pomegranate-ripple.gif" width="300" alt="起涟漪的石榴"> |
+| **月球**：NASA LRO 色彩与高程图贴在球面上，盈凸月 | <img src="docs/shots/moon-rest.jpg" width="300" alt="静止的月球"> | <img src="docs/shots/moon-ripple.gif" width="300" alt="起涟漪的月球"> |
 | **野兔**：丢勒，1502 | <img src="docs/shots/hare-rest.jpg" width="300" alt="静止的野兔"> | <img src="docs/shots/hare-ripple.gif" width="300" alt="起涟漪的野兔"> |
 | **茶壶**：铁皮与藤编，英格兰，约 1800 | <img src="docs/shots/teapot-rest.jpg" width="300" alt="静止的茶壶"> | <img src="docs/shots/teapot-ripple.gif" width="300" alt="起涟漪的茶壶"> |
-| **蒙娜丽莎**：做成丝绸软垫 | <img src="docs/shots/mona-lisa-rest.jpg" width="300" alt="静止的蒙娜丽莎"> | <img src="docs/shots/mona-lisa-ripple.gif" width="300" alt="起涟漪的蒙娜丽莎"> |
 | **男子肖像**：罗萨尔芭·卡列拉，约 1710 | <img src="docs/shots/carriera-rest.jpg" width="300" alt="静止的细密画肖像"> | <img src="docs/shots/carriera-ripple.gif" width="300" alt="起涟漪的细密画肖像"> |
 | **鸟形摆件**：黄金、珐琅与宝石，印度，可能为 18 世纪 | <img src="docs/shots/parrot-rest.jpg" width="300" alt="静止的鸟形摆件"> | <img src="docs/shots/parrot-ripple.gif" width="300" alt="起涟漪的鸟形摆件"> |
+| **一滴墨**：FateTell 标识，墨色加细颗粒 | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="静止的墨滴"> | <img src="docs/shots/ink-drop-ripple.gif" width="300" alt="起涟漪的墨滴"> |
 
 示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在高档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
 

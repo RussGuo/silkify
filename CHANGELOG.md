@@ -13,6 +13,9 @@
 **Added**
 - **Words as the object.** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif', color, lineHeight })` makes a word, a headline, a letter or an emoji the object, with no picture and no cut-out. The text is set in a canvas once its font has loaded (up to 3 s) and is then a picture like any other: it inflates, dents and ripples in every material and feel, and the static tier draws it flat. Lines split on `\n`; colour emoji keep their colours; CJK falls back glyph by glyph. By default the words take the canvas's CSS `color` and a heavy weight of its `font-family`. A font none of whose named families renders draws the fallback with one `console.warn`; mistakes in the call (text with `image` or `element`, an empty text, an unreadable font or colour) throw a `TypeError`. New file `src/text.js`; `examples/text.html`; `test/text.html`, run by `scripts/shoot.mjs`. See references/parameters.md, "Text".
 
+**Changed**
+- **The gallery and the READMEs open with the Mona Lisa and the pomegranate**, then the moon; the FateTell ink drop moves to the end of the objects (its notice is unchanged). The Lab's object list follows. Only the order changed: the posters are the same files.
+
 Pictures look the same: the posters re-render byte for byte.
 
 ## 0.3.0 (2026-11-19)

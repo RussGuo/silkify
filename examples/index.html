@@ -134,17 +134,16 @@
        posters/<id>.webp (+ @2x) are rendered rest frames of the same canvas, made by scripts/shoot.mjs --posters. */
     window.CARDS = [
       {
-        id: 'ink-drop', title: 'A drop of ink', note: 'The FateTell mark, inflated. Tinted ink with a fine grain.',
-        options: { image: 'images/ink-drop.webp', albedo: [0.15, 0.15, 0.165], grain: 1, light: [-0.66, 0.72, 0.2],
-                   exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14 },
-      },
-      {
-        id: 'moon', title: 'The Moon', note: 'NASA LRO colour and elevation maps, wrapped on a sphere. A waxing gibbous, slowly turning.',
-        options: { shape: 'sphere', image: 'images/moon.webp', bump: 'images/moon-bump.webp', phase: 0.38, floor: 0.6, exposure: 1.1, gamma: 0.92, bumpStrength: 7 },
+        id: 'mona-lisa', title: 'Mona Lisa, as a cushion', note: 'Leonardo da Vinci, c. 1503–1519. An opaque picture becomes a silk pillow.',
+        options: { image: 'images/mona-lisa.webp', puff: 'cushion', floor: 0.6, sheen: 0.25 },
       },
       {
         id: 'pomegranate', title: 'Pomegranate', note: '“Wonderful”, watercolour by Amanda Almira Newton, 1920, for the USDA. A round fruit gets a full dome.',
         options: { image: 'images/pomegranate.webp', puff: 'dome' },
+      },
+      {
+        id: 'moon', title: 'The Moon', note: 'NASA LRO colour and elevation maps, wrapped on a sphere. A waxing gibbous, slowly turning.',
+        options: { shape: 'sphere', image: 'images/moon.webp', bump: 'images/moon-bump.webp', phase: 0.38, floor: 0.6, exposure: 1.1, gamma: 0.92, bumpStrength: 7 },
       },
       {
         id: 'hare', title: 'Young Hare', note: 'Albrecht Dürer, 1502. Paper and cast shadow keyed out; the silhouette inflated.',
@@ -155,16 +154,17 @@
         options: { image: 'images/teapot.webp', puff: 'cushion', sheen: 0.5, sheenPower: 14 },
       },
       {
-        id: 'mona-lisa', title: 'Mona Lisa, as a cushion', note: 'Leonardo da Vinci, c. 1503–1519. An opaque picture becomes a silk pillow.',
-        options: { image: 'images/mona-lisa.webp', puff: 'cushion', floor: 0.6, sheen: 0.25 },
-      },
-      {
         id: 'carriera', title: 'Portrait of a Man', note: 'Rosalba Carriera, c. 1710, miniature on ivory. The Met. A flat puff keeps the face true.',
         options: { image: 'images/carriera.webp', puff: 'flat', floor: 0.6 },
       },
       {
         id: 'parrot', title: 'Bird figure', note: 'Gold, enamel and gemstones, India, possibly 18th century. Cooper Hewitt. Shadows under the branch keyed out.',
         options: { image: 'images/parrot.webp', puff: 'cushion', sheen: 0.5, sheenPower: 14 }, stroke: '0.47,0.24,0.60,0.66',
+      },
+      {
+        id: 'ink-drop', title: 'A drop of ink', note: 'The FateTell mark, inflated. Tinted ink with a fine grain.',
+        options: { image: 'images/ink-drop.webp', albedo: [0.15, 0.15, 0.165], grain: 1, light: [-0.66, 0.72, 0.2],
+                   exposure: 2.2, floor: 0.42, volume: 0.3, sheen: 0.5, sheenPower: 14 },
       },
       /* presets (src/presets.js): one word for a material, one for how it moves; tune them in lab.html */
       {
@@ -180,9 +180,16 @@
     (() => {
       const grid = document.getElementById('grid');
       const touch = matchMedia('(hover: none)').matches;
+      /* ?poster=1 (shoot.mjs --posters) lays the cards out in the order their posters were rendered in: a card's column
+         shifts it by a fraction of a device pixel, which changes its @2x poster, and reordering the gallery must not
+         change a poster by one byte. A card missing from this list goes after it. */
+      const POSTER_ORDER = ['ink-drop', 'moon', 'pomegranate', 'hare', 'teapot', 'mona-lisa', 'carriera', 'parrot', 'pomegranate-foil', 'teapot-wet'];
+      const cards = /[?&]poster\b/.test(location.search)
+        ? [...POSTER_ORDER.map((id) => CARDS.find((c) => c.id === id)).filter(Boolean), ...CARDS.filter((c) => !POSTER_ORDER.includes(c.id))]
+        : CARDS;
       const show = (o) => Object.entries(o).filter(([k]) => k !== 'image' && k !== 'bump')
         .map(([k, v]) => `${k}: ${JSON.stringify(v).replace(/,/g, ', ')}`).join(', ');
-      for (const c of CARDS) {
+      for (const c of cards) {
         const fig = document.createElement('figure');
         fig.dataset.id = c.id;
         if (c.stroke) fig.dataset.stroke = c.stroke;   // where scripts/shoot.mjs drags the pointer
