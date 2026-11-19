@@ -102,6 +102,8 @@
       <script>console.warn = (...a) => parent.__frameWarn(String(a[0]));<\/script><canvas></canvas>
       <script type="module">
         const { silkify } = await import(${JSON.stringify(new URL(silkUrl, location.href).href)});
+        // after the frame's load: silkify() measures the canvas, and Firefox warns about a layout forced before it
+        if (document.readyState !== 'complete') await new Promise((r) => addEventListener('load', r, { once: true }));
         const h = silkify(document.querySelector('canvas'), { image: ${JSON.stringify(new URL(PEAR, location.href).href)}, tier: '${tier}' });
         h.ready.then((x) => parent.__nomap({ mode: x.mode, reason: x.reason }));
       <\/script>`;
