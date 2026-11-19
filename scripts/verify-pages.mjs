@@ -17,7 +17,8 @@
  *                   OffscreenCanvas transfer, getContext('webgl2') null): every live figure static, its poster showing
  *   use cases       examples/demos/*.html: each object goes live and ripples under a stroke (the logo wall never holds
  *                   more than 3), no sideways scroll at 375 px, and with reduced motion no canvas and nothing mounted
- *   words           examples/text.html: live, a word ripples, no sideways scroll at 375 px, still with reduced motion
+ *   words           examples/text.html: live, a word ripples, links to the gallery and the Lab (which opens the same words),
+ *                   no readout while live, no sideways scroll at 375 px, still with reduced motion
  *   button          examples/button.html, when there is one: it loads clean, at 1440 px, 375 px and with reduced motion
  *   gallery         examples/index.html: the header's three ways in (Lab, How it works, Install), "Pages to start from"
  *                   linking every use case, text.html and button.html, the live-HTML card's link to the long read's
@@ -371,7 +372,14 @@ async function checkText(c) {
       .then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier }))`);
     const d = await ripples(c, `document.getElementById('silk')`);
     expect(c, 'text 1440', h.mode === 'webgl' && d > 0.3, `${h.mode}, stroke Δ ${d.toFixed(2)}`);
-    return `${h.mode} ${h.tier}/${h.thread}, stroke Δ ${d.toFixed(2)}`;
+    // not a dead end: the gallery and the Lab are a link away, the Lab link opens these words, no readout while live
+    const p = await evaluate(`({ links: [...document.querySelectorAll('a')].map((a) => a.getAttribute('href').split('#')[0]),
+      status: document.getElementById('status').hidden, lab: document.getElementById('lab').href })`);
+    await c.navigate(p.lab);
+    const obj = await evaluate(`window.__lab.ready().then(() => window.__lab.state.obj + ' ' + JSON.stringify(window.__lab.state.set.text))`);
+    expect(c, 'text 1440', p.links.includes('./') && p.links.includes('lab.html') && p.status && obj === 'text "silk"',
+      `links ${p.links}, status hidden ${p.status}, the Lab link opens ${obj}`);
+    return `${h.mode} ${h.tier}/${h.thread}, stroke Δ ${d.toFixed(2)}; links to the gallery and the Lab, which opens ${obj}`;
   });
   await scope(c, 'text 375', async () => {
     await open(c, 'examples/text.html', { phone: true });

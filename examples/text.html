@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>silkify — words</title>
 <link rel="icon" href="data:,">
+<meta name="description" content="A word as the object: silk lettering that dents and ripples under the pointer. No picture, no cut-out.">
 <!-- link previews (Open Graph, X / Twitter): docs/og.jpg is the README's hero, cropped to 1200 × 630 -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="silkify">
@@ -19,25 +20,62 @@
 <!--
   The smallest text page: a word as the object. silkify sets it in a canvas once its font has loaded, and from then
   on it is a picture like any other: the letters inflate, dent and ripple. A heavy weight inflates best (a dome's
-  height grows with the stroke's width). Any option can be tried from the address bar, for example
-  ?text=Hello%0Aworld&font=900%20200px%20system-ui&material=foil&puff=1.4 (%0A starts a new line).
+  height grows with the stroke's width). The words take the canvas's CSS colour (here --word, lighter in dark mode).
+  Any option can be tried from the address bar, for example
+  ?text=Hello%0Aworld&font=900%20200px%20system-ui&material=foil&puff=1.4 (%0A starts a new line); the Lab link below
+  opens the same words with a control for each. ?debug shows which renderer drew them.
 -->
 <style>
-  :root { --paper: #f3efe7; --ink: #1f1d1a; --muted: #6f695f; color-scheme: light; }
+  :root {
+    --paper: #f3efe7; --stage: #ebe6dc; --ink: #1f1d1a; --muted: #6f695f; --rule: #d9d2c4; --accent: #8a6d3b; --accent-text: #7a5f30; --word: #6b2737;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --stage: #1c1b19; --ink: #ece7dd; --muted: #8d877c; --rule: #2c2a26; --accent: #c9a96b; --accent-text: #c9a96b; --word: #b0485a; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
-  h1 { margin: 0 0 6px; font: 400 40px/1.1 ui-serif, Georgia, serif; }
-  .lede { margin: 0 0 28px; color: var(--muted); }
-  canvas { display: block; width: 100%; aspect-ratio: 16 / 10; touch-action: pan-y; color: #6b2737; }
-  .status { margin-top: 14px; font-size: 13px; color: var(--muted); }
+  a { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 24px 56px; }
+  nav { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-size: 14px; color: var(--muted); }
+  nav a { text-decoration: none; }
+  nav a:hover { color: var(--ink); }
+  nav .brand { font: 400 20px/1 ui-serif, "Iowan Old Style", Georgia, serif; color: var(--ink); }
+  nav .brand em { color: var(--accent-text); }   /* the accent darkened to 5.2:1 for 20 px type */
+  h1 { margin: 56px 0 0; font: 400 clamp(36px, 6vw, 52px)/1.05 ui-serif, "Iowan Old Style", Georgia, serif; letter-spacing: -0.01em; }
+  .lede { margin: 14px 0 32px; max-width: 34em; font-size: 17px; color: var(--muted); }
+  .stage {
+    border-radius: 22px; overflow: hidden;
+    background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 60%, var(--paper)), var(--stage));
+  }
+  canvas { display: block; width: 100%; aspect-ratio: 16 / 10; touch-action: pan-y; cursor: crosshair; color: var(--word); }
+  .under { display: flex; justify-content: space-between; align-items: baseline; gap: 10px 24px; flex-wrap: wrap; margin-top: 16px; }
+  .under code { font: 12px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); overflow-wrap: anywhere; }
+  .under a { font-size: 15px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  .under a:hover { border-color: var(--accent); }
+  .status { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+  @media (max-width: 640px) {
+    .wrap { padding: 20px 16px 40px; }
+    h1 { margin-top: 36px; }
+    .lede { font-size: 16px; margin-bottom: 24px; }
+    canvas { aspect-ratio: 4 / 3; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>A word, in silk</h1>
-  <p class="lede">No picture needed: type a word, pick a font. Touch the letters and they ripple.</p>
-  <canvas id="silk" aria-label="silk"></canvas>
-  <p class="status" id="status">loading…</p>
+  <nav aria-label="silkify"><a class="brand" href="./">silk<em>ify</em></a><span><a href="./">Gallery</a> · <a href="lab.html">Lab</a></span></nav>
+  <main>
+    <h1>A word, in silk</h1>
+    <p class="lede">No picture and no cut-out: the word itself is the object. Touch the letters and they dent and ripple.</p>
+    <div class="stage"><canvas id="silk" role="img" aria-label="the word silk, in silk"></canvas></div>
+    <div class="under">
+      <code id="call">silkify(canvas, { text: 'silk', font: '800 200px ui-serif, Georgia, serif', material: 'satin' })</code>
+      <a id="lab" href="lab.html">Set your own words in the Lab →</a>
+    </div>
+    <p class="status" id="status" hidden></p>
+  </main>
 </div>
 
 <script type="importmap">
@@ -48,13 +86,28 @@
 
   // the page's own options; the address bar can override any of them (strings, or numbers where they parse)
   const options = { text: 'silk', font: '800 200px ui-serif, Georgia, serif', material: 'satin' };
-  for (const [k, v] of new URLSearchParams(location.search)) options[k] = k !== 'text' && v !== '' && !isNaN(v) ? Number(v) : v;
+  const qs = new URLSearchParams(location.search);
+  for (const [k, v] of qs) if (k !== 'debug') options[k] = k !== 'text' && v !== '' && !isNaN(v) ? Number(v) : v;
+
+  // the words the Lab opens with: these, as Object → Words (the Lab keeps only what its controls can set)
+  const words = { obj: 'text', url: null, material: typeof options.material === 'string' ? options.material : 'silk', feel: 'silk', bg: 'stage',
+    set: { text: String(options.text), font: '800 160px ui-serif, Georgia, "Times New Roman", serif', color: '#6b2737' } };
+  document.getElementById('lab').href = `lab.html#${btoa(unescape(encodeURIComponent(JSON.stringify(words)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+  // the call under the stage, as this page makes it (the address bar's options included)
+  document.getElementById('call').textContent = `silkify(canvas, { ${Object.entries(options)
+    .map(([k, v]) => `${k}: ${typeof v === 'string' ? `'${v.replace(/\n/g, '\\n')}'` : v}`).join(', ')} })`;
+  if (qs.has('text')) document.getElementById('silk').setAttribute('aria-label', `${options.text.replace(/\n/g, ' ')}, in silk`);
 
   const silk = window.silk = silkify(document.getElementById('silk'), options);
   await silk.ready;
-  document.getElementById('status').textContent = silk.mode === 'webgl'
-    ? `Live (${silk.thread} thread, ${silk.tier} tier).`
-    : `${silk.mode}: ${silk.reason}.`;
+  // a person needs to hear only that the words are still, and why; ?debug says which renderer drew them
+  const status = document.getElementById('status');
+  status.textContent = qs.has('debug') ? `${silk.mode} (${silk.thread} thread, ${silk.tier} tier)${silk.reason ? `: ${silk.reason}` : ''}.`
+    : silk.mode === 'webgl' ? ''
+    : matchMedia('(prefers-reduced-motion: reduce)').matches ? 'Your system asks for reduced motion, so the word is drawn still.'
+    : silk.mode === 'static' ? 'This browser shows the word still: silk needs WebGL2.'
+    : `The word could not be drawn: ${silk.reason}.`;
+  status.hidden = !status.textContent;
 </script>
 </body>
 </html>
