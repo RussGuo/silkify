@@ -8,6 +8,7 @@
  *                       a sphere pressed hard near its limb and poles covers no pixel outside its rest outline (the
  *                       displacement runs along the line of sight; along the normal it pushed the limb out and opened
  *                       the poles into spikes: thousands of pixels)
+ *                       a live 'y' is centred on its ink (its descender included), within 1 % of the canvas
  *   test/pool.html      pool(): at most `max` live, the least recently touched released, a pointer mounts, a scroll away
  *                       releases, dispose() lets the prewarmed worker go, the static tier mounts nothing (it checks itself)
  *   a screenshot        what the page cannot read back from a live canvas: fit: 'cover' leaves none of a 3:1 canvas
@@ -31,6 +32,21 @@ print(sum(1 for p, q in zip(a.getdata(), b.getdata()) if bg(p) and not bg(q)))`,
     let out = '';
     p.stdout.on('data', (d) => (out += d));
     p.on('exit', () => resolve(Number(out.trim())));
+  });
+}
+
+/** How far the centre of the ink (pixels darker than 128) is from the screenshot's centre, as shares of its size. */
+async function inkOffset(png, profile) {
+  const file = path.join(profile, 'ink.png');
+  await writeFile(file, Buffer.from(png, 'base64'));
+  return new Promise((resolve) => {
+    const p = spawn('python3', ['-c', `import sys
+from PIL import Image
+im = Image.open(sys.argv[1]).convert("L"); w, h = im.size; box = im.point(lambda v: 255 if v < 128 else 0).getbbox()
+print((box[0] + box[2]) / 2 / w - 0.5, (box[1] + box[3]) / 2 / h - 0.5)`, file]);
+    let out = '';
+    p.stdout.on('data', (d) => (out += d));
+    p.on('exit', () => resolve(out.trim().split(' ').map(Number)));
   });
 }
 
@@ -83,6 +99,11 @@ export async function verifyOptions(t) {
   let outside = 0;
   for (let k = 0; k < 6; k++) { await sleep(150); outside = Math.max(outside, await grown(still, await sphereShot(), profile)); }
   tag('sphere outline', outside < 20, `${outside} px outside the rest outline while pressed hard at the limb and the poles`);
+  // words, live: centred on their ink
+  await evaluate(`document.getElementById('ink-live').scrollIntoView({ block: 'center' })`);
+  await sleep(400);
+  const [ix, iy] = await inkOffset((await send('Page.captureScreenshot', { format: 'png', clip: clipOf(await box('ink-live'), 1) })).data, profile);
+  tag('words on their ink', Math.abs(ix) <= 0.01 && Math.abs(iy) <= 0.01, `a live 'y' is ${(ix * 100).toFixed(1)} %, ${(iy * 100).toFixed(1)} % off the centre`);
   await evaluate(`Object.values(window.__options.handles).forEach((h) => h.dispose())`);
 
   // pool()

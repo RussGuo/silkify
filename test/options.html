@@ -16,8 +16,11 @@
               async function, and one that returns nothing usable (mode 'failed', a reason, one warning)
     breeze    breezeIdle: the breeze stops (mode 'tail') once nobody has touched the object for that long, and wake()
               starts it again; without breezeIdle it never stops; scrolled out of view, no frames at all
+    ink       words are centred on their ink, not on the font's line box: a 'y' (a descender), a 'g' and an em dash in
+              the static tier, whose 2D canvas can be read (the live ones: verify-options.mjs)
   The live canvases for verify-options.mjs: #cover-wide and #contain-wide (a square opaque picture in a 3:1 canvas), and
-  #sphere, the moon, which verify-options.mjs presses hard near its limb and poles (the outline must not move).
+  #sphere, the moon, which verify-options.mjs presses hard near its limb and poles (the outline must not move), and
+  #ink-live, a 'y', whose ink must be centred.
   window.__options = { out, problems, handles } at the end. Low tier: no idle sweep.
 -->
 <style>
@@ -37,6 +40,7 @@
 <div class="row"><canvas id="cover-wide" class="wide"></canvas><canvas id="contain-wide" class="wide"></canvas><canvas id="corner0" class="sq"></canvas></div>
 <div class="row"><canvas id="static-cover" class="wide"></canvas><canvas id="p-canvas" class="sq"></canvas><canvas id="p-fn" class="sq"></canvas><canvas id="p-async" class="sq"></canvas><canvas id="p-bad" class="sq"></canvas></div>
 <div class="row"><canvas id="sphere" class="sphere"></canvas><canvas id="breeze-idle" class="sq"></canvas><canvas id="breeze-on" class="sq"></canvas></div>
+<div class="row"><canvas id="ink-live" class="sq"></canvas><canvas id="ink-y" class="sq"></canvas><canvas id="ink-g" class="sq"></canvas><canvas id="ink-dash" class="sq"></canvas></div>
 <div id="far"><canvas id="breeze-far" class="sq"></canvas></div>
 <script type="module">
   import { silkify } from '../src/silk.js';
@@ -145,6 +149,24 @@
     if (always !== 'breeze') problems.push(`breeze: without breezeIdle it stopped (${always})`);
     if (f1 !== f0) problems.push(`breeze: ${f1 - f0} frames in 1 s out of view`);
     for (const h of [idle, on, far]) h.dispose();
+  }
+
+  // ---- words: centred on their ink ----
+  {
+    const word = { font: '800 160px Georgia, serif', color: '#2a2a2a' };
+    const hs = { y: silkify($('ink-y'), { ...word, text: 'y', tier: 'static' }), g: silkify($('ink-g'), { ...word, text: 'g', tier: 'static' }), dash: silkify($('ink-dash'), { ...word, text: '—', tier: 'static' }) };
+    handles.inkLive = silkify($('ink-live'), { ...word, text: 'y', tier: 'low', fillLight: false });
+    await Promise.all([...Object.values(hs), handles.inkLive].map((h) => h.ready));
+    out.ink = {};
+    for (const [k, h] of Object.entries(hs)) {
+      const c = h.canvas, a = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let x0 = c.width, x1 = -1, y0 = c.height, y1 = -1;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (a[(y * c.width + x) * 4 + 3] > 128) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      const dx = (x0 + x1 + 1) / 2 / c.width - 0.5, dy = (y0 + y1 + 1) / 2 / c.height - 0.5;
+      out.ink[k] = `${(dx * 100).toFixed(1)} %, ${(dy * 100).toFixed(1)} %`;
+      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) problems.push(`ink ${k}: its ink is ${out.ink[k]} off the centre`);
+      h.dispose();
+    }
   }
 
   // ---- a sphere at rest, for verify-options.mjs to press ----
