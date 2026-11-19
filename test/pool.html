@@ -16,6 +16,8 @@
     prewarm   the pool prewarms once the page is idle (warm resolves true); dispose() releases every tile and the idle
               prewarmed worker is terminated (coolDown())
     static    pool({ tier: 'static' }) says still, does not listen, and a pointerenter mounts nothing
+    throws    a mount() that throws leaves no canvas: three pointerenters report its error once (an uncaught error,
+              caught here) and do not try again; activate() rejects with it; a mount() that returns no handle rejects
   window.__pool = { out, problems } at the end. Low tier.
 -->
 <style>
@@ -108,6 +110,25 @@
   await sleep(50);
   out.static = { still: quiet.still, live: quiet.live.size, warm: await quiet.warm };
   if (!quiet.still || quiet.live.size || out.static.warm !== false) problems.push(`static: ${JSON.stringify(out.static)}`);
+
+  // a mount() that throws (a mistake in its options): no canvas left behind, the error reported once
+  {
+    const errors = [];
+    addEventListener('error', (e) => { if (/options\.fit/.test(e.message)) { errors.push(e.error?.constructor.name); e.preventDefault(); } });
+    const t = Object.assign(document.createElement('div'), { className: 'tile' });
+    document.getElementById('near').append(t);
+    const bad = pool({ warm: false, tier: 'low' });
+    bad.add(t, (canvas) => silkify(canvas, { image: '../examples/images/pomegranate.webp', fit: 'bogus' }));
+    for (let k = 0; k < 3; k++) { t.dispatchEvent(new PointerEvent('pointerenter')); await sleep(50); }
+    const direct = await bad.activate(t).then(() => 'resolved', (e) => e.constructor.name);
+    const odd = pool({ warm: false, listen: false });
+    odd.add(t, () => undefined);
+    const none = await odd.activate(t).then(() => 'resolved', (e) => e.constructor.name);
+    out.throws = { canvases: t.querySelectorAll('canvas').length, reported: errors, activate: direct, noHandle: none, live: bad.live.size + odd.live.size };
+    if (out.throws.canvases || errors.join() !== 'TypeError' || direct !== 'TypeError' || none !== 'TypeError' || out.throws.live) problems.push(`throws: ${JSON.stringify(out.throws)}`);
+    bad.dispose();
+    odd.dispose();
+  }
 
   window.__pool = { out, problems };
 </script>

@@ -20,8 +20,8 @@
  * Live HTML: a press on a control inside the element (a link, a button, a field, editable text) belongs to that control,
  * so it is not reported (the silk still dents under it); a press on its plain words is. `haptics`: one short vibration
  * on a touch or pen press where the browser can (navigator.vibrate), only once the page has had a user gesture, so the
- * browser never logs a refusal. silk.js is the only user: it calls gestures() once per object and feeds it the pointer
- * from pointer.js.
+ * browser never logs a refusal. silk.js calls gestures() once per object and feeds it the pointer from pointer.js;
+ * pool.js uses report() for a mount() that throws.
  */
 
 const STROKE_MS = 100;    // onStroke: at most one call per 100 ms (10 a second: enough for a sound or a counter)
@@ -29,7 +29,8 @@ const BUZZ_MS = 10;       // haptics: true → one 10 ms pulse, a tick rather th
 // what a press inside a live element belongs to, not the silk
 const CONTROLS = 'a[href], button, input, select, textarea, label, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"]';
 
-const report = (e) => (typeof reportError === 'function' ? reportError(e) : setTimeout(() => { throw e; }));
+/** The page's own bug (a callback, pool()'s mount() that throws), reported as an uncaught error: it stops nothing else. */
+export const report = (e) => (typeof reportError === 'function' ? reportError(e) : setTimeout(() => { throw e; }));
 
 /** emit(name, arg): call the page's callback o[name] if there is one, never letting it throw into the caller.
  *  Read at call time, so setTheme({ onPress }) swaps it. */
