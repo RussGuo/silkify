@@ -16,7 +16,8 @@
               async function, and one that returns nothing usable (mode 'failed', a reason, one warning)
     breeze    breezeIdle: the breeze stops (mode 'tail') once nobody has touched the object for that long, and wake()
               starts it again; without breezeIdle it never stops; scrolled out of view, no frames at all
-  The live canvases for verify-options.mjs: #cover-wide and #contain-wide (a square opaque picture in a 3:1 canvas).
+  The live canvases for verify-options.mjs: #cover-wide and #contain-wide (a square opaque picture in a 3:1 canvas), and
+  #sphere, the moon, which verify-options.mjs presses hard near its limb and poles (the outline must not move).
   window.__options = { out, problems, handles } at the end. Low tier: no idle sweep.
 -->
 <style>
@@ -25,6 +26,7 @@
   canvas { display: block; }
   .wide { width: 300px; height: 100px; }
   .sq { width: 120px; height: 120px; }
+  .sphere { width: 240px; height: 240px; }
   #far { margin-top: 3000px; }
 </style>
 <script type="importmap">
@@ -34,7 +36,7 @@
 <body>
 <div class="row"><canvas id="cover-wide" class="wide"></canvas><canvas id="contain-wide" class="wide"></canvas><canvas id="corner0" class="sq"></canvas></div>
 <div class="row"><canvas id="static-cover" class="wide"></canvas><canvas id="p-canvas" class="sq"></canvas><canvas id="p-fn" class="sq"></canvas><canvas id="p-async" class="sq"></canvas><canvas id="p-bad" class="sq"></canvas></div>
-<div class="row"><canvas id="breeze-idle" class="sq"></canvas><canvas id="breeze-on" class="sq"></canvas></div>
+<div class="row"><canvas id="sphere" class="sphere"></canvas><canvas id="breeze-idle" class="sq"></canvas><canvas id="breeze-on" class="sq"></canvas></div>
 <div id="far"><canvas id="breeze-far" class="sq"></canvas></div>
 <script type="module">
   import { silkify } from '../src/silk.js';
@@ -144,6 +146,12 @@
     if (f1 !== f0) problems.push(`breeze: ${f1 - f0} frames in 1 s out of view`);
     for (const h of [idle, on, far]) h.dispose();
   }
+
+  // ---- a sphere at rest, for verify-options.mjs to press ----
+  handles.sphere = silkify($('sphere'), { image: '../examples/images/moon.webp', shape: 'sphere', tier: 'low', fillLight: false, spin: false });
+  await handles.sphere.ready;
+  out.sphere = handles.sphere.mode;
+  if (handles.sphere.mode !== 'webgl') problems.push(`sphere: ${handles.sphere.mode} (${handles.sphere.reason})`);
 
   console.warn = warn;
   window.__options = { out, problems, handles };

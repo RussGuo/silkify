@@ -6,7 +6,8 @@
  *   SIM_VERT / SIM_FRAG   the wave solver: a full-screen quad over two half-float targets in ping-pong
  *                         (r = height, g = velocity), with the pointer's dent, up to four programmatic touches
  *                         (ripple(), autoplay) and the breeze's drifting noise mixed in
- *   OBJ_VERT / OBJ_FRAG   the object: height field → displacement and normals → albedo × Lommel–Seeliger ×
+ *   OBJ_VERT / OBJ_FRAG   the object: height field → displacement along the line of sight (the outline never moves)
+ *                         and normals → albedo × Lommel–Seeliger ×
  *                         light colour → fill-light gradient → satin and sheen gated by ripple energy (or
  *                         silkRest), the sheen optionally anisotropic, iridescent, metallic (tinted by the body)
  *                         and streaked by a fixed thread relief (threads) → Fresnel rim
@@ -85,11 +86,14 @@ export const OBJ_VERT = /* glsl */ `
     vUv = uv;
     float h = texture2D(uSim, uv).r * uDisplace;
   #ifdef SPHERE
-    vec3 p = position + normal * h;
+    // along the line of sight, like a picture's dome: each vertex stays where it is on screen, so the outline never
+    // bulges or folds. Along the normal, a press pushed the limb out, and at the poles (a whole row of vertices that is
+    // one point, each with its own height) the point opened into a spike
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    mv.xyz -= normalize(mv.xyz) * h;
   #else
-    vec3 p = position + vec3(0.0, 0.0, h);   // along the view axis: the outline stays put and never folds
+    vec4 mv = modelViewMatrix * vec4(position + vec3(0.0, 0.0, h), 1.0);   // along the view axis: the outline stays put and never folds
   #endif
-    vec4 mv = modelViewMatrix * vec4(p, 1.0);
     vViewPos = mv.xyz;
     vViewNormal = mat3(modelViewMatrix) * normal;
     gl_Position = projectionMatrix * mv;

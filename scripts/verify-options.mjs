@@ -5,6 +5,9 @@
  *
  *   test/options.html   corner: 0 is a square, fit: 'cover' (also in the static tier, and the mistakes that throw), a
  *                       poster that is a canvas or a function, breezeIdle and no frames out of view (the page checks itself)
+ *                       a sphere pressed hard near its limb and poles covers no pixel outside its rest outline (the
+ *                       displacement runs along the line of sight; along the normal it pushed the limb out and opened
+ *                       the poles into spikes: thousands of pixels)
  *   test/pool.html      pool(): at most `max` live, the least recently touched released, a pointer mounts, a scroll away
  *                       releases, dispose() lets the prewarmed worker go, the static tier mounts nothing (it checks itself)
  *   a screenshot        what the page cannot read back from a live canvas: fit: 'cover' leaves none of a 3:1 canvas
@@ -13,6 +16,23 @@
 import { spawn } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+
+/** Pixels that are the page's background (its colour at the top left) in `rest` and something else in `after`. */
+async function grown(rest, after, profile) {
+  const [fa, fb] = [path.join(profile, 'rest.png'), path.join(profile, 'after.png')];
+  await writeFile(fa, Buffer.from(rest, 'base64'));
+  await writeFile(fb, Buffer.from(after, 'base64'));
+  return new Promise((resolve) => {
+    const p = spawn('python3', ['-c', `import sys
+from PIL import Image
+a = Image.open(sys.argv[1]).convert("RGB"); b = Image.open(sys.argv[2]).convert("RGB"); c = a.getpixel((1, 1))
+bg = lambda p: all(abs(p[i] - c[i]) <= 6 for i in range(3))
+print(sum(1 for p, q in zip(a.getdata(), b.getdata()) if bg(p) and not bg(q)))`, fa, fb]);
+    let out = '';
+    p.stdout.on('data', (d) => (out += d));
+    p.on('exit', () => resolve(Number(out.trim())));
+  });
+}
 
 /** The share of a screenshot's pixels within 10 of a colour (python3 + Pillow, as shoot.mjs's diffOf). */
 async function shareOf(png, rgb, profile) {
@@ -54,6 +74,15 @@ export async function verifyOptions(t) {
   const tall = await empty('cover-wide');
   tag('fit cover', cover < 0.01 && tall < 0.01 && contain > 0.5,
     `${(cover * 100).toFixed(1)} % of a 3:1 canvas empty, ${(tall * 100).toFixed(1)} % once it is 1:3 (no remount); fit 1: ${(contain * 100).toFixed(0)} %`);
+
+  // a sphere pressed hard near its limb and its poles: its outline must not move
+  const sb = await box('sphere');
+  const sphereShot = async () => (await send('Page.captureScreenshot', { format: 'png', clip: clipOf(sb, 1) })).data;
+  const still = await sphereShot();
+  await evaluate(`[[0.5, 0.2], [0.5, 0.8], [0.2, 0.5], [0.8, 0.5]].forEach(([x, y]) => window.__options.handles.sphere.ripple(x, y, { depth: 0.9, radius: 0.12, hold: 400 }))`);
+  let outside = 0;
+  for (let k = 0; k < 6; k++) { await sleep(150); outside = Math.max(outside, await grown(still, await sphereShot(), profile)); }
+  tag('sphere outline', outside < 20, `${outside} px outside the rest outline while pressed hard at the limb and the poles`);
   await evaluate(`Object.values(window.__options.handles).forEach((h) => h.dispose())`);
 
   // pool()
