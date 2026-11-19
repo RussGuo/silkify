@@ -51,6 +51,7 @@ The cut-out script, `scripts/cutout.py`, is in this skill's folder too: run it f
 | `src/presets.js` | `MATERIALS` and `FEELS`: plain option fragments behind `material` and `feel`. |
 | `src/worker.js`, `src/tier.js`, `src/shape.js` | The worker entry, device tiers, and silhouette → dome geometry. |
 | `src/live.js` | Live HTML, the page side: feature detection, the element's stand-in, snapshots, hit geometry, the fallback to plain HTML. |
+| `src/text.js` | Words as the object: sets `text` in a canvas once its font has loaded, and says so when the font is not there. |
 | `scripts/cutout.py` | Pillow + numpy background keying for pictures that are not already transparent. |
 | `scripts/shoot.mjs` | Headless Chrome: checks that every gallery object goes live in its worker and ripples, that the Lab works, and the edge cases in `test/edge.html`; renders posters (`--posters`), GIFs (`--gif`), preset pictures (`--lab`), checks the CDN build (`--cdn`) and WebKit and Firefox (`--browsers`, with Playwright). Fails on any console error or warning. |
 | `examples/index.html` | A working gallery of ten objects with the options that make each look right, a live-HTML card (step 5), and the many-objects pattern (poster first, go live on touch, at most 3 live). Start from the closest card. |
@@ -66,6 +67,8 @@ The input decides the result more than any parameter does. Check the picture bef
 **Best input:** a PNG (or WebP) with a transparent background, the subject whole (not cropped by the frame), long side 512–1024 px. If the user gives you one of these, skip to step 2.
 
 **An SVG logo** works as it is: silkify rasterises it to 1024 px on its long side before inflating it (`image: 'logo.svg'`, a `data:image/svg+xml` URL, or an SVG `Blob`).
+
+**A word, a headline, a letter or an emoji** needs no picture and no cut-out: pass the text and a font, `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif', color: '#6b2737' })` (`\n` for more lines). Use a heavy weight (700–900): the dome's height grows with the stroke's width, so hairlines barely inflate. A web font needs its `<link>` or `@font-face` in the page; if no font named renders, the text is drawn in the fallback with one `console.warn`. The options are in [references/parameters.md](https://github.com/RussGuo/silkify/blob/v0.3.0/references/parameters.md#text-words-as-the-object).
 
 **Plain background** (studio white, paper, black velvet, a flat colour): key it out with `scripts/cutout.py`.
 

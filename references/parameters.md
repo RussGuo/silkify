@@ -2,7 +2,7 @@
 
 # Parameters
 
-All parameters are optional except `image` (or `element`, see [Element mode](#element-mode-live-html)). Defaults marked *sphere / image* differ by shape. The fastest way to find values is the [Lab](https://russguo.github.io/silkify/examples/lab.html) (`examples/lab.html`): every option below is a live control there, and it prints the options to copy.
+All parameters are optional except `image` (or `element`, see [Element mode](#element-mode-live-html), or `text`, see [Text](#text-words-as-the-object)). Defaults marked *sphere / image* differ by shape. The fastest way to find values is the [Lab](https://russguo.github.io/silkify/examples/lab.html) (`examples/lab.html`): every option below is a live control there, and it prints the options to copy.
 
 | Option | Default | What it does | Tuning |
 |---|---|---|---|
@@ -87,6 +87,33 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | `shape: 'sphere'` (and `phase`, `bump`, `spin`, `angle`) | `shape: 'sphere'` throws a `TypeError`; the rest only ever apply to a sphere. |
 
 The handle is the same, with `handle.element` (the element) and `snapshots` in `stats()` (pictures of the element printed since mount); `stats().mode` is `'html'` while the loop rests but a snapshot came within the last second (each snapshot is a frame), and `'rest'` only when nothing is drawn. `mode` is `'static'` when the element stays plain HTML: no HTML-in-Canvas, the static tier, no WebGL2, an element with no size (`reason` says which, and nothing is logged), or a browser that has the feature but gave no picture of the element within 4 s of the canvas being visible (this one also logs one `console.warn`). Code that could not be loaded (no import map for `three`) also leaves the element as plain HTML, with one `console.warn`. `ready` resolves once the element's first picture is on the silk.
+
+## Text: words as the object
+
+`silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` makes a word, a headline, a letter or an emoji the object, with no picture at all. silkify sets the text in a canvas once its font has loaded, and from then on it is a picture like any other: the letters inflate into a dome, dent and ripple, and every material and feel applies. Every option above keeps its meaning unless the table says otherwise.
+
+| Option | Default | What it does |
+|---|---|---|
+| `text` | (takes the place of `image`) | The words. `\n` starts a new line; lines are centred. Emoji keep their own colours, and CJK and other scripts fall back glyph by glyph, as in the page. Passing `image` or `element` too, an empty string, or a non-string throws a `TypeError`. |
+| `font` | `800 160px` in the canvas's own CSS `font-family` | A CSS font shorthand: weight, size and family, as in `font: 700 200px "Fraunces", serif`. The size only sets proportions (with `lineHeight`): the text is drawn 1024 px on its long side whatever it is. Use a heavy weight: a dome's height grows with the width of the stroke, so hairlines barely inflate. A shorthand the browser cannot read (`'Georgia'` alone, no size) throws a `TypeError`. |
+| `color` | the canvas's CSS `color` | Any CSS colour. By default the words take the ink of the page around them, as text does: set `color` on the canvas or pass it here. Ignored by colour emoji. An unreadable colour throws a `TypeError`. |
+| `lineHeight` | 1.15 | Distance between baselines, as a multiple of the font size (CSS's unitless `line-height`). Anything but a number above 0 throws a `TypeError`. |
+| `puff` | `'dome'` | Unchanged. A heavy word inflates well at 1; a light weight or a long line reads flatter: try 1.3–1.6. |
+| `matte` | `'alpha'` | The letters' own edges are the outline, also for a single glyph that fills its box. |
+| `fit` | 1.3 | Unchanged: the text's box, not the canvas, is what fits. A wide word in a square canvas leaves room above and below; give the canvas the word's proportions (`aspect-ratio: 16 / 10` for a short word). |
+| `shape: 'sphere'` | | Throws a `TypeError`. |
+
+**Fonts.** The canvas only draws fonts that are already loaded, so silkify asks `document.fonts.load()` for the font and the exact text first, and waits up to 3 s. A web font needs its `<link>` or `@font-face` in the page; silkify loads it, you need not wait for it. If, after that, **no family named in `font` renders** (not installed, no `@font-face`, a font file that failed or did not arrive in 3 s), the text is drawn in the fallback (the generic family at the end of the list, or the browser's default) and one `console.warn` starting with `silkify:` names the font: the object still goes live, `mode` is `'webgl'`. When one family of a stack renders, nothing is said: the stack is working, as in CSS. The default font (the canvas's own family) is never warned about. `text`, `font`, `color` and `lineHeight` are scene options: changing them needs a new `silkify()`, not `setTheme()`.
+
+**Static tier and reduced motion.** The words are drawn flat, in their colour, at the same place and size: a still frame needs no `poster`. Pass one (`shoot.mjs --posters` renders it) for the lit, inflated look.
+
+```js
+silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif', color: '#6b2737', material: 'satin' });
+silkify(canvas, { text: 'Hello\nworld', font: '900 160px system-ui, sans-serif', lineHeight: 1, material: 'foil' });
+silkify(canvas, { text: '🍐' });                                        // an emoji, in its own colours
+```
+
+The handle is the same; `ready` waits for the font as well. `examples/text.html` is the smallest page (any option can be tried from its address bar), and `test/text.html` checks every case above (`node scripts/shoot.mjs --only text`).
 
 ## Recipes (from the gallery)
 

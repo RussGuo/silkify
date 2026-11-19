@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify — words</title>
+<link rel="icon" href="data:,">
+<!--
+  The smallest text page: a word as the object. silkify sets it in a canvas once its font has loaded, and from then
+  on it is a picture like any other: the letters inflate, dent and ripple. A heavy weight inflates best (a dome's
+  height grows with the stroke's width). Any option can be tried from the address bar, for example
+  ?text=Hello%0Aworld&font=900%20200px%20system-ui&material=foil&puff=1.4 (%0A starts a new line).
+-->
+<style>
+  :root { --paper: #f3efe7; --ink: #1f1d1a; --muted: #7a746a; color-scheme: light; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
+  h1 { margin: 0 0 6px; font: 400 40px/1.1 ui-serif, Georgia, serif; }
+  .lede { margin: 0 0 28px; color: var(--muted); }
+  canvas { display: block; width: 100%; aspect-ratio: 16 / 10; touch-action: pan-y; color: #6b2737; }
+  .status { margin-top: 14px; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A word, in silk</h1>
+  <p class="lede">No picture needed: type a word, pick a font. Touch the letters and they ripple.</p>
+  <canvas id="silk" aria-label="silk"></canvas>
+  <p class="status" id="status">loading…</p>
+</div>
+
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+<script type="module">
+  import { silkify } from '../src/silk.js';
+
+  // the page's own options; the address bar can override any of them (strings, or numbers where they parse)
+  const options = { text: 'silk', font: '800 200px ui-serif, Georgia, serif', material: 'satin' };
+  for (const [k, v] of new URLSearchParams(location.search)) options[k] = k !== 'text' && v !== '' && !isNaN(v) ? Number(v) : v;
+
+  const silk = window.silk = silkify(document.getElementById('silk'), options);
+  await silk.ready;
+  document.getElementById('status').textContent = silk.mode === 'webgl'
+    ? `Live (${silk.thread} thread, ${silk.tier} tier).`
+    : `${silk.mode}: ${silk.reason}.`;
+</script>
+</body>
+</html>

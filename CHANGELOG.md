@@ -8,6 +8,13 @@
 - **If you import from the CDN instead,** jsDelivr keeps the files it has served for a tag, so `@v0.3.0` does not change under a page in practice, but nothing cryptographic guarantees it. When integrity matters, pin a commit: `https://cdn.jsdelivr.net/gh/RussGuo/silkify@<40-character commit SHA>/src/silk.js` names exactly one tree of files.
 - **Subresource Integrity covers one file.** On the CDN, an `integrity` attribute (or an import map's `integrity` entry) checks only the module the page imports directly, silk.js. The modules silk.js imports, the worker it starts, and three.js loaded inside that worker are fetched without one. For the whole chain, copy `src/` and serve it yourself.
 
+## Unreleased
+
+**Added**
+- **Words as the object.** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif', color, lineHeight })` makes a word, a headline, a letter or an emoji the object, with no picture and no cut-out. The text is set in a canvas once its font has loaded (up to 3 s) and is then a picture like any other: it inflates, dents and ripples in every material and feel, and the static tier draws it flat. Lines split on `\n`; colour emoji keep their colours; CJK falls back glyph by glyph. By default the words take the canvas's CSS `color` and a heavy weight of its `font-family`. A font none of whose named families renders draws the fallback with one `console.warn`; mistakes in the call (text with `image` or `element`, an empty text, an unreadable font or colour) throw a `TypeError`. New file `src/text.js`; `examples/text.html`; `test/text.html`, run by `scripts/shoot.mjs`. See references/parameters.md, "Text".
+
+Pictures look the same: the posters re-render byte for byte.
+
 ## 0.3.0 (2026-11-19)
 
 **Added**
