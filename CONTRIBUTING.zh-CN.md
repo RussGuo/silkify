@@ -6,7 +6,7 @@
 
 ## 规矩
 
-- **默认外观一个像素都不能变。** 新参数默认都是关的；画廊 `examples/posters/` 里的静态图，除非那张卡本身改了，否则不重新渲染。跑一遍 `node scripts/shoot.mjs --posters` 再看 `git status`，就知道改动有没有动到任何一个像素。
+- **默认外观一个像素都不能变。** 新参数默认都是关的；画廊 `examples/posters/` 里的静态帧，除非那张卡本身改了，否则不重新渲染。跑一遍 `node scripts/shoot.mjs --posters` 再看 `git status`，就知道改动有没有动到任何一个像素。
 - **每次提交前 `node scripts/shoot.mjs` 必须通过**（无头 Chrome，加装了 Pillow 的 Python；大约两分钟）。它不往仓库里写任何东西（外观确实变了时，`--shots` 会重写 `docs/shots/*-rest.jpg`）。CI 另外还跑 `--browsers`（WebKit 与 Firefox）和 `scripts/frameworks.mjs`（Vite 与 Next.js 里的 React）；两者都要 Playwright，但它永远不是本仓库的依赖。
 - **给 Agent 看的文档只有一份源头。** 手写的只有 `SKILL.md` 和 `references/`；`AGENTS.md`、`llms.txt`、`integrations/` 里的一切，以及 Lab 里每个参数下面那行说明（`examples/lab-help.js`，取自 `references/parameters.md`）都是生成的：改源头，再跑 `npm run build:integrations`（加 `-- --check` 查漂移）。两份 README、画廊和 Lab 里的那句安装指令和作者署名，也由同一个脚本写入：要改就改脚本，不要改页面。
 - **没有构建步骤，除了 three.js 没有运行时依赖。** 每个源文件不超过 800 行，开头有一段注释，说清它是什么、为什么这样做。
@@ -18,13 +18,30 @@
 npx serve .            # 或：python3 -m http.server
 ```
 
+## 术语表
+
+中文文档（两份 README 之外还有本文、`references/` 里的中文页、长文页中文版）统一这样叫：
+
+| 英文 | 中文 | 不用 |
+|---|---|---|
+| poster | 静态帧 | 海报、静态图、静止画面 |
+| tier：high / low / static | 档位：high 档、low 档、static 档 | 高档、轻量档 |
+| Poisson（dome、equation） | 泊松（穹面、方程） | Poisson 穹面 |
+| the Moon | 月球（「丝绸月球」） | 月亮 |
+| reduced motion | 减弱动态效果（系统设置里的叫法） | 减少动态效果 |
+| live HTML | 活 HTML | |
+| the Lab | Lab 调参页（第一次出现时），之后 Lab | |
+| mesh | 几何网格（涟漪那张叫涟漪网格） | 网格面 |
+
+图注写成「图 1　」：数字后面一个全角空格，不用句号。
+
 ## 仓库结构
 
 ```
 SKILL.md            Agent Skill：取得代码（拷贝 src/，或走 CDN）、抠图 → 穹面 → 材质与手感 → 渲染 → 验收
 references/         参数全表、性能、常见问题：SKILL.md 按需指向的细节；how-it-works 是写给人看的原理
 CHANGELOG.md        每个版本改了什么，以及版本 tag 承诺什么（看重完整性时钉 commit）
-src/silk.js         入口：分档，Worker → 主线程 → 静态图三级退路，转发指针事件
+src/silk.js         入口：分档，Worker → 主线程 → 静态帧三级退路，转发指针事件
 src/core.js         渲染器本体（一个场景），不碰 DOM（peer 依赖：three ≥ 0.152.2）
 src/serve.js        渲染器的消息端：加载、场景建好前到达的消息、上下文丢失、重建圆顶
 src/shaders.js      GLSL：波动求解器与物体着色器（同一份源码，两种形状）
@@ -37,7 +54,7 @@ src/live.js         活 HTML 的页面一侧：特性检测、元素的替身图
 src/events.js       对象告诉页面的事：来自共享指针的 onPress / onRelease / onStroke、触感、抛错也伤不到渲染的回调
 scripts/cutout.py   Pillow + numpy 背景抠除，能处理投影，边缘去背景色
 scripts/shoot.mjs   无头 Chrome：校验（Worker 里实时渲染并起涟漪，再验 Lab、test/edge.html 与活 HTML）、--posters 静态帧、--gif 涟漪动图（ffmpeg）、--lab 预设效果图、--cdn 验 CDN 版、--browsers 验 WebKit 与 Firefox；控制台检查
-scripts/verify-touch.mjs、scripts/verify-lab.mjs、scripts/verify-pages.mjs、scripts/verify-events.mjs、scripts/verify-options.mjs   shoot.mjs 的 verify 里单独成文件的五部分：第一下触摸与多对象；Lab 的文字与录制；各页面（链接预览标签、海报、长文页、用例页、text.html）；事件与丝绸按钮；用例页要用到的选项与 pool()
+scripts/verify-touch.mjs、scripts/verify-lab.mjs、scripts/verify-pages.mjs、scripts/verify-events.mjs、scripts/verify-options.mjs   shoot.mjs 的 verify 里单独成文件的五部分：第一下触摸与多对象；Lab 的文字与录制；各页面（链接预览标签、静态帧、长文页、用例页、text.html）；事件与丝绸按钮；用例页要用到的选项与 pool()
 scripts/build-integrations.mjs   SKILL.md + references → integrations/、AGENTS.md、llms.txt；两份 README、画廊和 Lab 里的那句安装指令与作者署名也由它写入（--check 查漂移）
 scripts/browsers.mjs             shoot.mjs --browsers：WebKit 与 Firefox，同源与跨源（Playwright）
 scripts/frameworks.mjs           React 组件在 Vite 与 Next.js 下的 dev 与 build 实测（Playwright，需联网）

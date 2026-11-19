@@ -175,7 +175,7 @@ silk.dispose();
 | **一滴墨**：FateTell 标识，墨色加细颗粒 | <img src="docs/shots/ink-drop-rest.jpg" width="300" alt="静止的墨滴"> | <img src="docs/shots/ink-drop-ripple.gif" width="300" alt="起涟漪的墨滴"> |
 | **一个词，金箔**：没有图片，用 Fraunces Black 排出的一个词 | <img src="docs/shots/silk-foil-rest.jpg" width="300" alt="静止的金箔文字 silk"> | <img src="docs/shots/silk-foil-ripple.gif" width="300" alt="起涟漪的金箔文字 silk"> |
 
-示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在高档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
+示例图片均为公有领域或 CC0，FateTell 标识除外：它 © FateTell，fork 时须移除；来源与许可证见 [examples/CREDITS.md](examples/CREDITS.md)。左列是画廊的静态帧，由 silkify 自己渲染。GIF 是用软件 GPU（SwiftShader）在 high 档、主线程上逐帧录的：每一帧对应三步模拟，按 20 fps 播放，节奏等同真 GPU 上的 60 fps。受 GIF 调色板和 320 像素宽度所限，颗粒和高光会比实际柔和一些。
 
 在本地运行画廊：在仓库根目录起一个静态服务器，再打开 `/examples/`。
 
@@ -225,7 +225,7 @@ React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `Si
 ## 浏览器与退路
 
 - **有 WebGL2 的地方就实时渲染，而且不占主线程。** silkify 默认在 Web Worker 里的 OffscreenCanvas 上渲染，three.js 的执行、图片解码、泊松求解、着色器编译和每一帧的绘制都不占主线程；Worker 渲染不了就退到主线程。体积不小：第一个物体开始动之前，要先加载整个 three.js（1.2 MB，压缩后约 240 KB），从你自己的服务器或打包产物里加载，选了 CDN 就从 CDN 加载。
-- **条件不够时只有一张静态图。** 没有 WebGL2、系统开启了「减弱动态效果」、开了省流量，或者设备太弱，访客看到的就是一张静止的图。手机上只能点按和横向划动，而且走的是轻量档；竖着划会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
+- **条件不够时只有一张静态帧。** 没有 WebGL2、系统开启了「减弱动态效果」、开了省流量，或者设备太弱，访客看到的就是一张静态帧。手机上只能点按和横向划动，而且走的是 low 档；竖着划会滚动页面（见 [SKILL.md](SKILL.md#step-4-render-it) 里的 `touch-action`）。
 - **它不是什么。** 不是视频或 GIF 生成器：它是网页上实时运行的 WebGL，上面的 GIF 是本仓库的脚本录下来的屏幕录像。不是 3D 模型：轮廓被吹鼓成一块从正面看的浮雕，更像软垫而不是雕塑，不能转到侧面去看（月球是唯一真正的球）。也不是抠图工具：背景杂乱的照片要先自己准备好抠好的 PNG，[cutout.py](scripts/cutout.py) 只能去掉纯色背景。
 
 ## 更多
@@ -234,7 +234,7 @@ React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `Si
 - [性能](references/performance.md)：分档、什么时候停止渲染、一页多个物体、实测数据（英文）
 - [常见问题](references/troubleshooting.md)：症状、原因与解决办法（英文）
 - [活 HTML](SKILL.md#step-5-optional-live-html-instead-of-a-picture)：完整规则在 SKILL.md 第 5 步（英文）
-- [原理](https://russguo.github.io/silkify/examples/how-it-works.zh.html)：一篇长文，图可以直接上手摸：Poisson 穹面、月亮的光、只在起涟漪的地方出现的缎光（短的版本在 [references/how-it-works.zh-CN.md](references/how-it-works.zh-CN.md)）
+- [原理](https://russguo.github.io/silkify/examples/how-it-works.zh.html)：一篇长文，图可以直接上手摸：泊松穹面、月球的光、只在起涟漪的地方出现的缎光（短的版本在 [references/how-it-works.zh-CN.md](references/how-it-works.zh-CN.md)）
 - [用例](examples/demos/)：四个可以直接拿去改的页面，每个都是一个 HTML 文件：[产品首屏](https://russguo.github.io/silkify/examples/demos/hero.html)、[Logo 墙](https://russguo.github.io/silkify/examples/demos/logo-wall.html)、[整幅绸面](https://russguo.github.io/silkify/examples/demos/fabric.html)、[404 页](https://russguo.github.io/silkify/examples/demos/404.html)
 - [参与贡献](CONTRIBUTING.zh-CN.md)：改动要守的规矩，以及仓库结构
 - [更新日志](CHANGELOG.md)：每个版本改了什么，以及版本 tag 承诺什么（英文）

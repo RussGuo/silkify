@@ -27,7 +27,7 @@ import { initWaves } from './waves.js';
  * ============================================ */
 const zh = document.documentElement.lang.startsWith('zh');
 const T = zh ? {
-  modes: { poster: '还是一张海报：一帧不画', loading: '正在准备', active: '醒着：每一帧都画', tail: '涟漪收尾：每秒 12 帧', sweep: '补光慢慢绕一圈：每秒 12 帧', rest: '睡着了：一帧不画', breeze: '微风：每秒 30 帧', html: '醒着' },
+  modes: { poster: '还是静态帧：一帧不画', loading: '正在准备', active: '醒着：每一帧都画', tail: '涟漪收尾：每秒 12 帧', sweep: '补光慢慢绕一圈：每秒 12 帧', rest: '睡着了：一帧不画', breeze: '微风：每秒 30 帧', html: '醒着' },
   perSecond: (n) => `最近一秒画了 ${n} 帧`,
   total: (n) => `出现以来共 ${n} 帧`,
   live: (n) => `${n} 个`,

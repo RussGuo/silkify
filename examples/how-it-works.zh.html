@@ -10,14 +10,14 @@
 <meta property="og:site_name" content="silkify">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="silkify 是怎么做成的">
-<meta property="og:description" content="一张平面的图，怎样变成一块按得下去的丝绸：从轮廓解出穹面，借月亮的光，只在起涟漪处现出缎光，没人碰时一帧不画。附可以上手摸的插图。">
+<meta property="og:description" content="一张平面的图，怎样变成一块按得下去的丝绸：从轮廓解出穹面，借月球的光，只在起涟漪处现出缎光，没人碰时一帧不画。附可以上手摸的插图。">
 <meta property="og:url" content="https://russguo.github.io/silkify/examples/how-it-works.zh.html">
 <meta property="og:image" content="https://russguo.github.io/silkify/docs/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="一根手指按在暖色纸面上的石榴上，按下去的地方，哑光的果皮皱成红色的缎子">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="description" content="一张平面的图，怎样变成一块按得下去的丝绸：从轮廓解出穹面，借月亮的光，只在起涟漪处现出缎光，波纹在边缘折返，没人碰时一帧不画，还能把网页的一部分印在丝绸上。">
+<meta name="description" content="一张平面的图，怎样变成一块按得下去的丝绸：从轮廓解出穹面，借月球的光，只在起涟漪处现出缎光，波纹在边缘折返，没人碰时一帧不画，还能把网页的一部分印在丝绸上。">
 <meta name="author" content="Russ Guo">
 <link rel="alternate" hreflang="en" href="how-it-works.html">
 <link rel="stylesheet" href="how/how.css">
@@ -34,7 +34,7 @@
 
   <header class="col">
     <h1>silk<em>ify</em> 是怎么做成的</h1>
-    <p class="dek">一张平面的图，变成一块按得下去的东西。撑起它的是六个想法：从轮廓解出一个穹面；借用月亮的光；只在表面动的地方现出缎光；让波纹撞到边缘再折回来；没人碰的时候一帧不画；以及，把网页的一部分直接印在丝绸上。</p>
+    <p class="dek">一张平面的图，变成一块按得下去的东西。撑起它的是六个想法：从轮廓解出一个穹面；借用月球的光；只在表面动的地方现出缎光；让波纹撞到边缘再折回来；没人碰的时候一帧不画；以及，把网页的一部分直接印在丝绸上。</p>
     <p class="byline"><a href="https://github.com/RussGuo">Russ Guo</a> · 2026 年 11 月</p>
   </header>
 
@@ -43,7 +43,7 @@
       <img class="poster" src="how/posters/hero.webp" srcset="how/posters/hero.webp 1x, how/posters/hero@2x.webp 2x" width="960" height="720" alt="一只水彩石榴，鼓成柔软的穹面" draggable="false">
       <span class="hint"><span class="h-hover">把指针移上去 · 按住会压得更深</span><span class="h-touch">摸一下 · 按住会压得更深</span></span>
     </div>
-    <figcaption>石榴「Wonderful」，Amanda Almira Newton 为美国农业部画的水彩，1920 年。<span class="only-static">你的系统要求减少动态效果，所以这里是一张静止画面：这一页上没有东西会自己动。</span></figcaption>
+    <figcaption>石榴「Wonderful」，Amanda Almira Newton 为美国农业部画的水彩，1920 年。<span class="only-static">你的系统要求减弱动态效果，所以这里是一张静态帧：这一页上没有东西会自己动。</span></figcaption>
   </figure>
 
   <article>
@@ -52,7 +52,7 @@
       <p>这一切都不需要 3D 模型。silkify 只拿到一张图，其余的全靠自己推算出来。下面按计算机做事的顺序一步步讲。每一节先说你看到了什么，再说为什么会这样；公式留给想看的人，跳过去也不影响读。</p>
       <ol class="toc">
         <li><a href="#dome">从轮廓到穹面</a></li>
-        <li><a href="#light">月亮的光</a></li>
+        <li><a href="#light">月球的光</a></li>
         <li><a href="#silk">只在起涟漪的地方是丝绸</a></li>
         <li><a href="#waves">碰到边缘就折回的波纹</a></li>
         <li><a href="#sleep">没人碰，就睡着</a></li>
@@ -85,15 +85,15 @@
         </div>
         <label class="range"><span>对比</span><input type="range" min="0" max="100" value="50" aria-label="两半的分界位置"></label>
       </div>
-      <figcaption><b>图 1。</b>在图上左右拖动。分界线右边是 silkify 实际搭出来的穹面；左边按到边缘的距离定高度，还特意给了一个圆润的剖面 √(d (2D − d))，让圆形也鼓成一模一样的半球。两边用同一套网格、同样的平滑，都当成素色黏土，在同一盏灯下照。圆形上两者一致；换成肖像的矩形，距离场从每个角折出一道棱，兔子的每只耳朵上也各折出一道；泊松那一半始终光滑。右半边用的就是 silkify 自己的代码（<a href="https://github.com/RussGuo/silkify/blob/main/src/shape.js">src/shape.js</a>）。</figcaption>
+      <figcaption><b>图 1　</b>在图上左右拖动。分界线右边是 silkify 实际搭出来的穹面；左边按到边缘的距离定高度，还特意给了一个圆润的剖面 √(d (2D − d))，让圆形也鼓成一模一样的半球。两边用同一套网格、同样的平滑，都当成素色黏土，在同一盏灯下照。圆形上两者一致；换成肖像的矩形，距离场从每个角折出一道棱，兔子的每只耳朵上也各折出一道；泊松那一半始终光滑。右半边用的就是 silkify 自己的代码（<a href="https://github.com/RussGuo/silkify/blob/main/src/shape.js">src/shape.js</a>）。</figcaption>
     </figure>
 
     <div class="col">
       <p>这个方程只在物体初始化时解一次，默认放在 Web Worker 里算，页面不必等它。解法由粗到细：先在最多 61 × 61 个点的网格上粗算一遍，再到 121，再到 241（逐次超松弛迭代，分别扫 300、150、100 遍，这是在网格上解这类方程的常规做法）。最后轻轻模糊两遍，把轮廓压在网格上形成的锯齿磨圆；轮廓本身在绘制时仍按图片自己的透明度逐像素裁出来。</p>
-      <p class="aside"><a href="index.html">画廊</a>里的月亮跳过了这一步：它本来就是圆的，直接贴在一个真正的球上。</p>
+      <p class="aside"><a href="index.html">画廊</a>里的月球跳过了这一步：它本来就是圆的，直接贴在一个真正的球上。</p>
 
       <!-- ============================== 2 ============================== -->
-      <h2 id="light"><span class="n">02</span>月亮的光</h2>
+      <h2 id="light"><span class="n">02</span>月球的光</h2>
       <p class="see">你看到的</p>
       <p>静止时，物体看上去就是原来那张图：颜色没有往边缘一路变暗，也不像塑料。可光从侧面来时，暗面依然有一道干净的明暗分界。</p>
       <p class="see">为什么</p>
@@ -111,12 +111,12 @@
       </div>
       <div class="controls">
         <div class="seg" role="radiogroup" aria-label="对象">
-          <label><input type="radio" name="light-subject" value="moon" checked><span>月亮</span></label>
+          <label><input type="radio" name="light-subject" value="moon" checked><span>月球</span></label>
           <label><input type="radio" name="light-subject" value="pomegranate"><span>石榴</span></label>
         </div>
         <label class="range"><span>太阳</span><input type="range" min="0" max="150" value="0" aria-label="太阳与视线之间的夹角，单位为度"><output>0°</output></label>
       </div>
-      <figcaption><b>图 2。</b>同一个球或穹面、同一张图、同一个太阳、同一个下限，只有定律不同。滑块把太阳从你身后（0°）移到侧面。在 0° 时，朗伯把满月照成一个往边缘渐暗的球；Lommel–Seeliger 保住了你在夜空里见过的那个又平又亮的圆盘。换到石榴上，朗伯会让水彩往边缘发暗。两边都是按着色器里同一条公式（<a href="https://github.com/RussGuo/silkify/blob/main/src/shaders.js">src/shaders.js</a>）、用 silkify 的默认值，在 JavaScript 里逐像素算出来的，没有算涟漪和月面的地形起伏。月球图：NASA 科学可视化工作室，CGI Moon Kit。</figcaption>
+      <figcaption><b>图 2　</b>同一个球或穹面、同一张图、同一个太阳、同一个下限，只有定律不同。滑块把太阳从你身后（0°）移到侧面。在 0° 时，朗伯把满月照成一个往边缘渐暗的球；Lommel–Seeliger 保住了你在夜空里见过的那个又平又亮的圆盘。换到石榴上，朗伯会让水彩往边缘发暗。两边都是按着色器里同一条公式（<a href="https://github.com/RussGuo/silkify/blob/main/src/shaders.js">src/shaders.js</a>）、用 silkify 的默认值，在 JavaScript 里逐像素算出来的，没有算涟漪和月面的地形起伏。月球图：NASA 科学可视化工作室，CGI Moon Kit。</figcaption>
     </figure>
 
     <div class="col">
@@ -145,7 +145,7 @@
         <p class="label">去掉遮罩<span><code>silkRest: 1</code>，处处是丝绸</span></p></div>
       </div>
       <div class="controls only-live"><button class="pill drop-both" type="button">在两边同一处各点一下</button><span>或者自己摸其中一个</span></div>
-      <figcaption><b>图 3。</b>丢勒《野兔》，1502 年，做成靠垫。左边是 silkify 的默认做法：不碰时就是这幅水彩，碰了之后，丝绸只出现在涟漪周围。右边是同一个物体去掉遮罩（<code>silkRest: 1</code>），朝光的每个像素一直都是丝绸：不管动没动，皮毛上都浮着一层亮光，看上去像个上了釉的玩具，不再是一幅画。<span class="only-static">你的系统要求减少动态效果，所以这两张是静止画面，都是刚被碰过一下的样子。</span></figcaption>
+      <figcaption><b>图 3　</b>丢勒《野兔》，1502 年，做成靠垫。左边是 silkify 的默认做法：不碰时就是这幅水彩，碰了之后，丝绸只出现在涟漪周围。右边是同一个物体去掉遮罩（<code>silkRest: 1</code>），朝光的每个像素一直都是丝绸：不管动没动，皮毛上都浮着一层亮光，看上去像个上了釉的玩具，不再是一幅画。<span class="only-static">你的系统要求减弱动态效果，所以这两张是静态帧，都是刚被碰过一下的样子。</span></figcaption>
     </figure>
 
     <div class="col">
@@ -164,7 +164,7 @@
         <label class="check"><input type="checkbox" checked><span>把轮廓外的波清零</span></label>
         <button class="pill drop" type="button">滴一下</button>
       </div>
-      <figcaption><b>图 4。</b>从上往下看丢勒《野兔》（1502 年）轮廓里的涟漪网格：暖色是鼓起，冷色是压下。取消勾选后，轮廓外不再清零，波会径直穿过轮廓，好像它不存在一样，兔子的边沿也会跟着一起一伏。这里用的是 silkify 自己的更新规则和常数，只是放在 JavaScript 里、在一张 128 格的网格上算，而不是在显卡上。<span class="only-static">减少动态效果时，每碰一下只画一张静止画面：碰后四分之三秒的样子。</span></figcaption>
+      <figcaption><b>图 4　</b>从上往下看丢勒《野兔》（1502 年）轮廓里的涟漪网格：暖色是鼓起，冷色是压下。取消勾选后，轮廓外不再清零，波会径直穿过轮廓，好像它不存在一样，兔子的边沿也会跟着一起一伏。这里用的是 silkify 自己的更新规则和常数，只是放在 JavaScript 里、在一张 128 格的网格上算，而不是在显卡上。<span class="only-static">减弱动态效果时，每碰一下只画一张静态帧：碰后四分之三秒的样子。</span></figcaption>
     </figure>
 
     <div class="col">
@@ -183,8 +183,8 @@
           <span class="hint">碰一下，然后等着看</span>
         </div>
         <div>
-          <div class="meter only-live" aria-live="off"><span data-k="mode">还是一张海报：一帧不画</span><span data-k="rate"></span><span data-k="total"></span></div>
-          <p class="only-static aside">你的系统要求减少动态效果，所以这只茶壶是一张静止画面，页面一帧也不画。</p>
+          <div class="meter only-live" aria-live="off"><span data-k="mode">还是静态帧：一帧不画</span><span data-k="rate"></span><span data-k="total"></span></div>
+          <p class="only-static aside">你的系统要求减弱动态效果，所以这只茶壶是一张静态帧，页面一帧也不画。</p>
           <div class="timeline" aria-hidden="true">
             <div class="labels"><span>每一帧都画</span><span>每秒 12 帧</span><span>仅电脑</span><span>不画</span></div>
             <div class="bars"><i class="a"></i><i class="t"></i><i class="s"></i><i></i></div>
@@ -192,22 +192,22 @@
           </div>
         </div>
       </div>
-      <figcaption><b>图 5。</b>茶壶，英格兰，约 1800 年，漆铁皮（tôle）配藤编提手，库珀·休伊特博物馆藏。<span class="only-live">时间轴上方那几行是茶壶自己报告的状态，每秒读一次。</span>碰它，它每一帧都画。最后一次触碰 8 秒后，降到每秒 12 帧，让涟漪慢慢收尾；到第 20 秒，涟漪清零。在电脑上，那盏柔和的补光还要慢慢绕一圈：从指针停下就开始绕，一圈约 29 秒，所以最后一帧大约在半分钟后。在手机上，也就是下面表里的 low 档，补光不绕圈，到第 20 秒就停。此后一帧都不画。</figcaption>
+      <figcaption><b>图 5　</b>茶壶，英格兰，约 1800 年，漆铁皮（tôle）配藤编提手，库珀·休伊特博物馆藏。<span class="only-live">时间轴上方那几行是茶壶自己报告的状态，每秒读一次。</span>碰它，它每一帧都画。最后一次触碰 8 秒后，降到每秒 12 帧，让涟漪慢慢收尾；到第 20 秒，涟漪清零。在电脑上，那盏柔和的补光还要慢慢绕一圈：从指针停下就开始绕，一圈约 29 秒，所以最后一帧大约在半分钟后。在手机上，也就是下面表里的 low 档，补光不绕圈，到第 20 秒就停。此后一帧都不画。</figcaption>
     </figure>
 
     <div class="col">
       <p>只有落在物体上的指针才算数。页面别处移动的指针根本不会传给它，所以吵不醒它：在 Lab 里，指针在控制面板上移动、按住整整三秒，画出来的帧数是 0。滚出视野的物体，或者切到后台的标签页，会完全停下。<code>breeze</code> 和 <code>autoplay</code> 这两个会让它一直动的选项默认关闭，原因正在于此。</p>
 
       <h3>不占页面的线程</h3>
-      <p>默认情况下，所有重活都在 Web Worker 里的 <code>OffscreenCanvas</code> 上完成：加载 three.js、解码图片、解泊松方程、编译着色器，以及每一帧的绘制。页面本身始终腾得出手来滚动和响应。浏览器不支持在 Worker 里渲染时，silkify 改到主线程上画；连 WebGL2 都没有时，就画一张静止画面。</p>
+      <p>默认情况下，所有重活都在 Web Worker 里的 <code>OffscreenCanvas</code> 上完成：加载 three.js、解码图片、解泊松方程、编译着色器，以及每一帧的绘制。页面本身始终腾得出手来滚动和响应。浏览器不支持在 Worker 里渲染时，silkify 改到主线程上画；连 WebGL2 都没有时，就画一张静态帧。</p>
 
       <h3>三档，挂载时定一次</h3>
       <table>
         <thead><tr><th>档位</th><th>什么时候选它</th><th>它做什么</th></tr></thead>
         <tbody>
-          <tr><td><code>high</code></td><td>电脑级别的设备</td><td>像素比最高 2；涟漪网格最多 256 格，网格面最多 240 段；闲置时补光绕一圈，然后睡下</td></tr>
-          <tr><td><code>low</code></td><td>以触屏为主、屏幕长边不足 1024 px、不超过 4 核、不超过 4 GB，或者软件模拟的 GPU</td><td>像素比 1；网格不超过 128，网格面不超过 120；只在触碰前后画帧</td></tr>
-          <tr><td><code>static</code></td><td>要求减少动态效果、开了省流量、2G 网络、非常小的设备、没有 WebGL2</td><td>根本不加载 three.js；只画一次静止画面</td></tr>
+          <tr><td><code>high</code></td><td>电脑级别的设备</td><td>像素比最高 2；涟漪网格最多 256 格，几何网格最多 240 段；闲置时补光绕一圈，然后睡下</td></tr>
+          <tr><td><code>low</code></td><td>以触屏为主、屏幕长边不足 1024 px、不超过 4 核、不超过 4 GB，或者软件模拟的 GPU</td><td>像素比 1；涟漪网格不超过 128 格，几何网格不超过 120 段；只在触碰前后画帧</td></tr>
+          <tr><td><code>static</code></td><td>要求减弱动态效果、开了省流量、2G 网络、非常小的设备、没有 WebGL2</td><td>根本不加载 three.js；只画一次静态帧</td></tr>
         </tbody>
       </table>
       <p>用不上的东西它也一概不要。屏幕上的三角形从不重叠，轮廓又是逐像素裁出来的，所以不开抗锯齿缓冲，也没有深度和模板缓冲：一个 373 px 的物体在像素比 2 下，因此省下大约 18 MB。</p>
@@ -228,12 +228,12 @@
           <div class="row"><span>v0.2.0</span><span class="bar" style="width: 100%"></span><span class="v">10.2 s</span></div>
           <div class="row new"><span>v0.2.1</span><span class="bar" style="width: 1.6%"></span><span class="v">0.16 s</span></div></div>
       </div>
-      <figcaption><b>图 6。</b>画廊在无人触碰时的成绩，SwiftShader 下测得。Lighthouse 12.8.2，移动端预设（CPU 降速 4 倍），3 次取中位数，Chrome 156，Apple M1 Pro。真显卡上两个版本都是 100 分。细节见 <a href="https://github.com/RussGuo/silkify/blob/main/references/performance.md">references/performance.md</a>。</figcaption>
+      <figcaption><b>图 6　</b>画廊在无人触碰时的成绩，SwiftShader 下测得。Lighthouse 12.8.2，移动端预设（CPU 降速 4 倍），3 次取中位数，Chrome 156，Apple M1 Pro。真显卡上两个版本都是 100 分。细节见 <a href="https://github.com/RussGuo/silkify/blob/main/references/performance.md">references/performance.md</a>。</figcaption>
     </figure>
 
     <div class="col">
       <h3>一页上有很多个</h3>
-      <p>每个活着的物体都占一个 WebGL 上下文，而浏览器大约只允许 16 个。画廊的做法是：每张卡片先放一张静止的海报，有人伸手去碰才让它活过来，卡片滚走就把上下文还回去，同时最多只留三个活着。这一页也是这么做的，只不过图会在你滚动到它时就活过来，不必等你伸手。<span class="only-live">此刻这一页上活着的：<output id="live-count">0</output>，上限 3 个。</span></p>
+      <p>每个活着的物体都占一个 WebGL 上下文，而浏览器大约只允许 16 个。画廊的做法是：每张卡片先放一张静态帧，有人伸手去碰才让它活过来，卡片滚走就把上下文还回去，同时最多只留三个活着。这一页也是这么做的，只不过图会在你滚动到它时就活过来，不必等你伸手。<span class="only-live">此刻这一页上活着的：<output id="live-count">0</output>，上限 3 个。</span></p>
 
       <!-- ============================== 6 ============================== -->
       <h2 id="html"><span class="n">06</span>把网页的一部分印上去</h2>
@@ -249,16 +249,16 @@
           <p><a href="#dome">回到穹面那一节 ↑</a></p>
         </article>
       </div>
-      <figcaption><b>图 7。</b><span id="html-note"><span class="only-hic">在 Chrome 157 及以后的版本里，借助 HTML-in-Canvas 活起来。</span><span class="hic-missing">你的浏览器把这张卡片显示为普通 HTML：把 HTML 印到丝绸上需要 HTML-in-Canvas，Chrome 157 起才有。</span><span class="only-static">减少动态效果时，它保持为普通 HTML，页面上什么都不会动。</span></span></figcaption>
+      <figcaption><b>图 7　</b><span id="html-note"><span class="only-hic">在 Chrome 157 及以后的版本里，借助 HTML-in-Canvas 活起来。</span><span class="hic-missing">你的浏览器把这张卡片显示为普通 HTML：把 HTML 印到丝绸上需要 HTML-in-Canvas，Chrome 157 起才有。</span><span class="only-static">减弱动态效果时，它保持为普通 HTML，页面上什么都不会动。</span></span></figcaption>
     </figure>
 
     <div class="col">
       <p class="see">为什么</p>
       <p>HTML-in-Canvas 是浏览器的一项新功能，Chrome 157 起可以用：画布可以容纳页面里真实的元素，并把它们画进自己的画面。silkify 先按元素自己的盒子（尺寸、圆角、背景色）做一个替身，用它搭出穹面，再把元素本身印上去。元素的圆角，就成了丝绸的轮廓。</p>
-      <p>元素始终是页面的一部分，所以选中、链接、查找、读屏软件都照常可用。元素的样子一变（换了文字、指针悬停、选中了一段、光标闪烁），浏览器就通知画布，每变一次，就重印一次、画一帧。从变化发生到新的印样交给显卡，大约 2 毫秒。什么都没变，就什么都不画。浏览器没有这项功能，或者要求减少动态效果时，元素原地不动，就是普通的 HTML，控制台里也什么都不记。</p>
+      <p>元素始终是页面的一部分，所以选中、链接、查找、读屏软件都照常可用。元素的样子一变（换了文字、指针悬停、选中了一段、光标闪烁），浏览器就通知画布，每变一次，就重印一次、画一帧。从变化发生到新印好的画面交给显卡，大约 2 毫秒。什么都没变，就什么都不画。浏览器没有这项功能，或者要求减弱动态效果时，元素原地不动，就是普通的 HTML，控制台里也什么都不记。</p>
 
       <h2 id="next"><span class="n">—</span>接下来</h2>
-      <p>silkify 最早是作者个人网站上的一轮「丝绸月亮」。这个库把它推广到任意轮廓，为此加上了泊松穹面、正交相机、沿视线方向的位移，以及被关在轮廓里的波。</p>
+      <p>silkify 最早是作者个人网站上的一轮「丝绸月球」。这个库把它推广到任意轮廓，为此加上了泊松穹面、正交相机、沿视线方向的位移，以及被关在轮廓里的波。</p>
       <div class="next">
         <a href="index.html"><b>画廊</b><span>那些物体，还有一张活的 HTML 卡片，都可以摸。</span></a>
         <a href="lab.html"><b>Lab</b><span>每个参数都有滑块，也可以换成你自己的图。</span></a>
