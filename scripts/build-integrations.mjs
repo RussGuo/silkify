@@ -235,7 +235,7 @@ ${INSTALL.en}
 ## Working on this repository
 
 - \`SKILL.md\` and \`references/\` are the only hand-written agent docs. \`AGENTS.md\`, \`llms.txt\`, everything in \`integrations/\` and \`examples/lab-help.js\` are generated: edit the sources, then run \`npm run build:integrations\` (\`-- --check\` fails on drift). The install sentence and the author's byline in the READMEs, the gallery and the Lab are written by the same script: change them there, not in the pages.
-- \`node scripts/shoot.mjs\` must pass before every commit (headless Chrome, Python with Pillow; about two minutes); it writes nothing into the repository (\`--shots\` rewrites \`docs/shots/*-rest.jpg\` when the look changed). CI also runs \`--browsers\` (WebKit and Firefox) and \`scripts/frameworks.mjs\` (React in Vite and Next.js); both need Playwright, which is never a dependency.
+- \`node scripts/shoot.mjs\` must pass before every commit (headless Chrome, Python with Pillow; about five minutes); it writes nothing into the repository (\`--shots\` rewrites \`docs/shots/*-rest.jpg\` when the look changed). CI also runs \`--browsers\` (WebKit and Firefox) and \`scripts/frameworks.mjs\` (React in Vite and Next.js); both need Playwright, which is never a dependency.
 - The default look is pixel-for-pixel fixed: every new option defaults to off, and the gallery posters in \`examples/posters/\` are not re-rendered unless their card changed.
 - No build step and no runtime dependencies besides three.js; every source file stays under 800 lines and opens with a comment that says what it is and why.
 `;
@@ -272,7 +272,8 @@ ${REFERENCES.map(([f, name, what]) => `- [${name}](${RAW}${f}): ${what}`).join('
 
 - [src/](${REPO}/tree/${TAG}/src): the library, the folder to copy into the project (silk.js is the entry point)
 - [Lab](${SITE}examples/lab.html): every option as a live control; prints the options to copy
-- [Gallery](${SITE}examples/): ten objects with the options that make each look right
+- [Gallery](${SITE}examples/): pictures, a word, the moon and a live-HTML card, each with the options that make it look right
+- What a page can do with it: a word or a headline as the object (\`text\`), the object filling a whole section (\`fit: 'cover'\`), callbacks for a press, a release and a stroke with where it landed on the object (\`onPress\`, \`uv\`), a real \`<button>\` whose face is silk, and many objects on one page, posters first (\`pool()\` in src/pool.js); SKILL.md has each one
 
 ## Alternative: the CDN, for a page with nowhere to put files
 
