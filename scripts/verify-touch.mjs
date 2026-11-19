@@ -5,6 +5,9 @@
  *
  *   test/first-touch.html   the library: a hover, a stroke, a tap and a held button made while the renderer is still
  *                           loading are answered once it is ready; a canvas nobody touched rests (the page checks itself)
+ *   test/many.html          twenty objects (one of them words): a pointer move reads each nearby canvas's rect at most
+ *                           once, the ones far off-screen not at all, and only the object under the pointer draws (the
+ *                           page checks itself, for a pointer over a picture and over the words)
  *   the gallery, cold card  one real stroke across a card that is still a poster: it mounts and visibly ripples
  *   the gallery, a phone    375 px with touch: the hint shows without hover, a card in view mounts and ripples on its
  *                           own, one tap on a cold card visibly dents it (against the same card untouched), a scroll
@@ -26,6 +29,14 @@ export async function verifyTouch(t) {
   const ft = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__firstTouch && (clearInterval(t), r(window.__firstTouch)), 100); })`);
   for (const p of ft.problems) problems.push(`first-touch: ${p}`);
   tag('before ready', !ft.problems.length, Object.entries(ft.out).map(([k, v]) => `${k} → ${v.loop}`).join(', '));
+
+  // ---- twenty objects: one shared set of listeners, a rect read only near the viewport ----
+  await navigate('about:blank');
+  await navigate(`${base}/test/many.html`);
+  const many = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__many && (clearInterval(t), r(window.__many)), 100); })`);
+  for (const p of many.problems) problems.push(`many: ${p}`);
+  const swept = (w, i) => `${w}: rect reads ${many.out[w].readsNear.join(' ')} in view, ${Math.max(...many.out[w].readsFar)} far away; frames ${many.out[w].frames[i]} under the pointer, ${Math.max(...many.out[w].frames.filter((_, k) => k !== i))} elsewhere`;
+  tag('20 objects', !many.problems.length, `30 moves across ${swept('picture', 0)}; across ${swept('words', 1)}`);
 
   // ---- the gallery: one stroke across a cold card ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: 1, mobile: false });

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>silkify many objects</title>
+<link rel="icon" href="data:,">
+<!--
+  many.html — twenty objects on one page (issue #9), run by scripts/shoot.mjs. Eight are in view; twelve are far
+  below the fold; the second is words (`text`), the rest pictures. Every canvas's getBoundingClientRect() is counted.
+  Once all twenty are live and at rest, the page moves a pointer (PointerEvent on window, where silkify listens) 30
+  times across the first object, then (the first disposed, its ripples would run on for 20 s) 30 times across the second, and checks each sweep: every object reads its rect
+  at most once per move, the twelve far away not at all, and only the object under the pointer draws frames.
+  window.__many = { out, problems } at the end. Low tier: at rest nothing at all is drawn.
+-->
+<style>
+  body { margin: 0; padding: 12px; font: 12px ui-monospace, Menlo, monospace; background: #f3efe7; }
+  .grid { display: grid; grid-template-columns: repeat(4, 120px); gap: 16px; }
+  .far { margin-top: 2400px; }
+  canvas { width: 120px; aspect-ratio: 1; display: block; background: #ebe6dc; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div class="grid" id="near"></div>
+<div class="grid far" id="far"></div>
+<script type="module">
+  const silkUrl = new URLSearchParams(location.search).get('silk') || '../src/silk.js';
+  const { silkify } = await import(silkUrl);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const MOVES = 30;
+
+  // count rect reads per canvas
+  const reads = new Map();
+  const rect = HTMLCanvasElement.prototype.getBoundingClientRect;
+  HTMLCanvasElement.prototype.getBoundingClientRect = function () { reads.set(this, (reads.get(this) || 0) + 1); return rect.call(this); };
+
+  const handles = [];
+  for (let i = 0; i < 20; i++) {
+    const c = document.createElement('canvas');
+    document.getElementById(i < 8 ? 'near' : 'far').append(c);
+    const what = i === 1 ? { text: 'silk', font: '800 56px Georgia, serif', color: '#7a2a1c' } : { image: '../examples/images/pomegranate.webp' };
+    handles.push(silkify(c, { ...what, tier: 'low' }));
+  }
+  await Promise.all(handles.map((h) => h.ready));
+  const out = { modes: [...new Set(handles.map((h) => h.mode))] }, problems = [];
+  /** 30 moves across handles[i]: rect reads per object, and frames drawn by each object meanwhile. */
+  async function sweep(i) {
+    for (let t = 0; t < 40; t++) {                     // every loop at rest before measuring
+      if ((await Promise.all(handles.map((h) => h.stats()))).every((s) => s.mode === 'rest')) break;
+      await sleep(250);
+    }
+    const before = await Promise.all(handles.map((h) => h.stats()));
+    reads.clear();
+    const r0 = rect.call(handles[i].canvas);
+    for (let k = 0; k < MOVES; k++) {
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: r0.left + r0.width * (0.2 + 0.6 * k / MOVES), clientY: r0.top + r0.height * 0.5, pointerType: 'mouse' }));
+      await sleep(16);
+    }
+    await sleep(300);
+    const after = await Promise.all(handles.map((h) => h.stats()));
+    const count = (h) => reads.get(h.canvas) || 0;
+    const res = { readsNear: handles.slice(0, 8).map(count), readsFar: handles.slice(8).map(count), frames: after.map((s, k) => s.frames - before[k].frames) };
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 1, clientY: 1, pointerType: 'mouse' }));
+    const what = i ? 'the words' : 'the picture';
+    if (res.readsNear.some((n) => n > MOVES)) problems.push(`${what}: more than one rect read per move: ${res.readsNear.join(' ')} for ${MOVES} moves`);
+    if (res.readsFar.some((n) => n > 0)) problems.push(`${what}: objects far off-screen read their rect: ${res.readsFar.join(' ')}`);
+    if (!(res.frames[i] > 0)) problems.push(`${what}: the object under the pointer drew ${res.frames[i]} frames`);
+    if (res.frames.some((n, k) => k !== i && n > 0)) problems.push(`${what}: objects the pointer is not over drew frames: ${res.frames.join(' ')}`);
+    return res;
+  }
+  if (out.modes.join() !== 'webgl') problems.push(`modes: ${out.modes.join(', ')}`);
+  out.picture = await sweep(0);
+  handles[0].dispose();   // its ripples would run for up to 20 s more: the second sweep needs every other object at rest
+  out.words = await sweep(1);
+  window.__many = { out, problems };
+</script>
+</body>
+</html>

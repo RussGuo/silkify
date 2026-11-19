@@ -34,7 +34,8 @@
  * The first touch: the pointer is listened to from the call on, not from `ready`. What it does while the renderer
  * loads (hovering, a stroke across, a tap, a held button) is kept and handed to the renderer, which answers it the
  * moment it is up. `prewarm()` does the slow, shared part of a mount ahead of time (a worker with three.js imported),
- * so a page of many objects can mount each one on its first touch and still answer that touch quickly.
+ * so a page of many objects can mount each one on its first touch and still answer that touch quickly. The window's
+ * pointer listeners are shared by every object on the page (pointer.js), so twenty objects cost what one does.
  *
  * Peer dependency: three (tested with 0.152.2), resolved through the page's import map or bundler.
  */
@@ -43,6 +44,7 @@ import { PUFF } from './shape.js';
 import { MATERIALS, FEELS, keysOf } from './presets.js';
 import { liveSupport, resolveElement, liveElement } from './live.js';
 import { TEXT_DEFAULTS, checkText, setText } from './text.js';
+import { follow } from './pointer.js';
 
 export { PUFF, MATERIALS, FEELS };
 
@@ -83,7 +85,7 @@ const ELEMENT_DEFAULTS = { puff: 'cushion' };
 const ELEMENT_FIXED = { matte: 'alpha', threshold: 0.5, corner: 0, albedo: null, grain: 0, poster: undefined, html: true };
 
 const SVG_PX = 1024;   // an SVG picture is rasterised to this long side
-const TRAIL = 32;      // points of the pointer's path kept while the renderer loads (see listen())
+const TRAIL = 32;      // points of the pointer's path kept while the renderer loads (see `ptr`)
 
 /* ============================================
  * Helpers
@@ -293,7 +295,6 @@ export function silkify(canvasIn, options = {}) {
   let askId = 0;
   const ctl = new AbortController();
   const on = { signal: ctl.signal, passive: true };
-  const pctl = new AbortController();   // the pointer listeners alone: they go as soon as the object cannot be live
 
   const handle = {
     get canvas() { return canvas; },
@@ -332,7 +333,7 @@ export function silkify(canvasIn, options = {}) {
       if (disposed) return;
       disposed = true;
       ctl.abort();
-      pctl.abort();
+      unfollow();
       io.disconnect();
       ro.disconnect();
       send({ t: 'dispose' });
@@ -377,7 +378,7 @@ export function silkify(canvasIn, options = {}) {
 
   /* ---- failing: one sentence that says what went wrong and what to do ---- */
   function fail(reason) {
-    pctl.abort();
+    unfollow();
     Object.assign(handle, { mode: 'failed', reason, thread: null, info: null });
     console.warn(`silkify: ${reason}`);
   }
@@ -490,53 +491,39 @@ export function silkify(canvasIn, options = {}) {
    *      The renderer then hovers and presses under a pointer that is still there, or answers one that has already
    *      gone (a stroke across, a tap) with a ripple where it first crossed the object: the first touch is not lost. ---- */
   const ptr = { over: false, pressed: false, at: null, trail: [] };
-  function listen() {
-    const at = (e) => {
-      const r = canvas.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-      return r.width && r.height && x >= 0 && x <= 1 && y >= 0 && y <= 1 ? { x: x * 2 - 1, y: 1 - y * 2 } : null;
-    };
-    const point = (p) => {
-      ptr.over = true;
-      ptr.at = p;
-      if (handle.mode === 'loading') {
-        // thinned, not cut: a long hover keeps points from its whole path, at most TRAIL of them
-        if (ptr.trail.length >= TRAIL) ptr.trail = ptr.trail.filter((_, i) => i % 2 === 0);
-        ptr.trail.push(p);
-      }
-      send({ t: 'pointer', ...p });
-    };
-    const leave = () => { if (ptr.over || ptr.pressed) send({ t: 'lift' }); ptr.over = ptr.pressed = false; ptr.at = null; };
-    const off = { signal: pctl.signal, passive: true };
-    window.addEventListener('pointermove', (e) => {
-      const p = at(e);
-      if (p) point(p);
-      else if (ptr.over) leave();
-    }, off);
-    window.addEventListener('pointerdown', (e) => {
-      const p = at(e);
-      if (!p) return;
-      point(p);
-      ptr.pressed = true;
-      send({ t: 'press', down: true });
-    }, off);
-    // a mouse that lets go is still there; a lifted finger or pen is not (else its last point "hovers" forever)
-    window.addEventListener('pointerup', (e) => {
-      if (e.pointerType !== 'mouse') return leave();
-      if (ptr.pressed) { ptr.pressed = false; send({ t: 'press', down: false }); }
-    }, off);
-    window.addEventListener('pointercancel', leave, off);   // a touch that turns into a scroll
-    document.documentElement.addEventListener('pointerleave', leave, off);
-    window.addEventListener('blur', leave, off);
-    document.addEventListener('visibilitychange', () => send({ t: 'visible', visible: visible() }), on);
-    reduceMq?.addEventListener?.('change', () => send({ t: 'still', still: reduced() }), on);
+  const point = (p) => {
+    ptr.over = true;
+    ptr.at = p;
+    if (handle.mode === 'loading') {
+      // thinned, not cut: a long hover keeps points from its whole path, at most TRAIL of them
+      if (ptr.trail.length >= TRAIL) ptr.trail = ptr.trail.filter((_, i) => i % 2 === 0);
+      ptr.trail.push(p);
+    }
+    send({ t: 'pointer', ...p });
+  };
+  const leave = () => { if (ptr.over || ptr.pressed) send({ t: 'lift' }); ptr.over = ptr.pressed = false; ptr.at = null; };
+  // the window's listeners are shared by every object on the page (pointer.js): this is what they call for this one
+  let unfollow = () => {};
+  if (tier.tier !== 'static') {   // the static tier never needs the pointer
+    unfollow = follow({
+      canvas: () => canvas,
+      near: () => inView,
+      move: point,
+      out: () => { if (ptr.over) leave(); },
+      down: (p) => { point(p); ptr.pressed = true; send({ t: 'press', down: true }); },
+      up: (mouse) => {
+        if (!mouse) return leave();
+        if (ptr.pressed) { ptr.pressed = false; send({ t: 'press', down: false }); }
+      },
+      leave,
+    });
   }
-  // only a tier that can go live listens; the static tier never needs the pointer
-  if (tier.tier !== 'static') listen();
+  document.addEventListener('visibilitychange', () => send({ t: 'visible', visible: visible() }), on);
+  reduceMq?.addEventListener?.('change', () => send({ t: 'still', still: reduced() }), on);
 
   /* ---- live HTML that cannot be live: the element stays (or goes back) where it was, as plain HTML ---- */
   function asHtml(reason) {
-    pctl.abort();
+    unfollow();
     live?.restore();
     // the canvas stays an empty layer over the page: it must not take the clicks meant for the element under it
     passThrough ??= canvas.style.pointerEvents;
@@ -626,7 +613,7 @@ export function silkify(canvasIn, options = {}) {
     }
     loudly();
     if (live) return asHtml(why || 'no live renderer');   // the element goes back to the page as plain HTML
-    pctl.abort();
+    unfollow();
     Object.assign(handle, { mode: 'static', tier: 'static', thread: null, info: null, reason: why || 'no live renderer' });
     if (!(await paintStatic()) && !disposed) {
       fail(pictureError || staticWhy || 'nothing could be drawn on this canvas');
