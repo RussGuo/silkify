@@ -11,7 +11,9 @@
  * only find a font whose @font-face is already in the page. A downloaded page gets the same <link>.
  *
  * wordRows() builds the rows under Object → Words with lab.html's own row helpers (passed in: the Lab's state stays in lab.html).
+ * onInk() moves the Touch and Stroke points onto the words' ink (two lines leave the canvas's middle empty).
  */
+import { setText } from '../src/text.js';
 
 /* ============================================
  * The fonts on offer
@@ -100,4 +102,46 @@ export function wordRows({ row, named, number, set, views, el }) {
     { ...lh, show: (v) => lh.show(v ?? LINE_HEIGHT) },
   );
   return box;
+}
+
+/* ============================================
+ * Touch and Stroke on words: the points moved onto the ink
+ * ============================================ */
+/**
+ * onInk(points, o, canvas) → Promise<[x, y][]>: the Stroke's and Touch's points (canvas coordinates, 0–1 from the top
+ * left), moved onto the words. Their fixed curve crosses the canvas's middle band, which for two lines of words is the
+ * gap between them: every drop missed and the button did nothing. The words are set again exactly as silkify sets them
+ * (src/text.js setText) and placed as core.js places a picture: centred, `fit` (or 'cover', 0.97 of the short axis)
+ * over the ink's box. Each point goes to the middle of the nearest line's ink (its band of rows), then to the nearest
+ * inked pixel there, so a stroke across two lines runs along the first, then the second. A picture's points stay.
+ */
+const masks = new WeakMap();   // canvas → the words' ink, read once per mount
+export async function onInk(points, o, canvas) {
+  if (!masks.has(canvas)) {
+    masks.set(canvas, setText(o, canvas).then(({ picture }) => {
+      const k = 128 / Math.max(picture.width, picture.height), w = Math.max(1, Math.round(picture.width * k)), h = Math.max(1, Math.round(picture.height * k));
+      const g = Object.assign(document.createElement('canvas'), { width: w, height: h }).getContext('2d', { willReadFrequently: true });
+      g.drawImage(picture, 0, 0, w, h);
+      const a = g.getImageData(0, 0, w, h).data, ink = [], bands = [];
+      for (let j = 0; j < h; j++) {
+        let row = false;
+        for (let i = 0; i < w; i++) if (a[(j * w + i) * 4 + 3] > 160) { ink.push([(i + 0.5) / w, (j + 0.5) / h]); row = true; }
+        const last = bands.at(-1);
+        if (row && last && last[1] === j - 1) last[1] = j; else if (row) bands.push([j, j]);   // a line: rows of ink in a run
+      }
+      return { ink, lines: bands.map(([j0, j1]) => (j0 + j1 + 1) / 2 / h), aspect: picture.height / picture.width };
+    }).catch(() => null));
+  }
+  const m = await masks.get(canvas);
+  if (!m?.ink.length || !canvas.clientHeight) return points;
+  const A = canvas.clientWidth / canvas.clientHeight, fit = o.fit ?? 1.3;
+  const halfH = fit === 'cover' ? 0.97 * Math.min(m.aspect, 1 / A) : Math.max(fit * m.aspect, fit / A);
+  const fw = 1 / (halfH * A), fh = m.aspect / halfH;   // the words' box as a share of the canvas
+  return points.map(([x, y]) => {
+    const u = (x - 0.5) / fw + 0.5, v0 = (y - 0.5) / fh + 0.5;
+    const v = m.lines.reduce((b, c) => (Math.abs(c - v0) < Math.abs(b - v0) ? c : b));
+    let best = m.ink[0], d = Infinity;
+    for (const p of m.ink) { const e = ((p[0] - u) * fw) ** 2 + ((p[1] - v) * fh / A) ** 2; if (e < d) { d = e; best = p; } }
+    return [0.5 + (best[0] - 0.5) * fw, 0.5 + (best[1] - 0.5) * fh];
+  });
 }

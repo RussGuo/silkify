@@ -450,7 +450,7 @@ s.save(sys.argv[1], quality=88)`, path.join(dir, 'material-rest-strip.jpg'), ...
   if (!only || only === 'events') await verifyEvents({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, base, problems });
   if (!only || only === 'lab') await verifyLabExtras({ send, evaluate, navigate, sleep, diffOf, clipOf, openLab, stageRect, base, profile, problems });
   if (!only || only === 'pages') await verifyPages({ send, evaluate, navigate, mouse, sleep, diffOf, clipOf, on, base, problems });
-  if (!only || only === 'options') await verifyOptions({ send, evaluate, navigate, sleep, clipOf, base, profile, problems });
+  if (!only || only === 'options') await verifyOptions({ send, evaluate, navigate, sleep, clipOf, diffOf, openLab, stageRect, base, profile, problems });
 }
 
 /* ---- verify, part 2: the Lab in the low tier ---- */

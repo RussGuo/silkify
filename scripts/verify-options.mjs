@@ -9,6 +9,8 @@
  *                       displacement runs along the line of sight; along the normal it pushed the limb out and opened
  *                       the poles into spikes: thousands of pixels)
  *                       a live 'y' is centred on its ink (its descender included), within 1 % of the canvas
+ *   the Lab             two lines of words with an empty middle (where the Touch and Stroke buttons' fixed points fall):
+ *                       both buttons' drops land on the words and wake the loop (lab-text.js onInk moves them onto the ink)
  *   test/pool.html      pool(): at most `max` live, the least recently touched released, a pointer mounts, a scroll away
  *                       releases, dispose() lets the prewarmed worker go, the static tier mounts nothing (it checks itself)
  *   a screenshot        what the page cannot read back from a live canvas: fit: 'cover' leaves none of a 3:1 canvas
@@ -65,9 +67,9 @@ print(sum(1 for q in px if all(abs(q[i] - c[i]) <= 10 for i in range(3))) / len(
   });
 }
 
-/** t: { send, evaluate, navigate, sleep, clipOf, base, profile, problems } */
+/** t: { send, evaluate, navigate, sleep, clipOf, diffOf, openLab, stageRect, base, profile, problems } */
 export async function verifyOptions(t) {
-  const { send, evaluate, navigate, sleep, clipOf, base, profile, problems } = t;
+  const { send, evaluate, navigate, sleep, clipOf, diffOf, openLab, stageRect, base, profile, problems } = t;
   const tag = (label, ok, detail) => {
     if (!ok) problems.push(`options: ${label} (${detail})`);
     console.log('option', `${label}: ${detail}`, ok ? '' : 'FAILED');
@@ -112,4 +114,21 @@ export async function verifyOptions(t) {
   const pool = await evaluate(`new Promise((r) => { const t = setInterval(() => window.__pool && (clearInterval(t), r(window.__pool)), 100); })`);
   for (const p of pool.problems) problems.push(`pool: ${p}`);
   tag('pool', !pool.problems.length, Object.entries(pool.out).map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(' | '));
+
+  // the Lab: Touch and Stroke on two lines of words whose middle is empty. A drop that misses the object is dropped by
+  // the renderer, so the loop stays at rest; one that lands wakes it ('active')
+  const words = { obj: 'text', url: null, material: 'silk', feel: 'silk', bg: 'stage',
+    set: { text: 'silk\nsoft', font: '900 160px ui-serif, Georgia, "Times New Roman", serif', color: '#2f4f6b', lineHeight: 2.2, tier: 'low' } };
+  for (const id of ['touch', 'stroke']) {
+    await openLab('', words);   // a fresh mount each: nothing stirred yet
+    const loop = await evaluate(`(async () => {
+      const h = window.__lab.handle;
+      for (let t = 0; t < 60 && (await h.stats()).mode !== 'rest'; t++) await new Promise((r) => setTimeout(r, 100));
+      const before = (await h.stats()).mode;
+      document.getElementById('${id}').click();
+      await new Promise((r) => setTimeout(r, 400));
+      return { before, after: (await h.stats()).mode };
+    })()`);
+    tag(`Lab ${id} on two lines`, loop.before === 'rest' && loop.after === 'active', `loop ${loop.before} → ${loop.after} (a drop that misses leaves it at rest)`);
+  }
 }

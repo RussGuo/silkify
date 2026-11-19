@@ -236,7 +236,7 @@
   import { HELP } from './lab-help.js';              // one line per option, from references/parameters.md
   import { pageHtml } from './lab-export.js';         // Download HTML: the page around the printed call
   import { recorder } from './lab-record.js';         // Record: a clip of the stage, square or 9:16
-  import { TEXT_START, TEXT_KEYS, LINE_HEIGHT, wordRows, stylesheetOf, useStylesheet, quote } from './lab-text.js';
+  import { TEXT_START, TEXT_KEYS, LINE_HEIGHT, wordRows, stylesheetOf, useStylesheet, quote, onInk } from './lab-text.js';
 
   /* ============================================
    * The objects: the gallery's cards (same pictures, same options)
@@ -725,21 +725,22 @@
   /* ============================================
    * Stage actions: touch without a mouse (handle.ripple), and hold to compare with the defaults
    * ============================================ */
-  document.getElementById('touch').onclick = () => handle?.ripple(0.5, 0.5);
+  // twelve light drops along a gentle curve; on words, each one moved onto the nearest ink (lab-text.js onInk)
+  const CURVE = Array.from({ length: 12 }, (_, k) => [0.3 + 0.4 * (k / 11), 0.42 + 0.14 * (k / 11) + 0.05 * Math.sin((k / 11) * Math.PI * 2)]);
+  const onObject = async (points) => (isText() && handle ? onInk(points, call(), handle.canvas) : points);
+  const touch = (o) => onObject([[0.5, 0.5]]).then(([[x, y]]) => handle?.ripple(x, y, o));
+  document.getElementById('touch').onclick = () => touch();
   let strokeTimer = 0;
-  document.getElementById('stroke').onclick = () => {
+  document.getElementById('stroke').onclick = async () => {
+    const points = await onObject(CURVE);
     clearInterval(strokeTimer);
-    let k = 0;                                          // twelve light drops along a gentle curve, 50 ms apart
-    strokeTimer = setInterval(() => {
-      const t = k / 11;
-      handle?.ripple(0.3 + 0.4 * t, 0.42 + 0.14 * t + 0.05 * Math.sin(t * Math.PI * 2), { hold: 60 });
-      if (++k > 11) clearInterval(strokeTimer);
-    }, 50);
+    let k = 0;                                          // 50 ms apart
+    strokeTimer = setInterval(() => { handle?.ripple(...points[k], { hold: 60 }); if (++k >= points.length) clearInterval(strokeTimer); }, 50);
   };
 
   /* Record (lab-record.js): the Stroke and Touch buttons are its scripted motion */
   const rec = recorder({ stage, button: document.getElementById('record'), handle: () => handle, bg: () => state.bg, name: fileName,
-    stroke: () => document.getElementById('stroke').click(), touch: () => handle?.ripple(0.5, 0.5, { hold: 300 }),
+    stroke: () => document.getElementById('stroke').click(), touch: () => touch({ hold: 300 }),
     playAnyway: () => document.getElementById('play').click() });
   let clip = null;                                      // the last clip made through window.__lab.record (shoot.mjs)
 
