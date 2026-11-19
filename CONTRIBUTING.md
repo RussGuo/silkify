@@ -18,6 +18,12 @@ To run the gallery and the Lab locally, serve the repository root and open `/exa
 npx serve .            # or: python3 -m http.server
 ```
 
+## Releasing
+
+1. On the release commit, set `version` in `package.json` and run `npm run build:integrations`: it moves SKILL.md, the marketplace entry, every CDN URL, `examples/cdn.html` and every clone line to the new tag (`--check` names any it cannot).
+2. Point what follows `main` between releases at the tag (a CDN URL `@main`, a README line that calls something "new on main"), then run `node scripts/build-integrations.mjs --release`: `--check` plus a gate that fails on any of them. `--check` alone lets them pass, so `main` can carry them between releases.
+3. `node scripts/shoot.mjs`, `--posters` (then `git status` is clean), `--browsers` and `scripts/frameworks.mjs` pass on that commit; then tag it. `--check` also fails on a tracked file at the root that is not in its list, and on a tracked log or debugging leftover anywhere, so neither reaches a tag.
+
 ## Repository
 
 ```
@@ -38,7 +44,7 @@ src/events.js       what an object tells the page: onPress / onRelease / onStrok
 scripts/cutout.py   Pillow + numpy background keying, shadow-aware, edge un-mixing
 scripts/shoot.mjs   headless Chrome: verify (live in a worker + ripples, the Lab, test/edge.html, live HTML), --posters, --gif (ffmpeg), --lab, --cdn, --browsers; console check
 scripts/verify-touch.mjs, scripts/verify-lab.mjs, scripts/verify-pages.mjs, scripts/verify-events.mjs, scripts/verify-options.mjs   parts of shoot.mjs's verify, in files of their own: the first touch and many objects; the Lab's words and Record; the pages (link-preview tags, posters, How it works, the use cases, text.html); the events and the silk button; the options the use-case pages asked for, and pool()
-scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence and the byline in both READMEs, the gallery and the Lab (--check for drift)
+scripts/build-integrations.mjs   SKILL.md + references → integrations/, AGENTS.md, llms.txt; the install sentence and the byline in both READMEs, the gallery and the Lab (--check for drift and leftovers; --release on the release commit)
 scripts/browsers.mjs             shoot.mjs --browsers: WebKit and Firefox, same origin and cross-origin (Playwright)
 scripts/frameworks.mjs           the React component in Vite and Next.js, dev and build (Playwright; network)
 scripts/harness.mjs              the static server and the Playwright loader the check scripts share

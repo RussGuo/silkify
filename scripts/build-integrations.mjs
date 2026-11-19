@@ -5,6 +5,7 @@
  *
  *   node scripts/build-integrations.mjs            # write the files below
  *   node scripts/build-integrations.mjs --check    # write nothing; exit 1 if any file differs from what it would write
+ *   node scripts/build-integrations.mjs --release  # --check, and the release gate below (run it on the release commit)
  *
  *   integrations/cursor/silkify.mdc               a Cursor rule (description + globs + the SKILL.md body)
  *   integrations/copilot/silkify.instructions.md  a path-scoped Copilot instruction for .github/instructions/: it
@@ -34,12 +35,20 @@
  *
  * The derived files keep SKILL.md's order: copying src/ into the project is the way, the CDN the alternative for
  * a page with nowhere to put files. No dependencies.
+ *
+ * What a release tag carries is also kept clean here, because the tag is what `git clone --branch` installs. Always:
+ * the tracked files at the repository's root are the ROOT_FILES below and nothing else, and no tracked file anywhere is a
+ * log or is named like a debugging leftover (dbg, debug, _try). With --release, the gate for the release commit itself:
+ * no CDN URL is pinned to @main (between releases a page may follow main for what no tag has yet, e.g. the Lab's words),
+ * and the READMEs do not call anything new on main. A prerelease version (0.4.0-rc.1) skips that gate.
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const check = process.argv.includes('--check');
+const release = process.argv.includes('--release');
+const check = release || process.argv.includes('--check');
 const read = (f) => readFile(path.join(ROOT, f), 'utf8');
 
 /* ============================================
@@ -125,6 +134,27 @@ if (lines > 500) errors.push(`SKILL.md: ${lines} lines (the spec asks for under 
 for (const f of ['SKILL.md', ...REFERENCES.map(([f]) => f), 'README.md', 'README.zh-CN.md', 'examples/cdn.html', 'examples/lab.html', 'CHANGELOG.md']) {
   for (const [, ref] of (await read(f).catch(() => '')).matchAll(/RussGuo\/silkify@([\w.-]+)/g)) {
     if (ref !== TAG && ref !== 'main' && !/^\$\{/.test(ref)) errors.push(`${f}: CDN pinned to @${ref}, but the release is ${TAG}`);
+  }
+}
+
+/* ---- what the tag carries: the root's files, no leftovers; with --release, nothing pinned to or announced on main ---- */
+const ROOT_FILES = ['.gitignore', 'AGENTS.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'CONTRIBUTING.zh-CN.md', 'LICENSE', 'README.md', 'README.zh-CN.md', 'SKILL.md', 'index.html', 'llms.txt', 'package.json'];
+const LEFTOVER = /\.log$|dbg|debug|_try/i;
+const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter(Boolean);
+for (const f of tracked) {
+  if (!f.includes('/') && !ROOT_FILES.includes(f)) errors.push(`${f}: a tracked file at the root that is not one of ROOT_FILES (a leftover? else add it there)`);
+  if (LEFTOVER.test(path.posix.basename(f))) errors.push(`${f}: a tracked log or debugging leftover (named like ${LEFTOVER.source})`);
+}
+const prerelease = pkg.version.includes('-');
+if (release && !prerelease) {
+  // every text file that could carry a CDN URL, not only the ones checked above: a page added later is covered too
+  for (const f of tracked.filter((f) => /\.(md|txt|html|js|mjs|jsx|json)$/.test(f))) {
+    const text = await read(f).catch(() => '');
+    for (const m of text.matchAll(/RussGuo\/silkify@main\b/g)) errors.push(`${f}:${text.slice(0, m.index).split('\n').length}: CDN pinned to @main in a release (pin ${TAG})`);
+  }
+  for (const f of ['README.md', 'README.zh-CN.md']) {
+    const text = await read(f);
+    for (const m of text.matchAll(/\bnew on `?main`?|\bonly on `?main`?|`?main`? ?上(?:有|才|新)/gi)) errors.push(`${f}:${text.slice(0, m.index).split('\n').length}: "${m[0]}" in a release (say what ${TAG} has)`);
   }
 }
 const cdnRef = (await read('examples/cdn.html')).match(/qs\.get\('ref'\) \|\| '([^']+)'/)?.[1];
@@ -282,6 +312,7 @@ for (const [f, text] of Object.entries(files)) {
   console.log(`${check ? (now === text ? 'ok    ' : 'DRIFT ') : now === text ? 'same  ' : 'wrote '}${f.padEnd(52)} ${String(text.length).padStart(6)} chars`);
 }
 console.log(`SKILL.md: ${lines} lines, name '${meta.name}', description ${meta.description.length} chars, frontmatter ${Object.keys(meta).join(', ')}`);
+console.log(`tracked: ${tracked.length} files, the root's ${ROOT_FILES.length} as listed, no leftovers${release ? (prerelease ? `; --release: ${pkg.version} is a prerelease, the release gate does not apply` : `; --release: nothing pinned to or announced on main`) : ''}`);
 if (drift.length) {
   console.error(`\n${drift.length} generated file(s) out of date: run npm run build:integrations`);
   process.exit(1);
