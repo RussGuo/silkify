@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>silkify — everything can be silk</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2213%22 fill=%22%238a6d3b%22/%3E%3C/svg%3E">
-<meta name="description" content="Turn any image into a touchable silk surface on the web. Matte at rest; touch it and it ripples.">
+<meta name="description" content="Turn an image, a word or a piece of HTML into a touchable silk surface on the web. Matte at rest; touch it and it ripples.">
 <!-- link previews (Open Graph, X / Twitter): docs/og.jpg is the README's hero, cropped to 1200 × 630 -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="silkify">
@@ -33,29 +33,28 @@
     font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   }
   .wrap { max-width: 1240px; margin: 0 auto; padding: 72px 28px 96px; }
-  header { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; margin-bottom: 64px; }
+  /* the header: the name and one sentence on the left, the three ways in on the right, on the lede's last line.
+     ?poster=1 keeps the height the header had when the posters were rendered (173.72 px at 1400 px): the cards' place,
+     to a fraction of a pixel, decides their @2x posters' bytes */
+  header { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px 48px; margin-bottom: 64px; }
+  .poster-mode header { height: 173.71875px; overflow: hidden; }
   h1 {
     margin: 0; font: 400 clamp(56px, 9vw, 112px)/0.92 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
     letter-spacing: -0.02em;
   }
   h1 em { font-style: italic; color: var(--accent); }
-  .lede { margin: 18px 0 0; max-width: 34em; font-size: 17px; color: var(--muted); }
+  .lede { margin: 26px 0 0; max-width: 34em; font-size: 17px; color: var(--muted); }   /* room under the italic y's tail */
   .lede b { color: var(--ink); font-weight: 500; }
-  /* where it is used: pages to start from. Hidden in poster mode, so the cards stay where their posters were rendered. */
-  .uses { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
-  .uses a { color: inherit; white-space: nowrap; }
-  .poster-mode .uses { display: none; }
-  .meta { text-align: right; font-size: 13px; color: var(--muted); }
-  .meta a { color: inherit; }
-  .meta a.lab { display: inline-block; margin-top: 10px; color: var(--accent-text); font-size: 15px; text-decoration: none; }
-  .meta a.lab:hover { text-decoration: underline; }
-  .meta a.lab + a.lab { margin-left: 16px; }
+  .ways { display: flex; align-items: center; gap: 10px 26px; flex-wrap: wrap; font-size: 15px; padding-bottom: 3px; }
+  .ways a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 1px; }
+  .ways a:hover { border-color: var(--accent); }
   /* copies the one-line install sentence (README "One-line install"); the sentence itself is written by build-integrations.mjs */
-  .meta .install {
-    display: inline-block; margin-top: 12px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 999px;
-    background: transparent; color: var(--accent-text); font: inherit; font-size: 13px; cursor: pointer;
+  .ways .install {
+    padding: 7px 16px; border: 1px solid var(--accent); border-radius: 999px;
+    background: transparent; color: var(--accent-text); font: inherit; font-size: 14px; cursor: pointer;
   }
-  .meta .install:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .ways .install:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .ways a:focus-visible, .ways .install:focus-visible, .uses a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 56px 32px; }
   figure { margin: 0; }
   .stage {
@@ -106,12 +105,40 @@
   /* the word card's font: a subset of Fraunces Black with the four letters of "silk" (1.4 KB, OFL; fonts/OFL.txt).
      Declared, not loaded: the browser fetches it only when silkify asks for it, as the card comes alive */
   @font-face { font-family: Fraunces; font-weight: 900; src: url(fonts/fraunces-silk.woff2) format("woff2"); }
+  /* after the objects: the pages to start from, each a small picture and a line */
+  .uses { margin-top: 112px; padding-top: 28px; border-top: 1px solid var(--rule); }
+  .uses h2 { margin: 0; font: 400 30px/1.15 ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif; letter-spacing: -0.01em; }
+  .uses > p { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+  .uses ul { list-style: none; margin: 32px 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 28px 20px; }
+  .uses a { display: block; color: inherit; text-decoration: none; }
+  .uses .thumb {
+    display: block; aspect-ratio: 4 / 3; margin-bottom: 12px; border-radius: 14px; overflow: hidden;
+    background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--stage) 60%, var(--paper)), var(--stage));
+    transition: transform 0.25s;
+  }
+  .uses a:hover .thumb { transform: translateY(-2px); }
+  .uses img { display: block; width: 100%; height: 100%; object-fit: contain; padding: 10%; }
+  .uses .thumb.full img { padding: 0; }   /* posters that already leave room around their object */
+  .uses .thumb.fabric {   /* the fabric page's cloth, drawn: a fold of light across deep red */
+    background: radial-gradient(70% 38% at 62% 62%, rgba(255, 214, 190, 0.2), transparent 70%), radial-gradient(90% 70% at 30% 25%, #8a3328, #5a1a16 60%, #3a0f0c);
+  }
+  .uses .thumb.button { display: grid; place-items: center; }
+  .uses .thumb.button span { width: 46%; aspect-ratio: 0.82; border-radius: 14px; background: var(--paper); box-shadow: 0 1px 0 var(--rule); }
+  .uses .thumb.button img { height: auto; padding: 8% 8% 22%; }
+  .uses b { display: block; font: 400 18px/1.25 ui-serif, "Iowan Old Style", Georgia, serif; }
+  .uses a:hover b { color: var(--accent-text); }
+  .uses small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .poster-mode .uses { display: none; }
   footer { margin-top: 96px; padding-top: 20px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
   footer a { color: inherit; }
+  @media (max-width: 1100px) { .uses ul { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   @media (max-width: 640px) {
     .wrap { padding: 40px 16px 64px; }
-    header { grid-template-columns: 1fr; margin-bottom: 40px; }
-    .meta { text-align: left; }
+    header { grid-template-columns: 1fr; gap: 20px; margin-bottom: 32px; }
+    .lede { margin-top: 20px; font-size: 16px; }
+    .ways { gap: 8px 22px; }
+    .uses { margin-top: 80px; }
+    .uses ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 14px; }
     .grid { grid-template-columns: 1fr; gap: 40px; }
   }
 </style>
@@ -126,9 +153,11 @@
       <h1>silk<em>ify</em></h1>
       <p class="lede"><b>Everything can be silk.</b> Each object below is matte and still — until the pointer touches it.
         Then it dents, ripples, and catches the light like satin.</p>
-      <p class="uses">In use: <a href="demos/hero.html">a product hero</a> · <a href="demos/logo-wall.html">a logo wall</a> · <a href="demos/fabric.html">a sheet of fabric</a> · <a href="demos/404.html">a 404</a> · <a href="text.html">a word</a></p>
     </div>
-    <div class="meta">万物皆可丝绸化<br><a href="https://github.com/RussGuo/silkify">github.com/RussGuo/silkify</a><br><a class="lab" href="lab.html">Lab →</a><a class="lab" href="how-it-works.html">How it works →</a><br><button id="install" class="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button></div>
+    <nav class="ways" aria-label="More of silkify">
+      <a href="lab.html">Lab</a><a href="how-it-works.html">How it works</a>
+      <button id="install" class="install" type="button" title="Copies one sentence: paste it into Claude Code, Codex, Cursor, Copilot or any agent that loads skills, and it installs silkify" data-install="Install the silkify agent skill: git clone --depth 1 --branch v0.3.0 https://github.com/RussGuo/silkify into a folder named silkify in the directory you load skills from (~/.claude/skills for Claude Code; ~/.agents/skills for Codex, Cursor, GitHub Copilot, Gemini CLI and most other agents), then read its SKILL.md and tell me whether silkify is ready.">Install in your agent</button>
+    </nav>
   </header>
   <script>
     /* Plain script, not the module below: copying the sentence must work even where WebGL never loads. */
@@ -147,7 +176,7 @@
         <article id="html-card">
           <h3>This card is HTML</h3>
           <p>Select these words and copy them, or find them with the browser's search: they are text in the page, printed on silk.</p>
-          <p><a href="https://github.com/RussGuo/silkify#live-html">How it works →</a></p>
+          <p><a href="how-it-works.html#html">How live HTML works →</a></p>
         </article>
       </div>
       <figcaption><h2>Live HTML</h2><p id="html-note">A real piece of HTML on the silk, through HTML-in-Canvas (Chrome 157 and later): the words stay selectable, the link works, and it still ripples.</p><code>element: '#html-card'</code></figcaption>
@@ -241,9 +270,22 @@
     })();
   </script>
 
+  <section class="uses" aria-labelledby="uses-h">
+    <h2 id="uses-h">Pages to start from</h2>
+    <p>Each one is a single HTML file: open it, take it apart, keep what you need.</p>
+    <ul>
+      <li><a href="demos/hero.html"><span class="thumb full"><img src="demos/posters/hero.webp" width="560" height="560" alt="" loading="lazy" decoding="async"></span><b>A product hero</b><small>One object beside the headline</small></a></li>
+      <li><a href="demos/logo-wall.html"><span class="thumb full"><img src="demos/posters/mark-orrery.webp" width="280" height="280" alt="" loading="lazy" decoding="async"></span><b>A logo wall</b><small>Twelve marks, a few alive at a time</small></a></li>
+      <li><a href="demos/fabric.html"><span class="thumb fabric"></span><b>A sheet of fabric</b><small>A whole section as one piece of silk</small></a></li>
+      <li><a href="demos/404.html"><span class="thumb"><img src="demos/posters/404.webp" width="760" height="380" alt="" loading="lazy" decoding="async"></span><b>A 404</b><small>Numerals to poke while you are lost</small></a></li>
+      <li><a href="text.html"><span class="thumb full"><img src="posters/silk-foil.webp" width="400" height="400" alt="" loading="lazy" decoding="async"></span><b>A word</b><small>No picture at all: the letters are the object</small></a></li>
+      <li><a href="button.html"><span class="thumb button"><span><img src="posters/pomegranate.webp" width="400" height="400" alt="" loading="lazy" decoding="async"></span></span><b>A silk button</b><small>A real button whose face is silk</small></a></li>
+    </ul>
+  </section>
+
   <footer>
-    <span><span id="byline"><!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></span> · MIT · three.js · one <code>&lt;canvas&gt;</code> per object</span>
-    <span>Images: public domain / CC0, except the FateTell mark (© FateTell) — see <a href="CREDITS.md">CREDITS.md</a> · touch a card to bring it to life</span>
+    <span><span id="byline"><!-- byline -->Made by <a href="https://github.com/RussGuo">Russ Guo</a><!-- /byline --></span> · <a href="https://github.com/RussGuo/silkify">silkify on GitHub</a> · MIT · <span lang="zh-CN">万物皆可丝绸化</span></span>
+    <span>Images: public domain / CC0, except the FateTell mark (© FateTell) — see <a href="https://github.com/RussGuo/silkify/blob/main/examples/CREDITS.md">CREDITS</a> · touch a card to bring it to life</span>
   </footer>
 </div>
 

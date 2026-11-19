@@ -19,6 +19,9 @@
  *                   more than 3), no sideways scroll at 375 px, and with reduced motion no canvas and nothing mounted
  *   words           examples/text.html: live, a word ripples, no sideways scroll at 375 px, still with reduced motion
  *   button          examples/button.html, when there is one: it loads clean, at 1440 px, 375 px and with reduced motion
+ *   gallery         examples/index.html: the header's three ways in (Lab, How it works, Install), "Pages to start from"
+ *                   linking every use case, text.html and button.html, the live-HTML card's link to the long read's
+ *                   section, and in poster mode (?poster=1, 1400 px) the first card exactly where its poster was rendered
  *   contrast        the gallery, the Lab, the long read in both languages, text, button and live, light and dark: every
  *                   piece of text set on a plain colour reads at 4.5:1 or better (3:1 from 24 px, or 18.66 px bold), as WCAG
  *                   AA asks. Text over a picture or a gradient (the stages) is left to the eye
@@ -49,6 +52,7 @@ export async function verifyPages(t) {
     await checkDemos(c);
     await checkText(c);
     if (existsSync(path.join(ROOT, 'examples/button.html'))) await checkButton(c);
+    await checkGallery(c);
     await checkContrast(c);
   } finally {
     watching = null;
@@ -448,4 +452,29 @@ async function checkContrast(c) {
       return `below AA: ${out.join(', ')}`;
     });
   }
+}
+
+/* ============================================
+ * The gallery's ways in, and the place its posters were rendered at
+ * ============================================ */
+async function checkGallery(c) {
+  await scope(c, 'gallery', async () => {
+    await open(c, 'examples/index.html');
+    const g = await c.evaluate(`({
+      ways: [...document.querySelectorAll('header .ways a, header .ways button')].map((e) => e.getAttribute('href') || e.id),
+      uses: [...document.querySelectorAll('.uses a')].map((a) => a.getAttribute('href')),
+      card: document.querySelector('#html-card a').getAttribute('href'),
+    })`);
+    const demos = (await readdir(path.join(ROOT, 'examples/demos'))).filter((f) => f.endsWith('.html') && !f.startsWith('_')).map((f) => `demos/${f}`);
+    const missing = [...demos, 'text.html', 'button.html'].filter((h) => !g.uses.includes(h));
+    expect(c, 'gallery', g.ways.join() === 'lab.html,how-it-works.html,install', `header ways: ${g.ways}`);
+    expect(c, 'gallery', !missing.length, `"Pages to start from" does not link ${missing.join(', ')}`);
+    expect(c, 'gallery', g.card === 'how-it-works.html#html', `the live-HTML card links ${g.card}`);
+    await c.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false });
+    await c.navigate('about:blank');
+    await c.navigate(`${c.base}/examples/?poster=1&tier=high`);
+    const top = await c.evaluate(`document.getElementById('grid').getBoundingClientRect().top + scrollY`);
+    expect(c, 'gallery', top === 309.71875, `in poster mode the cards start at ${top} px, not 309.71875 (the posters' place)`);
+    return `ways ${g.ways.join(' ')}; ${g.uses.length} pages to start from; poster mode grid at ${top} px`;
+  });
 }
