@@ -73,6 +73,7 @@ Copy `src/` into your project as `silk/` and run `npm i three`, then:
 Nowhere to put files (a CodePen, one HTML file)? Import `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js` instead and map `three` to `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`; the page then depends on jsDelivr ([SKILL.md](SKILL.md#get-the-code) has the details).
 
 - **No transparent background?** Run `python3 scripts/cutout.py photo.jpg out.png` to key out a plain backdrop, or keep the rectangle and let silkify make a cushion.
+- **Words instead of a picture?** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` makes a word, a headline or an emoji the object, no cut-out needed: try [examples/text.html](examples/text.html), options in [references/parameters.md](references/parameters.md#text-words-as-the-object). New on `main`, in the next release.
 - **From an agent?** See [One-line install](#one-line-install).
 
 **React** (and Next.js): the canvas is made in the effect, never by React, because silkify may hand it to a worker.

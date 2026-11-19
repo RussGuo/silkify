@@ -73,6 +73,7 @@ silkify 是一个 [Agent Skill](https://agentskills.io)：只有一份 [SKILL.md
 没地方放文件（比如 CodePen、只有一个 HTML 文件）？那就改成从 `https://cdn.jsdelivr.net/gh/RussGuo/silkify@v0.3.0/src/silk.js` 引入，`three` 映射到 `https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js`；这样页面就得靠 jsDelivr 了（细节见 [SKILL.md](SKILL.md#get-the-code)）。
 
 - **图片没有透明底？** 运行 `python3 scripts/cutout.py photo.jpg out.png` 抠掉纯色背景；或者保留整张矩形，让 silkify 把它做成软垫。
+- **想用文字而不是图片？** `silkify(canvas, { text: 'silk', font: '800 200px Georgia, serif' })` 就能把一个词、一行标题或一个 emoji 变成丝绸，不用抠图。可以打开 [examples/text.html](examples/text.html) 试试，参数见 [references/parameters.md](references/parameters.md#text-words-as-the-object)（英文）。这是 `main` 上的新功能，会随下一个版本发布。
 - **在 Agent 里用？** 见[一句话安装](#一句话安装)。
 
 **用 React**（Next.js 也一样）：画布在 effect 里自己创建，不交给 React 渲染，因为 silkify 可能把它转交给 Worker。
