@@ -18,6 +18,11 @@
 | Nothing at all, `mode: 'failed'` and a `silkify:` warning | The picture did not load (404, CORS), could not be decoded, or has nothing opaque in it (a fully transparent PNG, or `threshold` above every alpha) | Read `handle.reason`: fix the URL or the CORS headers, re-export the picture, or lower `threshold` |
 | `ready` never resolves | The canvas has no size yet (`display: none`, a closed tab or panel, a zero-height parent) | Expected: it starts once the canvas is shown. Give the canvas a CSS size; call `dispose()` if it will never be shown |
 | Black square or nothing at all | Page opened as `file://`, image CORS, or an unsized canvas | Serve over http, check CORS headers, and give the canvas a CSS size |
+| The object shrinks or jumps when it comes alive over its poster | The poster is the raw picture stretched over the box, but live the object sits inside it at 1 / `fit` | Use a poster rendered from this canvas, or lay the picture out like the object (`object-fit: contain` at 1 / `fit` of the box) and pass no `poster` (SKILL.md, Performance rules) |
+| A canvas of `pool()` is 300 × 150 px in the corner of its element | The pool prepends a bare canvas: the page sizes it | `.tile { position: relative } .tile > canvas { position: absolute; inset: 0; width: 100%; height: 100% }` |
+| Events stop, or a listener on the canvas goes deaf, after a while | The canvas element was replaced (a lost WebGL context, a fallback to the main thread) | Use the `onPress` / `onReady` options, not DOM listeners on the canvas, and read `handle.canvas` each time |
+| A `silkify:` warning that a font did not load, and the words in another font | A web font the page declared failed or took over 3 s, or a stack with no generic family has none of its fonts | Check the `<link>` or `@font-face`; end the stack with `serif` or `sans-serif` |
+| `setTheme({ text })`, `setTheme({ fit })` change nothing | Scene options are read once | Call `silkify()` again on the canvas (it disposes the first) |
 
 ## Live HTML (element mode)
 
