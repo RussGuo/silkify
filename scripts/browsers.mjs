@@ -14,7 +14,10 @@
  *            must stay plain HTML (mode 'static', the element where it was, readable, its link working), say so in
  *            one line, and log nothing. Where the browser has the feature, the card must go live instead.
  * chromium is optional (CHROME=/path picks an installed Chrome); shoot.mjs covers Chrome in depth over its own protocol.
- * The console must stay clean (no errors, no warnings) apart from the 404 that test/edge.html asks for on purpose.
+ * The console must stay clean (no errors, no warnings) apart from the 404 that test/edge.html asks for on purpose, and
+ * Firefox's "Layout was forced before the page was fully loaded" about a srcdoc frame: test/edge.html's frame without
+ * an import map is still being parsed when the page around it lays out, which is the harness's timing and not a word
+ * from silkify (the same message about a real page would still fail the run).
  */
 import path from 'node:path';
 import { mkdtemp } from 'node:fs/promises';
@@ -47,6 +50,7 @@ for (const name of list) {
   page.on('console', (m) => {
     if (!['error', 'warning'].includes(m.type())) return;
     if (/404/.test(m.text()) && /not-here\.png/.test(m.location()?.url || m.text())) return;   // asked for on purpose
+    if (/Layout was forced before the page was fully loaded/.test(m.text()) && /about:srcdoc/.test(`${m.location()?.url} ${m.text()}`)) return;   // see above
     noise.push(`console.${m.type()}: ${m.text().slice(0, 200)}`);
   });
   page.on('pageerror', (e) => noise.push(`exception: ${e.message.slice(0, 200)}`));
