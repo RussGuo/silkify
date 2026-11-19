@@ -59,7 +59,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | **Shape (sphere)** | | | |
 | `phase` | `null` | Lunar phase 0–1; overrides `light` | 0.35–0.42 gives a gibbous moon |
 | `bump` | `null` | Elevation map URL (same projection) for relief near the terminator | |
-| `bumpStrength` | 7 | | 20 on dark pages |
+| `bumpStrength` | 7 | How strongly the `bump` map raises the relief | 20 on dark pages |
 | `spin`, `spinSpeed`, `angle` | `true`, 0.006, 0 | Slow rotation of the texture; initial longitude offset (0–1) | |
 | **Runtime** | | | |
 | `interactive` | `true` | `false` keeps it still and ignores the pointer | |

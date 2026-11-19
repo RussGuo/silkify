@@ -8,7 +8,7 @@
 
 - **默认外观一个像素都不能变。** 新参数默认都是关的；画廊 `examples/posters/` 里的静态图，除非那张卡本身改了，否则不重新渲染。跑一遍 `node scripts/shoot.mjs --posters` 再看 `git status`，就知道改动有没有动到任何一个像素。
 - **每次提交前 `node scripts/shoot.mjs` 必须通过**（无头 Chrome，加装了 Pillow 的 Python；大约两分钟）。它不往仓库里写任何东西（外观确实变了时，`--shots` 会重写 `docs/shots/*-rest.jpg`）。CI 另外还跑 `--browsers`（WebKit 与 Firefox）和 `scripts/frameworks.mjs`（Vite 与 Next.js 里的 React）；两者都要 Playwright，但它永远不是本仓库的依赖。
-- **给 Agent 看的文档只有一份源头。** 手写的只有 `SKILL.md` 和 `references/`；`AGENTS.md`、`llms.txt` 和 `integrations/` 里的一切都是生成的：改源头，再跑 `npm run build:integrations`（加 `-- --check` 查漂移）。两份 README、画廊和 Lab 里的那句安装指令和作者署名，也由同一个脚本写入：要改就改脚本，不要改页面。
+- **给 Agent 看的文档只有一份源头。** 手写的只有 `SKILL.md` 和 `references/`；`AGENTS.md`、`llms.txt`、`integrations/` 里的一切，以及 Lab 里每个参数下面那行说明（`examples/lab-help.js`，取自 `references/parameters.md`）都是生成的：改源头，再跑 `npm run build:integrations`（加 `-- --check` 查漂移）。两份 README、画廊和 Lab 里的那句安装指令和作者署名，也由同一个脚本写入：要改就改脚本，不要改页面。
 - **没有构建步骤，除了 three.js 没有运行时依赖。** 每个源文件不超过 800 行，开头有一段注释，说清它是什么、为什么这样做。
 - 使用者能察觉到的改动，都要在 **[CHANGELOG.md](CHANGELOG.md)** 里记一笔。
 

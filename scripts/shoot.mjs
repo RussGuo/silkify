@@ -155,7 +155,7 @@ async function openLab(query = '', state = null) {
   await navigate(`${base}/examples/lab.html${query}${state ? '#' + Buffer.from(JSON.stringify(state)).toString('base64url') : ''}`);
   return evaluate(`window.__lab.ready().then((h) => ({ mode: h.mode, thread: h.thread, tier: h.tier }))`);
 }
-const labRow = (key) => `[...document.querySelectorAll('#controls .row')].find((r) => r.querySelector('label')?.textContent === '${key}')`;
+const labRow = (key) => `[...document.querySelectorAll('#controls .row')].find((r) => r.dataset.key === '${key}')`;
 /** The "Install in your agent" button (gallery and Lab): a click puts its sentence on the clipboard and says Copied.
  *  The sentence itself is checked against build-integrations.mjs by `--check`; this checks that the button works. */
 async function checkInstall(where) {
