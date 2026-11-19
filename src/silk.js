@@ -47,7 +47,7 @@
  * Peer dependency: three (tested with 0.152.2), resolved through the page's import map or bundler.
  */
 import { pickTier, TIERS } from './tier.js';
-import { PUFF } from './shape.js';
+import { PUFF, COVER } from './shape.js';
 import { MATERIALS, FEELS, keysOf } from './presets.js';
 import { liveSupport, resolveElement, liveElement } from './live.js';
 import { TEXT_DEFAULTS, checkText, setText } from './text.js';
@@ -289,6 +289,10 @@ export function silkify(canvasIn, options = {}) {
   const o = resolveOptions(options);
   const emit = emitter(o);   // the page's callbacks, read from `o` when called (setTheme can swap them)
   const kind = o.shape;
+  if (kind === 'image' && !(o.fit === 'cover' ? options.element == null : typeof o.fit === 'number' && o.fit > 0)) {
+    throw new TypeError(o.fit === 'cover' ? "silkify: fit: 'cover' is for a picture or words; an element is drawn 1:1 (leave fit out) or scaled by a number"
+      : `silkify: options.fit is the canvas's extent over the object's, a number above 0, or 'cover' (not ${JSON.stringify(o.fit)})`);
+  }
   const element = options.element != null ? resolveElement(options.element) : null;
   if (!o.image && !element && o.text == null) throw new Error('silkify: options.image (or options.element, or options.text) is required');
   owner.get(canvasIn)?.dispose();   // one renderer per canvas: the newer call wins, the older one is disposed
@@ -434,7 +438,7 @@ export function silkify(canvasIn, options = {}) {
       g.drawImage(staticPic, w * 0.25, 0, w * 0.5, h, cw / 2 - r, ch / 2 - r, 2 * r, 2 * r);
       g.restore();
     } else {
-      const s = Math.min(cw / w, ch / h) / o.fit;
+      const s = o.fit === 'cover' ? Math.max(cw / w, ch / h) / COVER : Math.min(cw / w, ch / h) / o.fit;
       g.drawImage(staticPic, (cw - w * s) / 2, (ch - h * s) / 2, w * s, h * s);
     }
     return true;

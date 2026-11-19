@@ -29,6 +29,10 @@ const BLEED_PASSES = 10;
 /** How high the dome bulges: a disc becomes a hemisphere at 1. */
 export const PUFF = { flat: 0.35, cushion: 0.6, dome: 1 };
 
+/** fit: 'cover' frames the object 1 / COVER larger than the canvas on its short axis, so its outline (the antialiased
+ *  pixel, the dome's last steep slope) sits just past the edges. core.js frames the live object, silk.js the still one. */
+export const COVER = 0.97;
+
 /**
  * Decode a picture into an ImageBitmap. `src` is a URL (fetched with CORS) or anything createImageBitmap
  * accepts (<img>, canvas, ImageBitmap, Blob). `flipY` is for textures sampled with v up (the sphere's map).

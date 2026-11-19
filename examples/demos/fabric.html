@@ -23,9 +23,9 @@
     2. Change the cloth: drawCloth() paints it (colours and folds) on a canvas, so there is no picture to load.
        The same painting is the section's CSS background before the silk is up, and stays it where the silk never
        comes (reduced motion, Save-Data, a very small device): there is no separate poster to keep in step.
-  The sheet is a picture inflated with matte: 'rect', corner: 0, fit: 1, a low puff. silkify frames a picture by
-  "contain", so the cloth is painted at the section's own aspect ratio, and painted again (a new silkify()) when
-  that ratio changes. The text sits above the canvas and stays ordinary HTML; the pointer ripples the silk under it.
+  The sheet is a picture inflated with matte: 'rect', corner: 0, fit: 'cover', a low puff: the cloth is painted once,
+  at the section's proportions when the page loads, and the silk covers the section at any size after that, cropped
+  like a CSS background-size: cover. The text sits above the canvas and stays ordinary HTML; the pointer ripples the silk under it.
   The Long Room and its performers are made up.
 -->
 <style>
@@ -55,7 +55,7 @@
   .cloth {
     position: relative; overflow: hidden; touch-action: pan-y;
     min-height: min(78svh, 760px); display: grid; align-items: end;
-    background: var(--cloth) center / 100% 100% no-repeat; color: var(--on-cloth);
+    background: var(--cloth) center / cover no-repeat; color: var(--on-cloth);
   }
   .cloth canvas {
     position: absolute; inset: 0; width: 100%; height: 100%; display: block;
@@ -187,44 +187,30 @@
 
   const section = document.getElementById('cloth');
   const SHEET = {
-    matte: 'rect', corner: 0, fit: 1, puff: 0.05,                  // one flat sheet, edge to edge, square corners
+    matte: 'rect', corner: 0, fit: 'cover', puff: 0.05,            // one flat sheet over the whole section, at any size
     anisotropy: 0.5, anisotropyAngle: Math.PI / 2,                // the sheen drawn out along vertical threads
     sheen: 0.35, sheenPower: 10, silkRest: 0.2, floor: 0.8, volume: 0.08,
     pressRadius: 0.03, displace: 0.22,
     breeze: 0.3,                                                   // keeps the loop at 30 fps while visible: one per page
   };
 
-  let silk = null, aspect = 0;
-  /** Paint the cloth at the section's aspect ratio and inflate it; a new ratio means a new silkify(). */
+  let silk = null;
+  /** Paint the cloth at the section's proportions and inflate it, once: fit: 'cover' follows every later size. */
   function mount() {
     const r = section.getBoundingClientRect();
     if (!r.width || !r.height) return;
-    aspect = r.height / r.width;
-    const w = Math.min(1024, Math.round(r.width)), h = Math.max(1, Math.round(w * aspect));
-    const old = silk;
+    const w = Math.min(1024, Math.round(r.width)), h = Math.max(1, Math.round((w * r.height) / r.width));
     const canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
     section.prepend(canvas);
     silk = silkify(canvas, { ...SHEET, image: drawCloth(w, h) });
-    silk.ready.then((h) => {
-      if (h !== silk) return;
-      if (h.mode === 'webgl') section.classList.add('live');
-      if (old) { old.dispose(); old.canvas.remove(); }   // the old sheet stays up until the new one is drawn
-    });
+    silk.ready.then((h) => { if (h.mode === 'webgl') section.classList.add('live'); });
   }
 
   if (pickTier().tier !== 'static') {
     const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
     const start = () => idle(mount, { timeout: 1500 });
     document.readyState === 'complete' ? start() : addEventListener('load', start, { once: true });
-    let timer = 0;
-    new ResizeObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const r = section.getBoundingClientRect();
-        if (silk && Math.abs(r.height / r.width - aspect) / aspect > 0.03) mount();
-      }, 300);
-    }).observe(section);
   }
 
   // hooks for tests

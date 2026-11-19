@@ -55,7 +55,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | `matte` | `'auto'` | `'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one | |
 | `corner` | 0.06 | Corner radius of `'rect'`, as a fraction of the short side; 0 is a square | |
 | `threshold` | 0.5 | Alpha that counts as inside | |
-| `fit` | 1.3 | Canvas extent ÷ object extent; leaves room for the bulge | 1.15 is tight, 1.5 is airy |
+| `fit` | 1.3 | Canvas extent ÷ object extent; leaves room for the bulge. `'cover'`: the object fills the canvas whatever their proportions, cropped on the canvas's long axis, its outline just past the edges, and it follows the canvas when it is resized (no new `silkify()`); for a full-bleed sheet, with `matte: 'rect', corner: 0` and a low `puff` | 1.15 is tight, 1.5 is airy |
 | **Shape (sphere)** | | | |
 | `phase` | `null` | Lunar phase 0–1; overrides `light` | 0.35–0.42 gives a gibbous moon |
 | `bump` | `null` | Elevation map URL (same projection) for relief near the terminator | |
@@ -86,7 +86,7 @@ All parameters are optional except `image` (or `element`, see [Element mode](#el
 | Option | In element mode |
 |---|---|
 | `element` | An `Element`, or a selector for one. Takes the place of `image`; passing both throws a `TypeError`. It must already be in the DOM: a selector that matches nothing, or `null` (a `getElementById()` or a React ref read too early), throws a `TypeError` at once, so call `silkify()` after the element is rendered (in React, in an effect). |
-| `fit` | Default: canvas ÷ element, the smaller of the two ratios, so the element is drawn 1:1 (its words the size they are in the page), recomputed whenever the canvas or the element changes size. An element larger than the canvas is shrunk to 92% of it instead, and one `console.warn` gives both sizes. A number scales it like a picture, and never warns. |
+| `fit` | Default: canvas ÷ element, the smaller of the two ratios, so the element is drawn 1:1 (its words the size they are in the page), recomputed whenever the canvas or the element changes size. An element larger than the canvas is shrunk to 92% of it instead, and one `console.warn` gives both sizes. A number scales it like a picture, and never warns. `'cover'` throws a `TypeError`. |
 | `puff` | Default `'cushion'`. |
 | `matte`, `threshold`, `corner` | Ignored: the outline is the element's own painted box, its `border-radius` included. |
 | `albedo`, `grain` | Ignored, also when a preset (`foil`, `paper`, `ink`) or `setTheme()` sets them: they would paint over the words. |

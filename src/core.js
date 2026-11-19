@@ -22,7 +22,7 @@
  * Off-screen or hidden tab → stopped. A lifted touch or a pointer that left the window stops counting as hovering.
  * If full-speed frames average > 28 ms, the device-pixel ratio steps down 2 → 1.5 → 1.
  */
-import { buildShape, PUFF } from './shape.js';
+import { buildShape, PUFF, COVER } from './shape.js';
 import { gridFor } from './tier.js';
 import { SIM_VERT, SIM_FRAG, OBJ_VERT, OBJ_FRAG } from './shaders.js';
 
@@ -58,6 +58,9 @@ const hasRaf = typeof requestAnimationFrame === 'function';
 const nextFrame = (cb) => (hasRaf ? requestAnimationFrame(cb) : setTimeout(cb, 16));
 const cancelFrame = (id) => (hasRaf ? cancelAnimationFrame(id) : clearTimeout(id));
 const resolvePuff = (p) => (typeof p === 'string' ? PUFF[p] ?? 1 : p);
+/** The orthographic camera's half height for an object 2 wide and 2·aspect tall on a canvas of aspect A (w / h):
+ *  a number `fit` contains it with that much room; 'cover' fills the canvas with it, cropped on the long axis. */
+const halfHeight = (fit, aspect, A) => (fit === 'cover' ? COVER * Math.min(aspect, 1 / A) : Math.max(fit * aspect, fit / A));
 
 function sunFromPhase(f) {
   const t = Math.PI * 2 * f;
@@ -166,7 +169,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
     const shape = buildShape(assets.picture, {
       matte: o.matte, corner: o.corner, threshold: o.threshold, puff: resolvePuff(o.puff),
       meshFor: (s, asp) => {
-        const pxPerUnit = view.h / (2 * Math.max(o.fit * asp, o.fit / A));
+        const pxPerUnit = view.h / (2 * halfHeight(o.fit, asp, A));
         grid = gridFor(tier, Math.min(512, Math.round(s / TEXEL)), s * pxPerUnit);
         grid.domainPx = s * pxPerUnit * Math.min(view.dpr || 1, ratioCap);   // the domain's size in device pixels
         return grid.mesh;
@@ -518,7 +521,7 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
       camera.aspect = A;
       camera.position.z = SPHERE_Z / Math.min(1, A);
     } else {
-      const halfH = Math.max(o.fit * aspect, o.fit / A);
+      const halfH = halfHeight(o.fit, aspect, A);   // follows the canvas: a resized 'cover' stays covered
       camera.left = -halfH * A; camera.right = halfH * A; camera.top = halfH; camera.bottom = -halfH;
     }
     camera.updateProjectionMatrix();

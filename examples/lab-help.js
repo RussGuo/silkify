@@ -44,7 +44,7 @@ export const HELP = {
   "matte": "`'alpha'` uses the PNG's alpha; `'rect'` uses the whole picture as a rounded rectangle; `'auto'` picks one",
   "corner": "Corner radius of `'rect'`, as a fraction of the short side; 0 is a square",
   "threshold": "Alpha that counts as inside",
-  "fit": "Canvas extent ÷ object extent; leaves room for the bulge",
+  "fit": "Canvas extent ÷ object extent; leaves room for the bulge. `'cover'`: the object fills the canvas whatever their proportions, cropped on the canvas's long axis, its outline just past the edges, and it follows the canvas when it is resized (no new `silkify()`); for a full-bleed sheet, with `matte: 'rect', corner: 0` and a low `puff`",
   "phase": "Lunar phase 0–1; overrides `light`",
   "bump": "Elevation map URL (same projection) for relief near the terminator",
   "bumpStrength": "How strongly the `bump` map raises the relief",
