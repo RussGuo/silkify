@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>silkify — a silk button</title>
 <link rel="icon" href="data:,">
+<meta name="description" content="A real button whose face is silk: it dents under a finger or the mouse, ripples when Enter or Space presses it, and stays an ordinary, accessible button.">
 <!-- link previews (Open Graph, X / Twitter): docs/og.jpg is the README's hero, cropped to 1200 × 630 -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="silkify">
@@ -33,9 +34,19 @@
   scripts/verify-events.mjs presses it with a mouse, a finger and the keyboard (window.__button).
 -->
 <style>
-  :root { --paper: #f3efe7; --ink: #1f1d1a; --muted: #6f695f; --face: #ebe6dc; --ring: #8a2f3c; color-scheme: light; }
+  :root { --paper: #f3efe7; --ink: #1f1d1a; --muted: #6f695f; --face: #ebe6dc; --rule: #d9d2c4; --ring: #8a2f3c; --accent: #8a6d3b; --accent-text: #7a5f30; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #141312; --ink: #ece7dd; --muted: #8d877c; --face: #1c1b19; --rule: #2c2a26; --ring: #d27a86; --accent: #c9a96b; --accent-text: #c9a96b; color-scheme: dark; }
+  }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
-  .wrap { max-width: 560px; margin: 0 auto; padding: 48px 20px 64px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 28px 20px 64px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+  .wrap { padding-top: 48px; }
+  nav { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--muted); }
+  nav a { color: inherit; text-decoration: none; }
+  nav a:hover { color: var(--ink); }
+  nav .brand { font: 400 20px/1 ui-serif, "Iowan Old Style", Georgia, serif; color: var(--ink); }
+  nav .brand em { color: var(--accent-text); }   /* the accent darkened to 5.2:1 for 20 px type */
   h1 { margin: 0 0 6px; font: 400 40px/1.1 ui-serif, Georgia, serif; }
   .lede { margin: 0 0 32px; color: var(--muted); }
   .silk-button {
@@ -55,6 +66,7 @@
 </head>
 <body>
 <div class="wrap">
+  <main>
   <h1>A silk button</h1>
   <p class="lede">A real button whose face is silk. Press it with the mouse, a finger, or Tab to it and press Enter or Space.</p>
   <button class="silk-button" id="buy" type="button">
@@ -62,6 +74,9 @@
     <span>Add a pomegranate</span>
   </button>
   <p class="status"><output id="count" aria-live="polite">Nothing in the basket yet.</output></p>
+  </main>
+  <!-- after the button, not above it: the page says "Tab to it", so the button is the first stop -->
+  <nav class="foot" aria-label="silkify"><a class="brand" href="./">silk<em>ify</em></a><span><a href="./">Gallery</a> · <a href="lab.html">Lab</a></span></nav>
 </div>
 
 <script type="importmap">
