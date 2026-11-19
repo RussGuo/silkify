@@ -221,7 +221,7 @@ When the thing to silkify is part of the page itself (a card, a quote, a sign-up
 
 ## Performance rules
 
-- One live object per WebGL context, and browsers allow about 16. With more than three objects on a page, use the gallery's pattern: a WebP poster first, `silkify()` on the first `pointerenter` or `pointerdown`, `dispose()` when the card scrolls away, at most 3 live. The touch that mounted it is answered: silkify keeps the pointer from the moment it is called.
+- One live object per WebGL context, and browsers allow about 16. With more than three objects on a page, use the gallery's pattern: a WebP poster first, `prewarm()` once the page is idle, `silkify()` on the first `pointerenter` or `pointerdown`, `dispose()` when the card scrolls away, at most 3 live. `prewarm()` starts a worker and imports three.js ahead of time, so mounting on a touch only builds the scene (about 0.1 s instead of 1.2–1.4 s, measured in headless Chrome); the touch that mounted it is answered either way, since silkify keeps the pointer from the moment it is called.
 - The loop sleeps by itself: 60 fps while touched and for 8 s after, a 12 fps tail, then no frames at all. Only the pointer over the canvas counts: moving or holding it elsewhere on the page draws nothing. The waves step at a fixed 60 Hz, so they move at the same speed on a 120 Hz display. Phones and small screens get the low tier; reduced motion, Save-Data and no WebGL2 get a still frame (pass a `poster`).
 - `breeze` and `autoplay` keep the loop awake (breeze draws 30 fps while visible). Use them on one hero object, never on a grid.
 

@@ -619,7 +619,8 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
 
 /* ============================================
  * serve(post, loadThree) — the message endpoint. The worker wires it to postMessage; the main-thread
- * fallback calls it directly. Messages in: init, pointer, press, lift, touch, view, visible, still, options, wake, stats, dispose (init carries
+ * fallback calls it directly. Messages in: warm { threeUrl } (prewarm: import three.js before init; answered with
+ * warm { ok }), init, pointer, press, lift, touch, view, visible, still, options, wake, stats, dispose (init carries
  * the pointer of the loading time, pointer { x, y, down } | null and trail [{ x, y }]: see replayPointer); for live
  * HTML also html { img } (an Element or ElementImage to print on the albedo) and shape { picture, patch } (the
  * element changed size: a new dome from a new stand-in, the same context). Messages out:
@@ -629,8 +630,11 @@ export function createSilk(THREE, opened, assets, o, tier, init) {
  * way (an HTTP error, or nothing in the picture is opaque); `picture` that the picture could not be decoded here,
  * which another thread may still manage; `svg` that the picture is an SVG the page must rasterise.
  * ============================================ */
-export function serve(post, loadThree) {
+export function serve(post, loadThreeOnce) {
   let silk = null, dead = false;
+  // three.js, imported once per URL: a prewarmed worker (message 'warm') has it ready before `init` arrives
+  const threes = new Map();
+  const loadThree = (url) => { if (!threes.has(url)) threes.set(url, loadThreeOnce(url)); return threes.get(url); };
   // messages that arrive before the scene exists: the newest view / visibility / stillness, every option patch
   // merged in order, every programmatic touch, and the pointer (where it is, whether it is pressed, the points it
   // crossed), replayed once the scene is up
@@ -722,6 +726,7 @@ export function serve(post, loadThree) {
 
   return (m) => {
     switch (m.t) {
+      case 'warm': loadThree(m.threeUrl).then(() => post({ t: 'warm', ok: true }), () => post({ t: 'warm', ok: false })); break;
       case 'init': init(m).catch((e) => post({ t: 'fail', reason: String(e?.message || e), code: !!e?.code })); break;
       case 'pointer': latest.at = { x: m.x, y: m.y }; if (silk) silk.pointer(m.x, m.y); else if (latest.trail.length < 64) latest.trail.push(latest.at); break;
       case 'press': latest.down = m.down; silk?.press(m.down); break;

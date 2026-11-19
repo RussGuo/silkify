@@ -37,6 +37,7 @@ A lifted finger, a cancelled touch, or a pointer leaving the window ends "hoveri
 
 **Many objects on one page.** Each live canvas is a WebGL context, and browsers allow about 16. Use the gallery's pattern (`examples/index.html`):
 - Show a **poster** first: an `<img loading="lazy">` WebP at 1x and 2x, rendered by `node scripts/shoot.mjs --posters`.
+- **Prewarm** once the page is idle: `prewarm({ tier })` (with the options the objects will use) starts one worker and has it import three.js, without a canvas and without a WebGL context. The next `silkify()` takes that worker, and another is warmed when the page is next idle; on the main-thread path it imports core.js and three instead, and in the static tier it does nothing. It holds one idle worker with three.js parsed, a few MB, for as long as the page is open.
 - Mount `silkify` on the first `pointerenter` or `pointerdown`, and fade the canvas in when `ready` resolves. silkify listens to the pointer from the call on, so the touch that mounted it is not lost: a pointer still over the canvas when the renderer is up hovers and presses at once, and one that already left (a stroke across, a tap) gets one ripple where it first crossed the object.
 - `dispose()` it when the card leaves the viewport.
 - Keep at most 3 live, releasing the least recently touched.
@@ -57,6 +58,7 @@ A lifted finger, a cancelled touch, or a pointer leaving the window ends "hoveri
 v0.2.0 probed WebGL2 by creating a throwaway context on the main thread at load: 15–240 ms on a real GPU, 2.5 s per probe on SwiftShader. v0.2.1 probes the canvas's own context inside the worker.
 
 Measured separately, because Lighthouse never touches the page:
+- **First touch of a card, `activate()` → `ready`** (headless Chrome 157, a fresh browser context each run, three.js from the CDN, 3 runs): 1.2–1.4 s without prewarm (3.1 s once, the first run), 0.11–0.12 s after `prewarm()`, on SwiftShader and on the real GPU alike: what is left is building the scene.
 - **Main-thread long tasks while one card mounts** (headed Chrome, real GPU, 3 runs): none in a worker; 57–59 ms with `worker: false`. The same in v0.2.0 and v0.2.1.
 - **Frames drawn at rest:** 0 in 10 s (`scripts/shoot.mjs`, the Lab in the low tier), in v0.2.0 and v0.2.1 alike, and 0 in 3 s with the pointer moving and held elsewhere on the page (measured on v0.2.1).
 - **GPU buffers** (estimate, 373 px card at ratio 2): ≈ 5 MB per live object, at most 3 live, 0 until touched.

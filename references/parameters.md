@@ -150,3 +150,14 @@ silkify(canvas, { image: 'teapot.png', puff: 'cushion', material: 'wet', feel: '
 silkify(canvas, { image: 'logo.png', material: 'ink', albedo: [0.15, 0.15, 0.165], exposure: 2.2 });   // the ink-drop card
 silkify(canvas, { image: 'pear.png', material: 'satin', autoplay: true });                           // a hero that moves by itself
 ```
+
+## Exports
+
+What `silk.js` exports by name (`silkify` is also the default export). The handle that `silkify()` returns is described in [SKILL.md](../SKILL.md#the-handle).
+
+| Export | What it is |
+|---|---|
+| `silkify(canvas, options)` | Mounts one object; returns the handle. |
+| `prewarm(options)` | Does the slow, shared part of a mount ahead of time: starts one worker and has it import three.js (on the main-thread path: imports core.js and three), so the next `silkify()` only builds its scene. Pass the options the objects will use (`tier`, `reducedMotion`, `worker`, `threeUrl`). Nothing in the static tier. A promise of `true` once warm, `false` if it could not be; never rejects. Call it when the page is idle, on a page that mounts objects on their first touch ([performance.md](performance.md)). |
+| `resolveOptions(options)` | The options silkify will actually use, presets merged (the Lab prints only what differs from it). |
+| `MATERIALS`, `FEELS`, `PUFF` | The presets and the puff heights, as plain objects. |

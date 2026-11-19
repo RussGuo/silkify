@@ -225,7 +225,7 @@
 </div>
 
 <script type="module">
-  import { silkify } from '../src/silk.js';
+  import { silkify, prewarm } from '../src/silk.js';
   import { pickTier } from '../src/tier.js';
 
   /* ---- page modes: ?tier=high|low|static forces a tier; ?poster=1 renders still frames for the posters ---- */
@@ -250,6 +250,15 @@
       : `This card is shown as plain HTML here (${tier.why}): its words and link work as usual.`;
     htmlNote.dataset.plain = '';
   }
+
+  // the slow, shared part of a mount (a worker, three.js) is done once the page is idle, so the first touch of a
+  // card only waits for its own scene
+  const warm = new Promise((resolve) => {
+    if (tier.tier === 'static' || posterMode) return resolve(false);
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
+    const go = () => idle(() => resolve(prewarm({ tier: forced })), { timeout: 2000 });
+    document.readyState === 'complete' ? go() : addEventListener('load', go, { once: true });
+  });
 
   // the poster stays until someone reaches for the object; then the live renderer takes over
   if (tier.tier !== 'static' && !posterMode) {
@@ -298,7 +307,7 @@
 
   // hooks for scripts/shoot.mjs
   window.__gallery = {
-    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release,
+    ids: CARDS.map((c) => c.id), tier: tier.tier, live, activate, release, warm,
     stroke: (id) => byId.get(id)?.stroke || '',
   };
 </script>

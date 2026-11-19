@@ -33,7 +33,8 @@
  *
  * The first touch: the pointer is listened to from the call on, not from `ready`. What it does while the renderer
  * loads (hovering, a stroke across, a tap, a held button) is kept and handed to the renderer, which answers it the
- * moment it is up.
+ * moment it is up. `prewarm()` does the slow, shared part of a mount ahead of time (a worker with three.js imported),
+ * so a page of many objects can mount each one on its first touch and still answer that touch quickly.
  *
  * Peer dependency: three (tested with 0.152.2), resolved through the page's import map or bundler.
  */
@@ -133,6 +134,50 @@ function spawnWorker() {
 
 const canWorker = () => typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
   && 'transferControlToOffscreen' in HTMLCanvasElement.prototype;
+/** Whether a mount would try a worker first (live HTML also needs captureElementImage: see mount()). */
+const workerFirst = (o) => o.worker !== false && canWorker() && location.protocol !== 'file:';
+
+/* ---- prewarm: one spare worker that has already started and imported three.js, taken by the next mount ---- */
+let spare = null;          // { worker, threeUrl, ok: undefined (warming) | true | false, ready: Promise<boolean> }
+let warmMain = null;       // the main-thread path: core.js and three, imported once
+function warmWorker(threeUrl) {
+  const s = { worker: spawnWorker(), threeUrl, ok: undefined };
+  s.ready = new Promise((resolve) => {
+    const done = (ok) => { s.ok = ok; resolve(ok); };
+    // listeners, not onmessage / onerror: a mount that takes the worker while it is still warming sets those
+    s.worker.addEventListener('message', (e) => { if (e.data.t === 'warm') done(e.data.ok); });
+    s.worker.addEventListener('error', (e) => { e.preventDefault?.(); done(false); });
+  });
+  s.worker.postMessage({ t: 'warm', threeUrl });
+  return s;
+}
+/** The spare, if it is warming or warm for this three.js; a new one is warmed when the page is next idle. */
+function takeSpare(threeUrl) {
+  if (!spare || spare.threeUrl !== threeUrl || spare.ok === false) return null;
+  const { worker } = spare;
+  spare = null;
+  idle(() => { spare ??= warmWorker(threeUrl); });
+  return worker;
+}
+const idle = (f) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 200));
+
+/**
+ * prewarm(options) → Promise<boolean>: do the slow, shared part of a mount before anyone touches an object, so that a
+ * later silkify() only builds its scene. In a worker: start one and have it import three.js (and core.js); the next
+ * mount takes it, and another is warmed when the page is idle. On the main thread: import core.js and three. Nothing
+ * in the static tier. Pass the options the objects will use (tier, reducedMotion, worker, threeUrl). Idempotent;
+ * resolves true once warm, false if it could not be (the mount then says why, as usual). Never rejects.
+ */
+export function prewarm(options = {}) {
+  const o = { ...COMMON, ...options };
+  if (pickTier(o.tier, o.reducedMotion).tier === 'static') return Promise.resolve(false);
+  const threeUrl = resolveThree(o.threeUrl);
+  if (workerFirst(o)) {
+    if (!spare || spare.threeUrl !== threeUrl) { spare?.worker.terminate(); spare = warmWorker(threeUrl); }
+    return spare.ready;
+  }
+  return (warmMain ??= Promise.all([import('./core.js'), import('three')]).then(() => true, () => false));
+}
 
 function loadImage(src) {
   if (typeof src !== 'string') return Promise.resolve(src);
@@ -419,7 +464,7 @@ export function silkify(canvasIn, options = {}) {
       if (onWorker) {
         const offscreen = canvas.transferControlToOffscreen();
         claimed.add(canvas);
-        worker = spawnWorker();
+        worker = takeSpare(threeUrl) || spawnWorker();
         worker.onmessage = (e) => receive(e.data);
         worker.onerror = (e) => { e.preventDefault?.(); reject(Object.assign(new Error(`the worker did not start (${e.message || 'worker.js or a module it imports could not be loaded'})`), { code: true })); };
         send = (m, transfer) => worker?.postMessage(m, transfer || []);
@@ -543,7 +588,7 @@ export function silkify(canvasIn, options = {}) {
       // a page opened from file:// has an opaque origin: Chrome refuses its blob: worker and WebKit's cannot read
       // blobs, so it renders on the main thread (the Lab's downloaded pages open this way); live HTML in a worker
       // also needs captureElementImage()
-      const tries = o.worker !== false && canWorker() && location.protocol !== 'file:' && (!live || liveSupport().worker) ? [true, false] : [false];
+      const tries = workerFirst(o) && (!live || liveSupport().worker) ? [true, false] : [false];
       for (let i = 0; i < tries.length; i++) {
         const onWorker = tries[i];
         try {
