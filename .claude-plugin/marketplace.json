@@ -1,6 +1,6 @@
 {
   "name": "silkify",
-  "owner": { "name": "Guo Hao", "url": "https://github.com/RussGuo" },
+  "owner": { "name": "Russ Guo", "url": "https://github.com/RussGuo" },
   "description": "silkify: turn a picture into a touchable silk object on a web page",
   "plugins": [
     {

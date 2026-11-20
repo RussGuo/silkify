@@ -245,4 +245,4 @@ The silk material and the wave-and-light pipeline began as the "silk moon" on th
 
 ## License
 
-The code is under the [MIT](LICENSE) license, © 2026 Guo Hao. The example images keep their own terms: public domain or CC0, except the FateTell mark, which is © FateTell, all rights reserved, and not covered by MIT (see the exception in [LICENSE](LICENSE) and [CREDITS](examples/CREDITS.md)).
+The code is under the [MIT](LICENSE) license, © 2026 Russ Guo. The example images keep their own terms: public domain or CC0, except the FateTell mark, which is © FateTell, all rights reserved, and not covered by MIT (see the exception in [LICENSE](LICENSE) and [CREDITS](examples/CREDITS.md)).

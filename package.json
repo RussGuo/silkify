@@ -5,7 +5,7 @@
   "description": "Silkify anything: turn any image into a touchable silk surface on the web",
   "type": "module",
   "license": "MIT",
-  "author": "Guo Hao",
+  "author": "Russ Guo",
   "repository": {
     "type": "git",
     "url": "https://github.com/RussGuo/silkify.git"

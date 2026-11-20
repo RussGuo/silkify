@@ -245,5 +245,5 @@ React 和 Next.js：[examples/react](examples/react/src/SilkHtml.jsx) 里的 `Si
 
 ## 许可证
 
-代码采用 [MIT](LICENSE) 许可证，© 2026 Guo Hao。示例图片各自保留原有条款：除 FateTell 标识外，均为公有领域或 CC0；FateTell 标识 © FateTell 保留所有权利，不在 MIT 之内（见 [LICENSE](LICENSE) 末尾的例外条款与 [CREDITS](examples/CREDITS.md)）。
+代码采用 [MIT](LICENSE) 许可证，© 2026 Russ Guo。示例图片各自保留原有条款：除 FateTell 标识外，均为公有领域或 CC0；FateTell 标识 © FateTell 保留所有权利，不在 MIT 之内（见 [LICENSE](LICENSE) 末尾的例外条款与 [CREDITS](examples/CREDITS.md)）。
 
